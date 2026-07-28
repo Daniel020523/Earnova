@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contact us — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="auth-guard.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+  </div>
+</header>
+
+<main class="page">
+  <a href="dashboard.html" class="back-link">&larr; Back to home</a>
+  <div class="kicker">Get in touch</div>
+  <h1>Contact us</h1>
+  <p class="lead">Have a question, partnership idea, or feedback? Send us a message.</p>
+
+  <form class="card" onsubmit="return sendContactMessage(event);">
+    <label for="cname">Name</label>
+    <input id="cname" type="text" placeholder="Your name" required>
+    <label for="cemail">Email address</label>
+    <input id="cemail" type="email" placeholder="you@example.com" required>
+    <label for="cmessage">Message</label>
+    <input id="cmessage" type="text" placeholder="How can we help?" required>
+    <button type="submit" class="btn btn-solid">Send message</button>
+  </form>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+<script>
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  async function sendContactMessage(event){
+    event.preventDefault();
+    const name = document.getElementById('cname').value;
+    const email = document.getElementById('cemail').value;
+    const message = document.getElementById('cmessage').value;
+    const button = event.target.querySelector('button[type="submit"]');
+    const originalLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Sending...';
+
+    try {
+      const res = await fetch(SUPABASE_URL + '/functions/v1/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'apikey': SUPABASE_KEY
+        },
+        body: JSON.stringify({ formType: 'contact', name, email, message })
+      });
+      if (!res.ok) throw new Error('Request failed');
+      showToast('Message sent — we\'ll reply to your email soon.');
+      event.target.reset();
+    } catch (err) {
+      showToast('Something went wrong sending your message. Please try again.');
+    } finally {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
+    return false;
+  }
+</script>
+
+</body>
+</html>
