@@ -136,9 +136,9 @@
       }, 800);
 
     } catch (err) {
-      console.error(err);
-      showToast(err.message || 'Something went wrong. Please try again.');
-    } finally {
+  alert('ERROR: ' + JSON.stringify(err, null, 2));
+  showToast(err.message || err.error_description || err.msg || 'Something went wrong.');
+} finally {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Sign up';
     }
