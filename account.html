@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linked Account — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .form-card{
+    max-width:480px;
+  }
+  .form-row{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    margin-bottom:8px;
+  }
+  .form-row label{
+    font-size:13px;
+    font-weight:600;
+    opacity:0.8;
+  }
+  .form-row input{
+    padding:10px 12px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+    letter-spacing:0.5px;
+  }
+  .form-row input:focus{
+    outline:none;
+    border-color:#3b5bdb;
+  }
+  .form-error{
+    color:#c0392b;
+    font-size:13px;
+    margin:8px 0;
+    display:none;
+  }
+  .inline-spinner{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    opacity:0.7;
+    margin:10px 0;
+  }
+  .spinner{
+    width:14px;
+    height:14px;
+    border:2px solid rgba(0,0,0,0.15);
+    border-top-color:#3b5bdb;
+    border-radius:50%;
+    animation:spin 0.7s linear infinite;
+  }
+  @keyframes spin{
+    to{ transform:rotate(360deg); }
+  }
+  .bank-options{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin:8px 0 16px 0;
+  }
+  .bank-option{
+    text-align:left;
+    padding:12px 14px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:8px;
+    background:#fff;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .bank-option:hover{
+    border-color:#3b5bdb;
+  }
+  .bank-option.selected{
+    border-color:#3b5bdb;
+    background:#eef1ff;
+    color:#3b5bdb;
+  }
+  .account-name-box{
+    background:#eef6ee;
+    border:1px solid #bfe3bf;
+    border-radius:8px;
+    padding:12px 14px;
+    margin:8px 0 16px 0;
+    display:none;
+  }
+  .account-name-box .label{
+    font-size:12px;
+    opacity:0.7;
+    margin-bottom:2px;
+  }
+  .account-name-box .value{
+    font-weight:700;
+    font-size:15px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="profile.html">Profile</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Payout details</div>
+  <h1 id="page-heading">Add bank account</h1>
+  <p class="lead">Enter your 10-digit account number — we'll detect your bank automatically.</p>
+
+  <div id="form-loading" class="card">
+    <p>Loading…</p>
+  </div>
+
+  <div id="form-content" class="card form-card" style="display:none;">
+    <p class="form-error" id="form-error"></p>
+
+    <div class="form-row">
+      <label for="account-number">Account number</label>
+      <input type="text" id="account-number" inputmode="numeric" maxlength="10" placeholder="0123456789" autocomplete="off">
+    </div>
+
+    <div class="inline-spinner" id="bank-spinner" style="display:none;">
+      <span class="spinner"></span> Detecting bank…
+    </div>
+
+    <div class="bank-options" id="bank-options" style="display:none;"></div>
+
+    <div class="inline-spinner" id="name-spinner" style="display:none;">
+      <span class="spinner"></span> Verifying account name…
+    </div>
+
+    <div class="account-name-box" id="account-name-box">
+      <div class="label">Account name</div>
+      <div class="value" id="account-name-value">—</div>
+    </div>
+
+    <button type="button" class="btn btn-solid" id="submit-btn" style="display:none;">Add Account</button>
+    <a class="btn btn-ghost" href="profile.html" style="margin-left:8px;">Cancel</a>
+  </div>
+
+  <div id="page-error" class="card" style="display:none;">
+    <p id="page-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // Use the same values as dashboard.html / login.html / profile.html.
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  // Edge functions that proxy Paystack's resolve endpoint (keep the secret key server-side).
+  const RESOLVE_ACCOUNT_BANKS_URL = `${SUPABASE_URL}/functions/v1/resolve-account-banks`;
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentUserId = null;
+  let selectedBank = null; // { name, code }
+  let resolvedAccountName = null;
+  let candidateBanks = []; // [{ bank_name, bank_code, account_name }] from the last real verification
+
+  // ---------------------------------------------------------------
+  // Bank detection is done server-side against the real Paystack/NIBSS
+  // resolve endpoint (checking the account number against every bank
+  // and keeping only the ones that genuinely verify). We deliberately
+  // do NOT guess the bank from the NUBAN check digit alone — that
+  // algorithm has only one check digit, so unrelated banks can pass
+  // the same math by coincidence and point to the wrong bank.
+  // ---------------------------------------------------------------
+  async function detectCandidateBanks(accountNumber){
+    const resp = await fetch(RESOLVE_ACCOUNT_BANKS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account_number: accountNumber })
+    });
+    const json = await resp.json();
+
+    if (!resp.ok || !json.banks) {
+      throw new Error(json.error || "Couldn't detect a bank for this account number.");
+    }
+
+    return json.banks.map(b => ({ name: b.bank_name, code: b.bank_code, account_name: b.account_name }));
+  }
+
+  function resetDownstream(){
+    selectedBank = null;
+    resolvedAccountName = null;
+    candidateBanks = [];
+    document.getElementById('bank-options').style.display = 'none';
+    document.getElementById('bank-options').innerHTML = '';
+    document.getElementById('name-spinner').style.display = 'none';
+    document.getElementById('account-name-box').style.display = 'none';
+    document.getElementById('submit-btn').style.display = 'none';
+    document.getElementById('form-error').style.display = 'none';
+  }
+
+  function showFormError(msg){
+    const el = document.getElementById('form-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function renderBankOptions(banks){
+    const container = document.getElementById('bank-options');
+    container.innerHTML = banks.map(bank => `
+      <button type="button" class="bank-option" data-code="${bank.code}" data-name="${bank.name}">
+        ${bank.name}
+      </button>
+    `).join('');
+    container.style.display = 'flex';
+
+    container.querySelectorAll('.bank-option').forEach(btn => {
+      btn.addEventListener('click', () => onBankSelected({
+        code: btn.getAttribute('data-code'),
+        name: btn.getAttribute('data-name')
+      }, container));
+    });
+  }
+
+  async function onBankSelected(bank, container){
+    selectedBank = bank;
+    resolvedAccountName = null;
+
+    container.querySelectorAll('.bank-option').forEach(btn => {
+      btn.classList.toggle('selected', btn.getAttribute('data-code') === bank.code);
+    });
+
+    document.getElementById('account-name-box').style.display = 'none';
+    document.getElementById('submit-btn').style.display = 'none';
+    document.getElementById('form-error').style.display = 'none';
+    document.getElementById('name-spinner').style.display = 'flex';
+
+    // The account name was already verified against this exact bank
+    // when we scanned candidate banks, so we just surface it here —
+    // re-hitting Paystack for the same pair would be redundant.
+    await new Promise(res => setTimeout(res, 350));
+    document.getElementById('name-spinner').style.display = 'none';
+
+    const match = candidateBanks.find(b => b.code === bank.code);
+
+    if (!match || !match.account_name) {
+      showFormError("Couldn't verify this account for the selected bank.");
+      return;
+    }
+
+    resolvedAccountName = match.account_name;
+    document.getElementById('account-name-value').textContent = resolvedAccountName;
+    document.getElementById('account-name-box').style.display = 'block';
+    document.getElementById('submit-btn').style.display = 'inline-block';
+  }
+
+  async function onAccountNumberInput(){
+    const raw = document.getElementById('account-number').value.replace(/\D/g, '').slice(0, 10);
+    document.getElementById('account-number').value = raw;
+
+    resetDownstream();
+
+    if (raw.length !== 10) {
+      document.getElementById('bank-spinner').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('bank-spinner').style.display = 'flex';
+
+    try {
+      const candidates = await detectCandidateBanks(raw);
+      candidateBanks = candidates.map(c => ({ code: c.code, name: c.name, account_name: c.account_name }));
+      document.getElementById('bank-spinner').style.display = 'none';
+      renderBankOptions(candidates);
+    } catch (err) {
+      document.getElementById('bank-spinner').style.display = 'none';
+      showFormError(err.message || "We couldn't detect a bank for this account number. Please double check it.");
+    }
+  }
+
+  document.getElementById('submit-btn').addEventListener('click', async () => {
+    if (!currentUserId || !selectedBank || !resolvedAccountName) return;
+
+    const accountNumber = document.getElementById('account-number').value.trim();
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving…';
+
+    const { error } = await supabaseClient
+      .from('linked_accounts')
+      .upsert({
+        user_id: currentUserId,
+        bank_name: selectedBank.name,
+        bank_code: selectedBank.code,
+        account_number: accountNumber,
+        account_name: resolvedAccountName,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+
+    if (error) {
+      showFormError("We couldn't save your account. Please try again.");
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Add Account';
+      return;
+    }
+
+    window.location.href = 'profile.html';
+  });
+
+  document.getElementById('account-number').addEventListener('input', onAccountNumberInput);
+
+  async function init(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    currentUserId = session.user.id;
+
+    const { data: existing, error: fetchError } = await supabaseClient
+      .from('linked_accounts')
+      .select('bank_name, bank_code, account_number, account_name')
+      .eq('user_id', currentUserId)
+      .maybeSingle();
+
+    if (fetchError) {
+      document.getElementById('form-loading').style.display = 'none';
+      const errBox = document.getElementById('page-error');
+      document.getElementById('page-error-text').textContent = "We couldn't load your account details. Please try again.";
+      errBox.style.display = 'block';
+      return;
+    }
+
+    if (existing) {
+      document.getElementById('page-heading').textContent = 'Change bank account';
+      document.getElementById('account-number').value = existing.account_number || '';
+      selectedBank = { name: existing.bank_name, code: existing.bank_code };
+      resolvedAccountName = existing.account_name;
+      candidateBanks = [{ code: existing.bank_code, name: existing.bank_name, account_name: existing.account_name }];
+
+      // Show the already-linked bank as the pre-selected tile, using the
+      // saved data — no need to re-scan every bank on page load.
+      renderBankOptions([{ code: existing.bank_code, name: existing.bank_name }]);
+      document.querySelectorAll('.bank-option').forEach(btn => {
+        btn.classList.toggle('selected', btn.getAttribute('data-code') === existing.bank_code);
+      });
+
+      document.getElementById('account-name-value').textContent = existing.account_name || '';
+      document.getElementById('account-name-box').style.display = existing.account_name ? 'block' : 'none';
+      document.getElementById('submit-btn').style.display = 'inline-block';
+      document.getElementById('submit-btn').textContent = 'Update Account';
+    }
+
+    document.getElementById('form-loading').style.display = 'none';
+    document.getElementById('form-content').style.display = 'block';
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  init();
+</script>
+
+</body>
+</html>
