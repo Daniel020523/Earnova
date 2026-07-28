@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Linked Account — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .form-card{
+    max-width:480px;
+  }
+  .form-row{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    margin-bottom:8px;
+  }
+  .form-row label{
+    font-size:13px;
+    font-weight:600;
+    opacity:0.8;
+  }
+  .form-row input{
+    padding:10px 12px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+    letter-spacing:0.5px;
+  }
+  .form-row input:focus{
+    outline:none;
+    border-color:#3b5bdb;
+  }
+  .form-error{
+    color:#c0392b;
+    font-size:13px;
+    margin:8px 0;
+    display:none;
+  }
+  .inline-spinner{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    opacity:0.7;
+    margin:10px 0;
+  }
+  .spinner{
+    width:14px;
+    height:14px;
+    border:2px solid rgba(0,0,0,0.15);
+    border-top-color:#3b5bdb;
+    border-radius:50%;
+    animation:spin 0.7s linear infinite;
+  }
+  @keyframes spin{
+    to{ transform:rotate(360deg); }
+  }
+  .bank-options{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin:8px 0 16px 0;
+  }
+  .bank-option{
+    text-align:left;
+    padding:12px 14px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:8px;
+    background:#fff;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .bank-option:hover{
+    border-color:#3b5bdb;
+  }
+  .bank-option.selected{
+    border-color:#3b5bdb;
+    background:#eef1ff;
+    color:#3b5bdb;
+  }
+  .account-name-box{
+    background:#eef6ee;
+    border:1px solid #bfe3bf;
+    border-radius:8px;
+    padding:12px 14px;
+    margin:8px 0 16px 0;
+    display:none;
+  }
+  .account-name-box .label{
+    font-size:12px;
+    opacity:0.7;
+    margin-bottom:2px;
+  }
+  .account-name-box .value{
+    font-weight:700;
+    font-size:15px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="profile.html">Profile</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Payout details</div>
+  <h1 id="page-heading">Add bank account</h1>
+  <p class="lead">Enter your 10-digit account number — we'll detect your bank automatically.</p>
+
+  <div id="form-loading" class="card">
+    <p>Loading…</p>
+  </div>
+
+  <div id="form-content" class="card form-card" style="display:none;">
+    <p class="form-error" id="form-error"></p>
+
+    <div class="form-row">
+      <label for="account-number">Account number</label>
+      <input type="text" id="account-number" inputmode="numeric" maxlength="10" placeholder="0123456789" autocomplete="off">
+    </div>
+
+    <div class="inline-spinner" id="bank-spinner" style="display:none;">
+      <span class="spinner"></span> Detecting bank…
+    </div>
+
+    <div class="bank-options" id="bank-options" style="display:none;"></div>
+
+    <div class="inline-spinner" id="name-spinner" style="display:none;">
+      <span class="spinner"></span> Verifying account name…
+    </div>
+
+    <div class="account-name-box" id="account-name-box">
+      <div class="label">Account name</div>
+      <div class="value" id="account-name-value">—</div>
+    </div>
+
+    <button type="button" class="btn btn-solid" id="submit-btn" style="display:none;">Add Account</button>
+    <a class="btn btn-ghost" href="profile.html" style="margin-left:8px;">Cancel</a>
+  </div>
+
+  <div id="page-error" class="card" style="display:none;">
+    <p id="page-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // Use the same values as dashboard.html / login.html / profile.html.
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  // Edge function that proxies Paystack's /bank/resolve endpoint (keeps the secret key server-side).
+  const RESOLVE_ACCOUNT_NAME_URL = `${SUPABASE_URL}/functions/v1/resolve-account-name`;
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentUserId = null;
+  let selectedBank = null; // { name, code }
+  let resolvedAccountName = null;
+
+  // ---------------------------------------------------------------
+  // Nigerian bank codes (CBN codes used by NUBAN + Paystack).
+  // Extend this list if a bank you support is missing.
+  // ---------------------------------------------------------------
+  const BANKS = [
+    { name: "Access Bank", code: "044" },
+    { name: "Citibank Nigeria", code: "023" },
+    { name: "Ecobank Nigeria", code: "050" },
+    { name: "Fidelity Bank", code: "070" },
+    { name: "First Bank of Nigeria", code: "011" },
+    { name: "First City Monument Bank", code: "214" },
+    { name: "Globus Bank", code: "00103" },
+    { name: "Guaranty Trust Bank", code: "058" },
+    { name: "Heritage Bank", code: "030" },
+    { name: "Keystone Bank", code: "082" },
+    { name: "Polaris Bank", code: "076" },
+    { name: "Providus Bank", code: "101" },
+    { name: "Stanbic IBTC Bank", code: "221" },
+    { name: "Standard Chartered Bank", code: "068" },
+    { name: "Sterling Bank", code: "232" },
+    { name: "Suntrust Bank", code: "100" },
+    { name: "Union Bank of Nigeria", code: "032" },
+    { name: "United Bank For Africa", code: "033" },
+    { name: "Unity Bank", code: "215" },
+    { name: "Wema Bank", code: "035" },
+    { name: "Zenith Bank", code: "057" },
+  ];
+
+  // ---------------------------------------------------------------
+  // NUBAN check-digit algorithm (published NIBSS standard).
+  // Given a 3-digit bank code and a 10-digit account number, returns
+  // true if the account number's check digit matches that bank.
+  // ---------------------------------------------------------------
+  function nubanMatchesBank(accountNumber, bankCode){
+    if (!/^\d{10}$/.test(accountNumber)) return false;
+
+    const paddedBankCode = bankCode.padStart(3, '0').slice(-3).padStart(6, '0');
+    const serial = accountNumber.slice(0, 9);
+    const providedCheckDigit = Number(accountNumber.slice(9));
+
+    const digits = (paddedBankCode + serial).split('').map(Number);
+    const weights = [3, 7, 3, 3, 7, 3, 3, 7, 3, 3, 7, 3, 3, 7, 3];
+
+    const sum = digits.reduce((acc, d, i) => acc + d * weights[i], 0);
+    const checkDigit = (10 - (sum % 10)) % 10;
+
+    return checkDigit === providedCheckDigit;
+  }
+
+  function detectCandidateBanks(accountNumber){
+    return BANKS.filter(bank => nubanMatchesBank(accountNumber, bank.code));
+  }
+
+  function resetDownstream(){
+    selectedBank = null;
+    resolvedAccountName = null;
+    document.getElementById('bank-options').style.display = 'none';
+    document.getElementById('bank-options').innerHTML = '';
+    document.getElementById('name-spinner').style.display = 'none';
+    document.getElementById('account-name-box').style.display = 'none';
+    document.getElementById('submit-btn').style.display = 'none';
+    document.getElementById('form-error').style.display = 'none';
+  }
+
+  function showFormError(msg){
+    const el = document.getElementById('form-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function renderBankOptions(banks){
+    const container = document.getElementById('bank-options');
+    container.innerHTML = banks.map(bank => `
+      <button type="button" class="bank-option" data-code="${bank.code}" data-name="${bank.name}">
+        ${bank.name}
+      </button>
+    `).join('');
+    container.style.display = 'flex';
+
+    container.querySelectorAll('.bank-option').forEach(btn => {
+      btn.addEventListener('click', () => onBankSelected({
+        code: btn.getAttribute('data-code'),
+        name: btn.getAttribute('data-name')
+      }, container));
+    });
+  }
+
+  async function onBankSelected(bank, container){
+    selectedBank = bank;
+    resolvedAccountName = null;
+
+    container.querySelectorAll('.bank-option').forEach(btn => {
+      btn.classList.toggle('selected', btn.getAttribute('data-code') === bank.code);
+    });
+
+    document.getElementById('account-name-box').style.display = 'none';
+    document.getElementById('submit-btn').style.display = 'none';
+    document.getElementById('form-error').style.display = 'none';
+    document.getElementById('name-spinner').style.display = 'flex';
+
+    const accountNumber = document.getElementById('account-number').value.trim();
+
+    try {
+      const resp = await fetch(RESOLVE_ACCOUNT_NAME_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_number: accountNumber, bank_code: bank.code })
+      });
+      const json = await resp.json();
+
+      document.getElementById('name-spinner').style.display = 'none';
+
+      if (!resp.ok || !json.account_name) {
+        showFormError(json.error || "Couldn't verify this account for the selected bank.");
+        return;
+      }
+
+      resolvedAccountName = json.account_name;
+      document.getElementById('account-name-value').textContent = resolvedAccountName;
+      document.getElementById('account-name-box').style.display = 'block';
+      document.getElementById('submit-btn').style.display = 'inline-block';
+    } catch (err) {
+      document.getElementById('name-spinner').style.display = 'none';
+      showFormError("Couldn't verify this account. Please try again.");
+    }
+  }
+
+  async function onAccountNumberInput(){
+    const raw = document.getElementById('account-number').value.replace(/\D/g, '').slice(0, 10);
+    document.getElementById('account-number').value = raw;
+
+    resetDownstream();
+
+    if (raw.length !== 10) {
+      document.getElementById('bank-spinner').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('bank-spinner').style.display = 'flex';
+
+    // Small delay so the spinner is perceptible even though this check is fast/local.
+    await new Promise(res => setTimeout(res, 400));
+
+    const candidates = detectCandidateBanks(raw);
+    document.getElementById('bank-spinner').style.display = 'none';
+
+    if (candidates.length === 0) {
+      showFormError("We couldn't detect a bank for this account number. Please double check it.");
+      return;
+    }
+
+    renderBankOptions(candidates);
+  }
+
+  document.getElementById('submit-btn').addEventListener('click', async () => {
+    if (!currentUserId || !selectedBank || !resolvedAccountName) return;
+
+    const accountNumber = document.getElementById('account-number').value.trim();
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving…';
+
+    const { error } = await supabaseClient
+      .from('linked_accounts')
+      .upsert({
+        user_id: currentUserId,
+        bank_name: selectedBank.name,
+        bank_code: selectedBank.code,
+        account_number: accountNumber,
+        account_name: resolvedAccountName,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+
+    if (error) {
+      showFormError("We couldn't save your account. Please try again.");
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Add Account';
+      return;
+    }
+
+    window.location.href = 'profile.html';
+  });
+
+  document.getElementById('account-number').addEventListener('input', onAccountNumberInput);
+
+  async function init(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    currentUserId = session.user.id;
+
+    const { data: existing, error: fetchError } = await supabaseClient
+      .from('linked_accounts')
+      .select('bank_name, bank_code, account_number, account_name')
+      .eq('user_id', currentUserId)
+      .maybeSingle();
+
+    if (fetchError) {
+      document.getElementById('form-loading').style.display = 'none';
+      const errBox = document.getElementById('page-error');
+      document.getElementById('page-error-text').textContent = "We couldn't load your account details. Please try again.";
+      errBox.style.display = 'block';
+      return;
+    }
+
+    if (existing) {
+      document.getElementById('page-heading').textContent = 'Change bank account';
+      document.getElementById('account-number').value = existing.account_number || '';
+      selectedBank = { name: existing.bank_name, code: existing.bank_code };
+      resolvedAccountName = existing.account_name;
+      renderBankOptions(detectCandidateBanks(existing.account_number || ''));
+      document.querySelectorAll('.bank-option').forEach(btn => {
+        btn.classList.toggle('selected', btn.getAttribute('data-code') === existing.bank_code);
+      });
+      document.getElementById('account-name-value').textContent = existing.account_name || '';
+      document.getElementById('account-name-box').style.display = existing.account_name ? 'block' : 'none';
+      document.getElementById('submit-btn').style.display = 'inline-block';
+      document.getElementById('submit-btn').textContent = 'Update Account';
+    }
+
+    document.getElementById('form-loading').style.display = 'none';
+    document.getElementById('form-content').style.display = 'block';
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  init();
+</script>
+
+</body>
+</html>
