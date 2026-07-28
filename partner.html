@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Partner sign up — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="earnova.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think big. Earn smart.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="login.html">Log in</a>
+      <a class="btn btn-solid" href="signup.html">Sign up</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <a href="index.html" class="back-link">&larr; Back to home</a>
+  <div class="kicker">Grow your business with EarnOva</div>
+  <h1>Become an EarnOva partner</h1>
+  <p class="lead">List tasks, reach thousands of active earners, and only pay for results.</p>
+
+  <form class="card" id="partnerForm">
+    <label for="business">Business name</label>
+    <input id="business" type="text" placeholder="Your business or brand name" required>
+
+    <label for="name">Contact person's full name</label>
+    <input id="name" type="text" placeholder="Your full name" required>
+
+    <label for="email2">Email address</label>
+    <input id="email2" type="email" placeholder="you@example.com" required>
+
+    <label for="phone">Phone number</label>
+    <input id="phone" type="tel" placeholder="080XXXXXXXX" required>
+
+    <label for="password2">Create password</label>
+    <input id="password2" type="password" placeholder="••••••••" required>
+
+    <label for="referral">Referral code <span class="optional-tag">(optional)</span></label>
+    <input id="referral" type="text" placeholder="Enter referral code if you have one">
+
+    <button type="submit" class="btn btn-solid" id="submitBtn">Sign up as a partner</button>
+  </form>
+
+  <div class="switch-line">Already have an account? <a href="login.html">Log in</a></div>
+  <div class="switch-line">Looking to earn instead? <a href="signup.html">Sign up as a user</a></div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+<script>
+  // ---------------------------------------------------------
+  // Supabase setup — replace with your project's real values
+  // (Project Settings > API in the Supabase dashboard)
+  // ---------------------------------------------------------
+  const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
+  const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  const form = document.getElementById('partnerForm');
+  const submitBtn = document.getElementById('submitBtn');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const business = document.getElementById('business').value.trim();
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email2').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const password = document.getElementById('password2').value;
+    const referral = document.getElementById('referral').value.trim();
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating account…';
+
+    try {
+      // 1. Check if email or phone is already registered
+      const { data: existing, error: checkError } = await supabaseClient
+        .rpc('check_existing_user', { p_email: email, p_phone: phone });
+
+      if (checkError) throw checkError;
+
+      const result = Array.isArray(existing) ? existing[0] : existing;
+      if (result?.email_exists) {
+        showToast('That email is already registered. Try logging in.');
+        return;
+      }
+      if (result?.phone_exists) {
+        showToast('That phone number is already registered.');
+        return;
+      }
+
+      // 2. Create the auth user; extra fields go into user_metadata,
+      //    picked up by the handle_new_user trigger to populate profiles.
+      //    is_partner: true marks this account as a partner/business account,
+      //    and business_name is folded into full_name for the profiles table.
+      const { error: signUpError } = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+            business_name: business,
+            phone: phone,
+            referral_code: referral || null,
+            is_partner: true
+          }
+        }
+      });
+
+      if (signUpError) throw signUpError;
+
+      // 3. Hand off to the OTP verification page
+      sessionStorage.setItem('pendingEmail', email);
+      showToast('Partner account created — check your email for a code!');
+      setTimeout(() => {
+        window.location.href = 'otp.html';
+      }, 800);
+
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Sign up as a partner';
+    }
+  });
+</script>
+
+</body>
+</html>

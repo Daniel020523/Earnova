@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify your email — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="earnova.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think big. Earn smart.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="login.html">Log in</a>
+      <a class="btn btn-solid" href="signup.html">Sign up</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <a href="signup.html" class="back-link">&larr; Back to sign up</a>
+  <div class="kicker">One last step</div>
+  <h1>Verify your email</h1>
+  <p class="lead" id="leadText">Enter the 6-digit code we sent to your email address.</p>
+
+  <form class="card" id="otpForm">
+    <label for="email">Email address</label>
+    <input id="email" type="email" placeholder="you@example.com" required>
+
+    <label for="otpCode">Verification code</label>
+    <input id="otpCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+           placeholder="123456" required autocomplete="one-time-code">
+
+    <button type="submit" class="btn btn-solid" id="verifyBtn">Verify &amp; continue</button>
+  </form>
+
+  <div class="switch-line">
+    Didn't get a code?
+    <a href="#" id="resendLink">Resend code</a>
+    <span id="resendTimer"></span>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+<script>
+  // ---------------------------------------------------------
+  // Supabase setup — replace with your project's real values
+  // (Project Settings > API in the Supabase dashboard)
+  // ---------------------------------------------------------
+  const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
+  const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  const form = document.getElementById('otpForm');
+  const verifyBtn = document.getElementById('verifyBtn');
+  const emailInput = document.getElementById('email');
+  const otpInput = document.getElementById('otpCode');
+  const resendLink = document.getElementById('resendLink');
+  const resendTimer = document.getElementById('resendTimer');
+  const leadText = document.getElementById('leadText');
+
+  // Pre-fill email if it was passed from signup.html / partner.html
+  const pendingEmail = sessionStorage.getItem('pendingEmail');
+  if (pendingEmail) {
+    emailInput.value = pendingEmail;
+    leadText.textContent = `Enter the 6-digit code we sent to ${pendingEmail}.`;
+  }
+
+  otpInput.focus();
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const email = emailInput.value.trim();
+    const token = otpInput.value.trim();
+
+    if (token.length !== 6) {
+      showToast('Please enter the full 6-digit code.');
+      return;
+    }
+
+    verifyBtn.disabled = true;
+    verifyBtn.textContent = 'Verifying…';
+
+    try {
+      const { data, error } = await supabaseClient.auth.verifyOtp({
+        email,
+        token,
+        type: 'signup' // use 'email' instead if you used signInWithOtp rather than signUp
+      });
+
+      if (error) throw error;
+
+      // Session is now active (data.session / data.user populated)
+      sessionStorage.removeItem('pendingEmail');
+      showToast('Verified! Redirecting…');
+      setTimeout(() => {
+        window.location.href = 'dashboard.html';
+      }, 800);
+
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Invalid or expired code. Please try again.');
+    } finally {
+      verifyBtn.disabled = false;
+      verifyBtn.textContent = 'Verify & continue';
+    }
+  });
+
+  // ---------------------------------------------------------
+  // Resend code with a basic cooldown so users can't spam it
+  // ---------------------------------------------------------
+  let cooldown = 0;
+  let cooldownTimer = null;
+
+  function startCooldown(seconds) {
+    cooldown = seconds;
+    resendLink.style.pointerEvents = 'none';
+    resendLink.style.opacity = '0.5';
+    resendTimer.textContent = ` (${cooldown}s)`;
+    cooldownTimer = setInterval(() => {
+      cooldown -= 1;
+      if (cooldown <= 0) {
+        clearInterval(cooldownTimer);
+        resendLink.style.pointerEvents = 'auto';
+        resendLink.style.opacity = '1';
+        resendTimer.textContent = '';
+      } else {
+        resendTimer.textContent = ` (${cooldown}s)`;
+      }
+    }, 1000);
+  }
+
+  resendLink.addEventListener('click', async (event) => {
+    event.preventDefault();
+    if (cooldown > 0) return;
+
+    const email = emailInput.value.trim();
+    if (!email) {
+      showToast('Enter your email address first.');
+      return;
+    }
+
+    try {
+      const { error } = await supabaseClient.auth.resend({
+        type: 'signup',
+        email
+      });
+      if (error) throw error;
+
+      showToast('A new code has been sent to your email.');
+      startCooldown(60);
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Could not resend code. Please try again.');
+    }
+  });
+</script>
+
+</body>
+</html>
