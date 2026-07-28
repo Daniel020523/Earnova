@@ -22,17 +22,18 @@
 </header>
 
 <main class="page">
-  <a href="earnova.html" class="back-link">&larr; Back to home</a>
+  <a href="index.html" class="back-link">&larr; Back to home</a>
   <div class="kicker">Welcome back</div>
   <h1>Log in to EarnOva</h1>
   <p class="lead">Access your dashboard, track your earnings, and request a payout.</p>
 
-  <form class="card" onsubmit="event.preventDefault(); showToast('Logged in — redirecting to your dashboard…');">
+  <form class="card" id="login-form">
     <label for="email">Email address</label>
     <input id="email" type="email" placeholder="you@example.com" required>
     <label for="password">Password</label>
     <input id="password" type="password" placeholder="••••••••" required>
-    <button type="submit" class="btn btn-solid">Log in</button>
+    <div id="login-error" class="form-error" style="display:none; color:#d0342c; margin-top:8px; font-size:14px;"></div>
+    <button type="submit" class="btn btn-solid" id="login-btn">Log in</button>
   </form>
   <div class="switch-line">New to EarnOva? <a href="signup.html">Create an account</a></div>
 </main>
@@ -47,7 +48,19 @@
 </footer>
 
 <div class="toast" id="toast"></div>
+
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
+  // ---------------------------------------------------------------
+  // TODO: replace these two values with your actual project values.
+  // Project Settings > API in your Supabase dashboard.
+  // ---------------------------------------------------------------
+  const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
+  const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
   let toastTimer;
   function showToast(msg){
     const toast = document.getElementById('toast');
@@ -56,6 +69,50 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
   }
+
+  function showError(msg){
+    const el = document.getElementById('login-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function clearError(){
+    const el = document.getElementById('login-error');
+    el.style.display = 'none';
+    el.textContent = '';
+  }
+
+  const form = document.getElementById('login-form');
+  const loginBtn = document.getElementById('login-btn');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearError();
+
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Logging in…';
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Log in';
+
+    if (error) {
+      showError(error.message || "Invalid email or password. Please try again.");
+      return;
+    }
+
+    showToast('Logged in — redirecting to your dashboard…');
+    setTimeout(() => {
+      window.location.href = 'dashboard.html';
+    }, 800);
+  });
 </script>
 
 </body>
