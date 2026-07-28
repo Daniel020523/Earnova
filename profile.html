@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .linked-accounts-card{
+    background:#e8eefb;
+    border-radius:14px;
+    padding:20px;
+  }
+  .linked-accounts-card h2{
+    color:#182c66;
+    font-size:22px;
+    font-weight:800;
+    margin:0 0 14px 0;
+  }
+  .linked-account-row{
+    background:#ffffff;
+    border-radius:12px;
+    padding:18px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .linked-account-status{
+    color:#6b7280;
+    font-size:16px;
+  }
+  .linked-account-details{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .linked-account-bank{
+    font-weight:700;
+    font-size:15px;
+    color:#111827;
+  }
+  .linked-account-number{
+    font-size:13px;
+    color:#6b7280;
+  }
+  .linked-account-action{
+    background:none;
+    border:none;
+    padding:0;
+    font-size:17px;
+    font-weight:800;
+    color:#3b5bdb;
+    cursor:pointer;
+    text-decoration:none;
+  }
+  .linked-account-action:hover{
+    text-decoration:underline;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="settings.html">Settings</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Your account</div>
+  <h1>Profile</h1>
+  <p class="lead">View and manage your account details.</p>
+
+  <div id="profile-loading" class="card">
+    <p>Loading your profile…</p>
+  </div>
+
+  <div id="profile-content" style="display:none;">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.08);">
+        <span style="opacity:0.7;">Name</span>
+        <span id="profile-name">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.08);">
+        <span style="opacity:0.7;">Email</span>
+        <span id="profile-email">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.08);">
+        <span style="opacity:0.7;">Phone</span>
+        <span id="profile-phone">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.08);">
+        <span style="opacity:0.7;">Referral code</span>
+        <span id="profile-referral">—</span>
+      </div>
+      <div id="business-row" style="display:none; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.08);">
+        <span style="opacity:0.7;">Business name</span>
+        <span id="profile-business">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:8px 0;">
+        <span style="opacity:0.7;">Account type</span>
+        <span id="profile-type">—</span>
+      </div>
+    </div>
+
+    <div class="linked-accounts-card">
+      <h2>Linked Accounts</h2>
+      <div class="linked-account-row">
+        <div id="linked-account-empty" class="linked-account-status">No account linked yet</div>
+        <div id="linked-account-details" class="linked-account-details" style="display:none;">
+          <span class="linked-account-bank" id="linked-account-bank">—</span>
+          <span class="linked-account-number" id="linked-account-number">—</span>
+        </div>
+        <a class="linked-account-action" href="account.html" id="linked-account-action">Add Account</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="profile-error" class="card" style="display:none;">
+    <p id="profile-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // Use the same values as dashboard.html / login.html.
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function showProfileError(msg){
+    document.getElementById('profile-loading').style.display = 'none';
+    document.getElementById('profile-content').style.display = 'none';
+    const errBox = document.getElementById('profile-error');
+    document.getElementById('profile-error-text').textContent = msg;
+    errBox.style.display = 'block';
+  }
+
+  async function loadLinkedAccount(userId){
+    const { data: account, error } = await supabaseClient
+      .from('linked_accounts')
+      .select('bank_name, account_number, account_name')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const emptyEl = document.getElementById('linked-account-empty');
+    const detailsEl = document.getElementById('linked-account-details');
+    const actionEl = document.getElementById('linked-account-action');
+
+    if (error) {
+      emptyEl.textContent = "Couldn't load your linked account.";
+      emptyEl.style.display = 'block';
+      detailsEl.style.display = 'none';
+      actionEl.textContent = 'Add Account';
+      return;
+    }
+
+    if (account) {
+      emptyEl.style.display = 'none';
+      detailsEl.style.display = 'flex';
+      document.getElementById('linked-account-bank').textContent = account.bank_name;
+      const last4 = (account.account_number || '').slice(-4);
+      const numberLabel = last4 ? `Account ending in ${last4}` : '';
+      document.getElementById('linked-account-number').textContent = account.account_name
+        ? `${account.account_name}${numberLabel ? ' · ' + numberLabel : ''}`
+        : numberLabel;
+      actionEl.textContent = 'Change Account';
+    } else {
+      emptyEl.textContent = 'No account linked yet';
+      emptyEl.style.display = 'block';
+      detailsEl.style.display = 'none';
+      actionEl.textContent = 'Add Account';
+    }
+  }
+
+  async function loadProfile(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const user = session.user;
+
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('full_name, email, phone, referral_code, is_partner, business_name')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      showProfileError("We couldn't load your profile. Please try logging in again.");
+      return;
+    }
+
+    document.getElementById('profile-name').textContent = profile.full_name || '—';
+    document.getElementById('profile-email').textContent = profile.email || user.email || '—';
+    document.getElementById('profile-phone').textContent = profile.phone || '—';
+    document.getElementById('profile-referral').textContent = profile.referral_code || '—';
+    document.getElementById('profile-type').textContent = profile.is_partner ? 'Partner' : 'Standard';
+
+    if (profile.is_partner && profile.business_name) {
+      document.getElementById('business-row').style.display = 'flex';
+      document.getElementById('profile-business').textContent = profile.business_name;
+    }
+
+    await loadLinkedAccount(user.id);
+
+    document.getElementById('profile-loading').style.display = 'none';
+    document.getElementById('profile-content').style.display = 'block';
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  loadProfile();
+</script>
+
+</body>
+</html>
