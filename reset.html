@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reset password — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="index.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="login.html">Log in</a>
+      <a class="btn btn-solid" href="signup.html">Sign up</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <a href="login.html" class="back-link">&larr; Back to log in</a>
+  <div class="kicker">Account recovery</div>
+  <h1>Reset your password</h1>
+  <p class="lead" id="page-lead">Enter the email address on your account and we'll send you a code.</p>
+
+  <!-- Step 1: enter email -->
+  <form class="card" id="step-email">
+    <label for="email">Email address</label>
+    <input id="email" type="email" placeholder="you@example.com" required>
+    <div id="error-email" class="form-error" style="display:none; color:#d0342c; margin-top:8px; font-size:14px;"></div>
+    <button type="submit" class="btn btn-solid" id="btn-email">Send code</button>
+  </form>
+
+  <!-- Step 2: enter OTP -->
+  <form class="card" id="step-otp" style="display:none;">
+    <label for="otp">Enter the 6-digit code</label>
+    <input id="otp" type="text" inputmode="numeric" placeholder="123456" maxlength="6" required>
+    <div id="error-otp" class="form-error" style="display:none; color:#d0342c; margin-top:8px; font-size:14px;"></div>
+    <button type="submit" class="btn btn-solid" id="btn-otp">Verify code</button>
+    <div class="switch-line"><a href="#" id="resend-link">Didn't get a code? Resend</a></div>
+  </form>
+
+  <!-- Step 3: new password -->
+  <form class="card" id="step-password" style="display:none;">
+    <label for="new-password">New password</label>
+    <input id="new-password" type="password" placeholder="••••••••" required minlength="6">
+    <label for="confirm-password">Confirm new password</label>
+    <input id="confirm-password" type="password" placeholder="••••••••" required minlength="6">
+    <div id="error-password" class="form-error" style="display:none; color:#d0342c; margin-top:8px; font-size:14px;"></div>
+    <button type="submit" class="btn btn-solid" id="btn-password">Set new password</button>
+  </form>
+
+  <!-- Step 4: done -->
+  <div class="card" id="step-done" style="display:none;">
+    <p class="lead" style="margin:0 0 16px;">Your password has been updated. You can now log in with your new password.</p>
+    <a href="login.html" class="btn btn-solid">Go to log in</a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function showError(id, msg){
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+  function clearError(id){
+    const el = document.getElementById(id);
+    el.style.display = 'none';
+    el.textContent = '';
+  }
+
+  function goToStep(step){
+    ['step-email','step-otp','step-password','step-done'].forEach(id => {
+      document.getElementById(id).style.display = (id === step) ? '' : 'none';
+    });
+  }
+
+  let userEmail = '';
+
+  // ----- Step 1: send OTP to email -----
+  const stepEmailForm = document.getElementById('step-email');
+  const btnEmail = document.getElementById('btn-email');
+
+  stepEmailForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearError('error-email');
+
+    userEmail = document.getElementById('email').value.trim();
+
+    btnEmail.disabled = true;
+    btnEmail.textContent = 'Sending…';
+
+    // Sends a 6-digit OTP to the email. shouldCreateUser:false ensures
+    // this only works for existing accounts, not new signups.
+    const { error } = await supabaseClient.auth.signInWithOtp({
+      email: userEmail,
+      options: { shouldCreateUser: false }
+    });
+
+    btnEmail.disabled = false;
+    btnEmail.textContent = 'Send code';
+
+    if (error) {
+      showError('error-email', error.message || 'Could not send code. Please try again.');
+      return;
+    }
+
+    document.getElementById('page-lead').textContent =
+      `We sent a 6-digit code to ${userEmail}. Enter it below.`;
+    showToast('Code sent — check your inbox.');
+    goToStep('step-otp');
+  });
+
+  // ----- Resend code -----
+  document.getElementById('resend-link').addEventListener('click', async (event) => {
+    event.preventDefault();
+    const { error } = await supabaseClient.auth.signInWithOtp({
+      email: userEmail,
+      options: { shouldCreateUser: false }
+    });
+    if (error) {
+      showError('error-otp', error.message || 'Could not resend code.');
+      return;
+    }
+    showToast('A new code has been sent.');
+  });
+
+  // ----- Step 2: verify OTP -----
+  const stepOtpForm = document.getElementById('step-otp');
+  const btnOtp = document.getElementById('btn-otp');
+
+  stepOtpForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearError('error-otp');
+
+    const token = document.getElementById('otp').value.trim();
+
+    btnOtp.disabled = true;
+    btnOtp.textContent = 'Verifying…';
+
+    // Verifying the OTP signs the user in and creates a session,
+    // which is required before we can call updateUser() in step 3.
+    const { error } = await supabaseClient.auth.verifyOtp({
+      email: userEmail,
+      token,
+      type: 'email'
+    });
+
+    btnOtp.disabled = false;
+    btnOtp.textContent = 'Verify code';
+
+    if (error) {
+      showError('error-otp', error.message || 'That code is incorrect or expired.');
+      return;
+    }
+
+    document.getElementById('page-lead').textContent = 'Choose a new password for your account.';
+    goToStep('step-password');
+  });
+
+  // ----- Step 3: set new password -----
+  const stepPasswordForm = document.getElementById('step-password');
+  const btnPassword = document.getElementById('btn-password');
+
+  stepPasswordForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearError('error-password');
+
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+
+    if (newPassword !== confirmPassword) {
+      showError('error-password', 'Passwords do not match.');
+      return;
+    }
+
+    btnPassword.disabled = true;
+    btnPassword.textContent = 'Updating…';
+
+    // Requires the session created by verifyOtp() above.
+    // Once this succeeds, the old password no longer works.
+    const { error } = await supabaseClient.auth.updateUser({
+      password: newPassword
+    });
+
+    btnPassword.disabled = false;
+    btnPassword.textContent = 'Set new password';
+
+    if (error) {
+      showError('error-password', error.message || 'Could not update password. Please try again.');
+      return;
+    }
+
+    // Sign out the temporary recovery session so the user has to log in
+    // fresh with their new password.
+    await supabaseClient.auth.signOut();
+
+    goToStep('step-done');
+  });
+</script>
+
+</body>
+</html>

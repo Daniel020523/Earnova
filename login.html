@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log in — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="index.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="login.html">Log in</a>
+      <a class="btn btn-solid" href="signup.html">Sign up</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <a href="index.html" class="back-link">&larr; Back to home</a>
+  <div class="kicker">Welcome back</div>
+  <h1>Log in to EarnOva</h1>
+  <p class="lead">Access your dashboard, track your earnings, and request a payout.</p>
+
+  <form class="card" id="login-form">
+    <label for="email">Email address</label>
+    <input id="email" type="email" placeholder="you@example.com" required>
+    <label for="password">Password</label>
+    <input id="password" type="password" placeholder="••••••••" required>
+    <div class="switch-line" style="margin: 4px 0 0; text-align: right;">
+      <a href="reset.html">Forgot password?</a>
+    </div>
+    <div id="login-error" class="form-error" style="display:none; color:#d0342c; margin-top:8px; font-size:14px;"></div>
+    <button type="submit" class="btn btn-solid" id="login-btn">Log in</button>
+  </form>
+  <div class="switch-line">New to EarnOva? <a href="signup.html">Create an account</a></div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ---------------------------------------------------------------
+  // TODO: replace these two values with your actual project values.
+  // Project Settings > API in your Supabase dashboard.
+  // ---------------------------------------------------------------
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function showError(msg){
+    const el = document.getElementById('login-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+  }
+
+  function clearError(){
+    const el = document.getElementById('login-error');
+    el.style.display = 'none';
+    el.textContent = '';
+  }
+
+  const form = document.getElementById('login-form');
+  const loginBtn = document.getElementById('login-btn');
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    clearError();
+
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Logging in…';
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Log in';
+
+    if (error) {
+      showError(error.message || "Invalid email or password. Please try again.");
+      return;
+    }
+
+    showToast('Logged in — redirecting to your dashboard…');
+    setTimeout(() => {
+      window.location.href = 'dashboard.html';
+    }, 800);
+  });
+</script>
+
+</body>
+</html>
