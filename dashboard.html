@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .task-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:12px;
+    margin-top:12px;
+  }
+  .task-tile{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:20px 12px;
+    border:1px solid rgba(0,0,0,0.12);
+    border-radius:8px;
+    text-decoration:none;
+    color:inherit;
+    font-weight:600;
+    font-size:14px;
+    transition:background 0.15s ease, border-color 0.15s ease;
+  }
+  .task-tile:hover{
+    background:rgba(0,0,0,0.04);
+    border-color:rgba(0,0,0,0.25);
+  }
+  @media (max-width:600px){
+    .task-grid{ grid-template-columns:repeat(2, 1fr); }
+  }
+  .see-all-btn{
+    background:none;
+    border:none;
+    padding:8px 0 0 0;
+    font-size:13px;
+    font-weight:600;
+    color:inherit;
+    opacity:0.8;
+    cursor:pointer;
+    text-decoration:underline;
+  }
+  .see-all-btn:hover{
+    opacity:1;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="profile.html" id="profile-link">Profile</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Your dashboard</div>
+  <h1 id="welcome-heading">Welcome back</h1>
+  <p class="lead">Track your earnings, view your profile, and request a payout.</p>
+
+  <div id="dashboard-loading" class="card">
+    <p>Loading your dashboard…</p>
+  </div>
+
+  <div id="dashboard-content" style="display:none;">
+
+    <div class="card">
+      <div style="display:flex; flex-wrap:wrap; gap:24px; margin-bottom:16px;">
+        <div>
+          <div style="font-size:13px; opacity:0.7;">Available balance</div>
+          <div style="font-size:24px; font-weight:600;" id="available-balance">$0.00</div>
+        </div>
+        <div>
+          <div style="font-size:13px; opacity:0.7;">Total earned</div>
+          <div style="font-size:24px; font-weight:600;" id="total-earned">$0.00</div>
+        </div>
+        <div>
+          <div style="font-size:13px; opacity:0.7;">Referrals</div>
+          <div style="font-size:24px; font-weight:600;" id="referral-count">0</div>
+        </div>
+      </div>
+      <div style="text-align:left;">
+        <button class="btn btn-solid" id="payout-btn" style="display:inline-block; margin-right:auto;">Request payout</button>
+        <p id="payout-note" style="font-size:13px; opacity:0.7; margin-top:12px;"></p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Earn more</h2>
+      <div class="task-grid">
+        <a class="task-tile" href="daily-task.html">Daily task</a>
+        <a class="task-tile" href="referral.html">Referral</a>
+        <a class="task-tile" href="affiliate.html">Affiliate</a>
+        <a class="task-tile" href="sponsored-post.html">Sponsored post</a>
+        <a class="task-tile" href="job-offer.html">Job offer</a>
+        <a class="task-tile" href="review-website.html">Review website</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Transaction history</h2>
+      <div id="history-loading" style="font-size:14px; opacity:0.7;">Loading transactions…</div>
+      <div id="history-empty" style="font-size:14px; opacity:0.7; display:none;">No transactions yet.</div>
+      <table id="history-table" style="width:100%; border-collapse:collapse; display:none;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Date</th>
+            <th style="text-align:left; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Type</th>
+            <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Amount</th>
+            <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Status</th>
+          </tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+      <button class="see-all-btn" id="see-all-btn" style="display:none;">See all</button>
+    </div>
+
+  </div>
+
+  <div id="dashboard-error" class="card" style="display:none;">
+    <p id="dashboard-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ---------------------------------------------------------------
+  // Use the same values you set in login.html.
+  // Project Settings > API in your Supabase dashboard.
+  // ---------------------------------------------------------------
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function showDashboardError(msg){
+    document.getElementById('dashboard-loading').style.display = 'none';
+    document.getElementById('dashboard-content').style.display = 'none';
+    const errBox = document.getElementById('dashboard-error');
+    document.getElementById('dashboard-error-text').textContent = msg;
+    errBox.style.display = 'block';
+  }
+
+  function formatUsd(n){
+    return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  }
+
+  let currentUserId = null;
+  let currentAvailableBalance = 0;
+
+  // Holds the full set of transactions fetched from the server, and
+  // whether the user has expanded the list to see everything.
+  let allTransactions = [];
+  let historyExpanded = false;
+
+  async function loadBalances(userId){
+    // Sum completed earning transactions.
+    const { data: earningRows, error: earningError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'earning')
+      .eq('status', 'completed');
+
+    // Sum completed payout transactions.
+    const { data: payoutRows, error: payoutError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'payout')
+      .eq('status', 'completed');
+
+    if (earningError || payoutError) {
+      document.getElementById('payout-note').textContent =
+        "We couldn't load your earnings right now.";
+      return;
+    }
+
+    const totalEarned = (earningRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const totalPaidOut = (payoutRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const available = totalEarned - totalPaidOut;
+
+    currentAvailableBalance = available;
+
+    document.getElementById('total-earned').textContent = formatUsd(totalEarned);
+    document.getElementById('available-balance').textContent = formatUsd(available);
+    document.getElementById('payout-note').textContent = '';
+  }
+
+  async function loadReferralCount(referralCode){
+    if (!referralCode) {
+      document.getElementById('referral-count').textContent = '0';
+      return;
+    }
+
+    const { count, error } = await supabaseClient
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('referred_by', referralCode);
+
+    document.getElementById('referral-count').textContent = error ? '—' : (count || 0);
+  }
+
+  function formatDate(iso){
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function capitalize(s){
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  }
+
+  function renderTransactionRows(rows){
+    const bodyEl = document.getElementById('history-body');
+    bodyEl.innerHTML = rows.map(row => {
+      const sign = row.type === 'payout' ? '-' : '+';
+      return `
+        <tr>
+          <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${formatDate(row.created_at)}</td>
+          <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${capitalize(row.type)}</td>
+          <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right;">${sign}${formatUsd(Math.abs(Number(row.amount || 0)))}</td>
+          <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right; opacity:0.75;">${capitalize(row.status)}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  function updateHistoryView(){
+    const seeAllBtn = document.getElementById('see-all-btn');
+
+    if (allTransactions.length === 0) {
+      seeAllBtn.style.display = 'none';
+      return;
+    }
+
+    const rowsToShow = historyExpanded ? allTransactions : allTransactions.slice(0, 1);
+    renderTransactionRows(rowsToShow);
+
+    if (allTransactions.length > 1) {
+      seeAllBtn.style.display = 'inline-block';
+      seeAllBtn.textContent = historyExpanded ? 'Show less' : 'See all';
+    } else {
+      seeAllBtn.style.display = 'none';
+    }
+  }
+
+  document.getElementById('see-all-btn').addEventListener('click', () => {
+    historyExpanded = !historyExpanded;
+    updateHistoryView();
+  });
+
+  async function loadTransactionHistory(userId){
+    const loadingEl = document.getElementById('history-loading');
+    const emptyEl = document.getElementById('history-empty');
+    const tableEl = document.getElementById('history-table');
+    const seeAllBtn = document.getElementById('see-all-btn');
+
+    loadingEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+    tableEl.style.display = 'none';
+    seeAllBtn.style.display = 'none';
+
+    const { data: rows, error } = await supabaseClient
+      .from('transactions')
+      .select('amount, type, status, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(25);
+
+    loadingEl.style.display = 'none';
+
+    if (error) {
+      emptyEl.textContent = "Couldn't load your transaction history.";
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    if (!rows || rows.length === 0) {
+      allTransactions = [];
+      emptyEl.textContent = 'No transactions yet.';
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    allTransactions = rows;
+    historyExpanded = false;
+    tableEl.style.display = 'table';
+    updateHistoryView();
+  }
+
+  async function loadDashboard(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const user = session.user;
+    currentUserId = user.id;
+
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('full_name, referral_code')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      showDashboardError("We couldn't load your profile. Please try logging in again.");
+      return;
+    }
+
+    document.getElementById('welcome-heading').textContent =
+      profile.full_name ? `Welcome back, ${profile.full_name.split(' ')[0]}` : 'Welcome back';
+
+    await Promise.all([
+      loadBalances(user.id),
+      loadReferralCount(profile.referral_code),
+      loadTransactionHistory(user.id)
+    ]);
+
+    document.getElementById('dashboard-loading').style.display = 'none';
+    document.getElementById('dashboard-content').style.display = 'block';
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  document.getElementById('payout-btn')?.addEventListener('click', async () => {
+    if (!currentUserId) return;
+
+    if (currentAvailableBalance <= 0) {
+      showToast("You don't have any available balance to withdraw yet.");
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from('transactions')
+      .insert({
+        user_id: currentUserId,
+        amount: currentAvailableBalance,
+        type: 'payout',
+        status: 'pending'
+      });
+
+    if (error) {
+      showToast("Couldn't submit your payout request. Please try again.");
+      return;
+    }
+
+    showToast('Payout request submitted!');
+    await Promise.all([
+      loadBalances(currentUserId),
+      loadTransactionHistory(currentUserId)
+    ]);
+  });
+
+  loadDashboard();
+</script>
+
+</body>
+</html>
