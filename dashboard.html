@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="index.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think big. Earn smart.</span>
+    </a>
+    <div class="nav-actions">
+      <span id="user-email" style="margin-right:12px; font-size:14px; opacity:0.75;"></span>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Your dashboard</div>
+  <h1 id="welcome-heading">Welcome back</h1>
+  <p class="lead">Track your earnings, view your profile, and request a payout.</p>
+
+  <div id="dashboard-loading" class="card">
+    <p>Loading your dashboard…</p>
+  </div>
+
+  <div id="dashboard-content" style="display:none;">
+
+    <div class="card">
+      <div style="display:flex; flex-wrap:wrap; gap:24px; margin-bottom:16px;">
+        <div>
+          <div style="font-size:13px; opacity:0.7;">Available balance</div>
+          <div style="font-size:24px; font-weight:600;">$0.00</div>
+        </div>
+        <div>
+          <div style="font-size:13px; opacity:0.7;">Total earned</div>
+          <div style="font-size:24px; font-weight:600;">$0.00</div>
+        </div>
+        <div>
+          <div style="font-size:13px; opacity:0.7;">Referrals</div>
+          <div style="font-size:24px; font-weight:600;" id="referral-count">0</div>
+        </div>
+      </div>
+      <button class="btn btn-solid" id="payout-btn">Request payout</button>
+      <p style="font-size:13px; opacity:0.7; margin-top:12px;">Earnings tracking isn't connected yet — hook this up to your transactions table when it's ready.</p>
+    </div>
+
+    <div class="card">
+      <h2>Your profile</h2>
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.08);">
+        <span style="opacity:0.7;">Name</span>
+        <span id="profile-name">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.08);">
+        <span style="opacity:0.7;">Email</span>
+        <span id="profile-email">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.08);">
+        <span style="opacity:0.7;">Phone</span>
+        <span id="profile-phone">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.08);">
+        <span style="opacity:0.7;">Referral code</span>
+        <span id="profile-referral">—</span>
+      </div>
+      <div id="business-row" style="display:none; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.08);">
+        <span style="opacity:0.7;">Business name</span>
+        <span id="profile-business">—</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:8px 0;">
+        <span style="opacity:0.7;">Account type</span>
+        <span id="profile-type">—</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="dashboard-error" class="card" style="display:none;">
+    <p id="dashboard-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ---------------------------------------------------------------
+  // Use the same values you set in login.html.
+  // Project Settings > API in your Supabase dashboard.
+  // ---------------------------------------------------------------
+  const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
+  const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function showDashboardError(msg){
+    document.getElementById('dashboard-loading').style.display = 'none';
+    document.getElementById('dashboard-content').style.display = 'none';
+    const errBox = document.getElementById('dashboard-error');
+    document.getElementById('dashboard-error-text').textContent = msg;
+    errBox.style.display = 'block';
+  }
+
+  async function loadDashboard(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const user = session.user;
+    document.getElementById('user-email').textContent = user.email;
+
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('full_name, email, phone, referral_code, is_partner, business_name')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      showDashboardError("We couldn't load your profile. Please try logging in again.");
+      return;
+    }
+
+    document.getElementById('welcome-heading').textContent =
+      profile.full_name ? `Welcome back, ${profile.full_name.split(' ')[0]}` : 'Welcome back';
+    document.getElementById('profile-name').textContent = profile.full_name || '—';
+    document.getElementById('profile-email').textContent = profile.email || '—';
+    document.getElementById('profile-phone').textContent = profile.phone || '—';
+    document.getElementById('profile-referral').textContent = profile.referral_code || '—';
+    document.getElementById('profile-type').textContent = profile.is_partner ? 'Partner' : 'Standard';
+
+    if (profile.is_partner && profile.business_name) {
+      document.getElementById('business-row').style.display = 'flex';
+      document.getElementById('profile-business').textContent = profile.business_name;
+    }
+
+    document.getElementById('dashboard-loading').style.display = 'none';
+    document.getElementById('dashboard-content').style.display = 'block';
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  document.getElementById('payout-btn')?.addEventListener('click', () => {
+    showToast('Payout requests aren\'t wired up yet.');
+  });
+
+  loadDashboard();
+</script>
+
+</body>
+</html>
