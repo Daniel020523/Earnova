@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign up — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="earnova.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think big. Earn smart.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="login.html">Log in</a>
+      <a class="btn btn-solid" href="signup.html">Sign up</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <a href="earnova.html" class="back-link">&larr; Back to home</a>
+  <div class="kicker">Join thousands of Nigerians</div>
+  <h1>Create your EarnOva account</h1>
+  <p class="lead">Start completing tasks, earning referrals, and getting paid straight to your bank account.</p>
+
+  <form class="card" onsubmit="event.preventDefault(); showToast('Account created — welcome to EarnOva!');">
+    <label for="name">Full name</label>
+    <input id="name" type="text" placeholder="Your full name" required>
+    <label for="email2">Email address</label>
+    <input id="email2" type="email" placeholder="you@example.com" required>
+    <label for="password2">Create password</label>
+    <input id="password2" type="password" placeholder="••••••••" required>
+    <button type="submit" class="btn btn-solid">Sign up</button>
+  </form>
+  <div class="switch-line">Already have an account? <a href="login.html">Log in</a></div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+<script>
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+</script>
+
+</body>
+</html>
