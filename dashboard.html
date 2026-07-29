@@ -237,7 +237,15 @@
       .eq('type', 'refund')
       .eq('status', 'completed');
 
-    if (earningError || payoutError || refundError) {
+    // Sum completed referral commissions (5% of what your referrals earn).
+    const { data: referralRows, error: referralError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'referral')
+      .eq('status', 'completed');
+
+    if (earningError || payoutError || refundError || referralError) {
       document.getElementById('payout-note').textContent =
         "We couldn't load your earnings right now.";
       return;
@@ -246,7 +254,8 @@
     const totalEarned = (earningRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalPaidOut = (payoutRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalRefunded = (refundRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const available = totalEarned - totalPaidOut + totalRefunded;
+    const totalReferral = (referralRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const available = totalEarned - totalPaidOut + totalRefunded + totalReferral;
 
     currentAvailableBalance = available;
 
