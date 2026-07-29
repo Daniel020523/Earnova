@@ -289,8 +289,8 @@
 
   function destinationLabel(r){
     if (!r || !r.bank_name) return '—';
-    const last4 = (r.account_number || '').slice(-4);
-    return `${r.bank_name}${last4 ? ' •••• ' + last4 : ''}`;
+    const name = r.account_name ? ` (${r.account_name})` : '';
+    return `${r.bank_name} — ${r.account_number || '—'}${name}`;
   }
 
   // NOTE: this assumes a boolean `is_admin` column exists on `profiles`.
