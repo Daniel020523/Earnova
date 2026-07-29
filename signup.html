@@ -79,6 +79,18 @@
     toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
   }
 
+  // Autofill the referral code from a shared link like
+  // signup.html?ref=8A7283E7 (see referral.html, which generates
+  // these links). The field stays editable in case the person
+  // wants to change or clear it.
+  (function prefillReferralCode(){
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      document.getElementById('referral').value = ref;
+    }
+  })();
+
   const form = document.getElementById('signupForm');
   const submitBtn = document.getElementById('submitBtn');
 
