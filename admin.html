@@ -390,6 +390,7 @@
       .eq('status', 'pending'); // guard against double-processing
 
     if (error) {
+      console.error('setPayoutStatus error:', error);
       showToast("Couldn't update this request. Please try again.");
       row.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
       btn.textContent = status === 'paid' ? 'Mark paid' : 'Mark failed';
