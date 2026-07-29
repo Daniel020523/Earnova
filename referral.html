@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Referrals — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .referral-card{
+    max-width:560px;
+  }
+  .code-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 16px;
+    background:rgba(0,0,0,0.03);
+    border-radius:8px;
+    margin-bottom:12px;
+  }
+  .code-text{
+    font-size:20px;
+    font-weight:700;
+    letter-spacing:2px;
+  }
+  .link-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:20px;
+  }
+  .link-row input{
+    flex:1;
+    padding:10px 12px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:8px;
+    font-size:13px;
+    font-family:inherit;
+    color:inherit;
+    background:rgba(0,0,0,0.02);
+  }
+  .copy-btn{
+    padding:10px 14px;
+    border-radius:8px;
+    border:1px solid rgba(0,0,0,0.15);
+    background:none;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .copy-btn:hover{
+    background:rgba(0,0,0,0.04);
+  }
+  .stat-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:24px;
+    margin-bottom:8px;
+  }
+  .stat-label{
+    font-size:13px;
+    opacity:0.7;
+  }
+  .stat-value{
+    font-size:22px;
+    font-weight:600;
+  }
+  .table-scroll{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  table{
+    width:100%;
+    min-width:420px;
+    border-collapse:collapse;
+  }
+  th{
+    text-align:left;
+    padding:8px 10px;
+    border-bottom:1px solid rgba(0,0,0,0.12);
+    font-size:13px;
+    opacity:0.7;
+    white-space:nowrap;
+  }
+  td{
+    padding:10px;
+    border-bottom:1px solid rgba(0,0,0,0.06);
+    font-size:14px;
+    vertical-align:middle;
+    white-space:nowrap;
+  }
+  .empty-note{
+    font-size:14px;
+    opacity:0.7;
+    padding:8px 0 4px;
+  }
+  .how-it-works{
+    font-size:13px;
+    opacity:0.75;
+    margin-top:4px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Referrals</div>
+  <h1>Invite friends, earn 5%</h1>
+  <p class="lead">You earn 5% of everything your referrals make on EarnOva — for as long as they keep earning.</p>
+
+  <div id="referral-loading" class="card">
+    <p>Loading…</p>
+  </div>
+
+  <div id="referral-content" style="display:none;">
+
+    <div class="card referral-card">
+      <div class="code-row">
+        <span class="code-text" id="code-text">—</span>
+        <button class="copy-btn" id="copy-code-btn">Copy code</button>
+      </div>
+      <div class="link-row">
+        <input type="text" id="link-input" readonly>
+        <button class="copy-btn" id="copy-link-btn">Copy link</button>
+      </div>
+      <p class="how-it-works">Share your code or link. When someone signs up with it and starts earning, you automatically get 5% of every earning they complete — credited straight to your balance.</p>
+    </div>
+
+    <div class="card">
+      <div class="stat-row">
+        <div>
+          <div class="stat-label">Friends referred</div>
+          <div class="stat-value" id="stat-referral-count">0</div>
+        </div>
+        <div>
+          <div class="stat-label">Earned from referrals</div>
+          <div class="stat-value" id="stat-referral-earnings">₦0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Your referrals</h2>
+      <div id="referrals-empty" class="empty-note" style="display:none;">
+        No referrals yet — share your code above to start earning.
+      </div>
+      <div class="table-scroll">
+        <table id="referrals-table" style="display:none;">
+          <thead>
+            <tr><th>Joined</th><th>Friend</th><th>Earned from them</th></tr>
+          </thead>
+          <tbody id="referrals-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="referral-error" class="card" style="display:none;">
+    <p id="referral-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ---------------------------------------------------------------
+  // Use the same values you set in login.html / dashboard.html.
+  // ---------------------------------------------------------------
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function showReferralError(msg){
+    document.getElementById('referral-loading').style.display = 'none';
+    document.getElementById('referral-content').style.display = 'none';
+    const errBox = document.getElementById('referral-error');
+    document.getElementById('referral-error-text').textContent = msg;
+    errBox.style.display = 'block';
+  }
+
+  function formatNaira(n){
+    return n.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+
+  function formatDate(iso){
+    return iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+  }
+
+  async function copyToClipboard(text, label){
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(`${label} copied!`);
+    } catch (err) {
+      showToast("Couldn't copy — long-press to select and copy manually.");
+    }
+  }
+
+  async function loadReferralPage(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const user = session.user;
+
+    const [profileResult, referralsResult, commissionResult] = await Promise.all([
+      supabaseClient.from('profiles').select('referral_code').eq('id', user.id).single(),
+      supabaseClient
+        .from('referrals')
+        .select(`
+          referred_id, created_at,
+          profiles!referrals_referred_id_fkey ( full_name )
+        `)
+        .eq('referrer_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabaseClient
+        .from('transactions')
+        .select('amount, source_user_id')
+        .eq('user_id', user.id)
+        .eq('type', 'referral')
+        .eq('status', 'completed')
+    ]);
+
+    const { data: profile, error: profileError } = profileResult;
+    const { data: referralRows, error: referralsError } = referralsResult;
+    const { data: commissionRows, error: commissionError } = commissionResult;
+
+    if (profileError || !profile) {
+      showReferralError("We couldn't load your referral details. Please try logging in again.");
+      return;
+    }
+
+    if (referralsError || commissionError) {
+      showReferralError("We couldn't load your referral details. Please try again.");
+      return;
+    }
+
+    // Referral code + shareable link
+    const code = profile.referral_code || '—';
+    document.getElementById('code-text').textContent = code;
+    const referralLink = `${window.location.origin}/signup.html?ref=${encodeURIComponent(code)}`;
+    document.getElementById('link-input').value = referralLink;
+
+    document.getElementById('copy-code-btn').addEventListener('click', () => {
+      copyToClipboard(code, 'Code');
+    });
+    document.getElementById('copy-link-btn').addEventListener('click', () => {
+      copyToClipboard(referralLink, 'Link');
+    });
+
+    // Sum commission earned per referred friend, and overall total.
+    const earnedByFriend = {};
+    let totalEarnings = 0;
+    (commissionRows || []).forEach(row => {
+      const amt = Number(row.amount || 0);
+      totalEarnings += amt;
+      if (row.source_user_id) {
+        earnedByFriend[row.source_user_id] = (earnedByFriend[row.source_user_id] || 0) + amt;
+      }
+    });
+
+    const referrals = referralRows || [];
+    document.getElementById('stat-referral-count').textContent = referrals.length;
+    document.getElementById('stat-referral-earnings').textContent = formatNaira(totalEarnings);
+
+    const tableEl = document.getElementById('referrals-table');
+    const emptyEl = document.getElementById('referrals-empty');
+
+    if (referrals.length === 0) {
+      emptyEl.style.display = 'block';
+    } else {
+      tableEl.style.display = 'table';
+      document.getElementById('referrals-body').innerHTML = referrals.map(r => `
+        <tr>
+          <td>${formatDate(r.created_at)}</td>
+          <td>${(r.profiles && r.profiles.full_name) || 'EarnOva user'}</td>
+          <td>${formatNaira(earnedByFriend[r.referred_id] || 0)}</td>
+        </tr>`).join('');
+    }
+
+    document.getElementById('referral-loading').style.display = 'none';
+    document.getElementById('referral-content').style.display = 'block';
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  loadReferralPage();
+</script>
+
+</body>
+</html>
