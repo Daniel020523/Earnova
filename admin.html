@@ -259,12 +259,12 @@
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let toastTimer;
-  function showToast(msg){
+  function showToast(msg, duration = 2400){
     const toast = document.getElementById('toast');
     toast.textContent = msg;
     toast.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
   }
 
   function showAdminError(msg){
@@ -391,7 +391,7 @@
 
     if (error) {
       console.error('setPayoutStatus error:', error);
-      showToast("Couldn't update this request. Please try again.");
+      showToast("Update failed: " + error.message, 6000);
       row.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
       btn.textContent = status === 'paid' ? 'Mark paid' : 'Mark failed';
       return;
