@@ -218,7 +218,8 @@
       Promise.all([
         supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'earning').eq('status', 'completed'),
         supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'payout'),
-        supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'refund').eq('status', 'completed')
+        supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'refund').eq('status', 'completed'),
+        supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'referral').eq('status', 'completed')
       ]),
       supabaseClient.from('linked_accounts').select('bank_name, account_number, account_name').eq('user_id', user.id).maybeSingle(),
       supabaseClient.from('profiles').select('has_withdrawal_pin').eq('id', user.id).single()
@@ -227,12 +228,13 @@
     const [
       { data: earningRows, error: earningError },
       { data: payoutRows, error: payoutError },
-      { data: refundRows, error: refundError }
+      { data: refundRows, error: refundError },
+      { data: referralRows, error: referralError }
     ] = balanceResult;
     const { data: linkedAccount, error: linkedAccountError } = linkedAccountResult;
     const { data: profile, error: profileError } = profileResult;
 
-    if (earningError || payoutError || refundError || profileError) {
+    if (earningError || payoutError || refundError || referralError || profileError) {
       showPageError("We couldn't load your payout details. Please try again.");
       return;
     }
@@ -240,7 +242,8 @@
     const totalEarned = (earningRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalPaidOut = (payoutRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalRefunded = (refundRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    currentAvailableBalance = totalEarned - totalPaidOut + totalRefunded;
+    const totalReferral = (referralRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    currentAvailableBalance = totalEarned - totalPaidOut + totalRefunded + totalReferral;
     document.getElementById('available-balance').textContent = formatNaira(currentAvailableBalance);
 
     hasLinkedAccount = !linkedAccountError && !!linkedAccount;
