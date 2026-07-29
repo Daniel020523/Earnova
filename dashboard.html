@@ -259,7 +259,7 @@
 
     currentAvailableBalance = available;
 
-    document.getElementById('total-earned').textContent = formatNaira(totalEarned);
+    document.getElementById('total-earned').textContent = formatNaira(totalEarned + totalReferral);
     document.getElementById('available-balance').textContent = formatNaira(available);
     document.getElementById('payout-note').textContent = '';
   }
