@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .stat-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:24px;
+    margin-bottom:8px;
+  }
+  .stat-label{
+    font-size:13px;
+    opacity:0.7;
+  }
+  .stat-value{
+    font-size:22px;
+    font-weight:600;
+  }
+  .section-header{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:4px;
+  }
+  .section-header h2{
+    margin:0;
+  }
+  .count-badge{
+    display:inline-block;
+    padding:2px 9px;
+    border-radius:999px;
+    background:rgba(0,0,0,0.06);
+    font-size:12px;
+    font-weight:700;
+  }
+  .table-scroll{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  table{
+    width:100%;
+    min-width:520px;
+    border-collapse:collapse;
+  }
+  th{
+    text-align:left;
+    padding:8px 10px;
+    border-bottom:1px solid rgba(0,0,0,0.12);
+    font-size:13px;
+    opacity:0.7;
+    white-space:nowrap;
+  }
+  td{
+    padding:10px;
+    border-bottom:1px solid rgba(0,0,0,0.06);
+    font-size:14px;
+    vertical-align:middle;
+    white-space:nowrap;
+  }
+  .status-pill{
+    display:inline-block;
+    padding:2px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .status-pending{ background:#fff3cd; color:#8a6800; }
+  .status-paid, .status-completed{ background:#d4edda; color:#155724; }
+  .status-failed{ background:#f8d7da; color:#8a1c24; }
+  .row-actions{
+    display:flex;
+    gap:8px;
+  }
+  .action-btn{
+    padding:6px 12px;
+    border-radius:6px;
+    border:1px solid rgba(0,0,0,0.15);
+    background:none;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .action-btn.positive{ color:#155724; border-color:#a9d8b2; }
+  .action-btn.negative{ color:#8a1c24; border-color:#e4a5a9; }
+  .action-btn:disabled{ opacity:0.5; cursor:default; }
+  .empty-note{
+    font-size:14px;
+    opacity:0.7;
+    padding:8px 0 4px;
+  }
+  .refresh-btn{
+    background:none;
+    border:none;
+    font-size:13px;
+    font-weight:600;
+    text-decoration:underline;
+    opacity:0.75;
+    cursor:pointer;
+    margin-left:auto;
+  }
+  .refresh-btn:hover{ opacity:1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Admin</div>
+  <h1>Requests</h1>
+  <p class="lead">Pending, paid, and failed payouts, plus earning transactions — each reviewed separately.</p>
+
+  <div id="admin-loading" class="card">
+    <p>Loading…</p>
+  </div>
+
+  <div id="admin-content" style="display:none;">
+
+    <div class="card">
+      <div class="stat-row">
+        <div>
+          <div class="stat-label">Pending payouts</div>
+          <div class="stat-value" id="stat-pending-count">0</div>
+        </div>
+        <div>
+          <div class="stat-label">Pending payout amount</div>
+          <div class="stat-value" id="stat-pending-amount">₦0.00</div>
+        </div>
+        <div>
+          <div class="stat-label">Pending earnings</div>
+          <div class="stat-value" id="stat-earning-pending-count">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending payouts -->
+    <div class="card">
+      <div class="section-header">
+        <h2>Pending payouts</h2>
+        <span class="count-badge" id="pending-count-badge">0</span>
+        <button class="refresh-btn" data-refresh="pending">Refresh</button>
+      </div>
+      <div id="pending-loading" style="font-size:14px; opacity:0.7;">Loading…</div>
+      <div id="pending-empty" class="empty-note" style="display:none;">No pending payouts.</div>
+      <div class="table-scroll">
+        <table id="pending-table" style="display:none;">
+          <thead>
+            <tr><th>Date</th><th>User</th><th>Destination</th><th>Amount</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="pending-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Completed / paid payouts -->
+    <div class="card">
+      <div class="section-header">
+        <h2>Completed payouts</h2>
+        <span class="count-badge" id="paid-count-badge">0</span>
+        <button class="refresh-btn" data-refresh="paid">Refresh</button>
+      </div>
+      <div id="paid-loading" style="font-size:14px; opacity:0.7;">Loading…</div>
+      <div id="paid-empty" class="empty-note" style="display:none;">No completed payouts yet.</div>
+      <div class="table-scroll">
+        <table id="paid-table" style="display:none;">
+          <thead>
+            <tr><th>Date</th><th>User</th><th>Destination</th><th>Amount</th><th>Paid</th><th>Status</th></tr>
+          </thead>
+          <tbody id="paid-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Failed payouts -->
+    <div class="card">
+      <div class="section-header">
+        <h2>Failed payouts</h2>
+        <span class="count-badge" id="failed-count-badge">0</span>
+        <button class="refresh-btn" data-refresh="failed">Refresh</button>
+      </div>
+      <div id="failed-loading" style="font-size:14px; opacity:0.7;">Loading…</div>
+      <div id="failed-empty" class="empty-note" style="display:none;">No failed payouts.</div>
+      <div class="table-scroll">
+        <table id="failed-table" style="display:none;">
+          <thead>
+            <tr><th>Date</th><th>User</th><th>Destination</th><th>Amount</th><th>Status</th></tr>
+          </thead>
+          <tbody id="failed-body"></tbody>
+        </table>
+      </div>
+      <p class="empty-note" style="padding-top:10px;">A refund transaction is issued automatically when a payout is marked failed.</p>
+    </div>
+
+    <!-- Earnings -->
+    <div class="card">
+      <div class="section-header">
+        <h2>Earnings</h2>
+        <span class="count-badge" id="earning-count-badge">0</span>
+        <button class="refresh-btn" data-refresh="earning">Refresh</button>
+      </div>
+      <div id="earning-loading" style="font-size:14px; opacity:0.7;">Loading…</div>
+      <div id="earning-empty" class="empty-note" style="display:none;">No earning transactions.</div>
+      <div class="table-scroll">
+        <table id="earning-table" style="display:none;">
+          <thead>
+            <tr><th>Date</th><th>User</th><th>Amount</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="earning-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="admin-error" class="card" style="display:none;">
+    <p id="admin-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ---------------------------------------------------------------
+  // Use the same values you set in login.html / dashboard.html.
+  // ---------------------------------------------------------------
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function showAdminError(msg){
+    document.getElementById('admin-loading').style.display = 'none';
+    document.getElementById('admin-content').style.display = 'none';
+    const errBox = document.getElementById('admin-error');
+    document.getElementById('admin-error-text').textContent = msg;
+    errBox.style.display = 'block';
+  }
+
+  function formatNaira(n){
+    return n.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+
+  function formatDate(iso){
+    return iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+  }
+
+  function capitalize(s){
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  }
+
+  function destinationLabel(account){
+    if (!account || !account.bank_name) return '—';
+    const last4 = (account.account_number || '').slice(-4);
+    return `${account.bank_name}${last4 ? ' •••• ' + last4 : ''}`;
+  }
+
+  // NOTE: this assumes a boolean `is_admin` column exists on `profiles`.
+  // Row Level Security on payout_requests / transactions should also
+  // restrict writes to admins only — this page's UI gating is not a
+  // substitute for that.
+  async function checkAdmin(userId){
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', userId)
+      .single();
+    return !error && data && data.is_admin === true;
+  }
+
+  // ---------------- Pending payouts ----------------
+
+  async function loadPendingPayouts(){
+    const loadingEl = document.getElementById('pending-loading');
+    const emptyEl = document.getElementById('pending-empty');
+    const tableEl = document.getElementById('pending-table');
+    const badge = document.getElementById('pending-count-badge');
+
+    loadingEl.style.display = 'block';
+    tableEl.style.display = 'none';
+    emptyEl.style.display = 'none';
+
+    const { data, error } = await supabaseClient
+      .from('payout_requests')
+      .select(`
+        id, user_id, amount, status, created_at,
+        profiles ( full_name ),
+        linked_accounts ( bank_name, account_number )
+      `)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true })
+      .limit(200);
+
+    loadingEl.style.display = 'none';
+
+    if (error) {
+      emptyEl.textContent = "Couldn't load pending payouts.";
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    const rows = data || [];
+    badge.textContent = rows.length;
+    document.getElementById('stat-pending-count').textContent = rows.length;
+    document.getElementById('stat-pending-amount').textContent =
+      formatNaira(rows.reduce((sum, r) => sum + Number(r.amount || 0), 0));
+
+    if (rows.length === 0) {
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    tableEl.style.display = 'table';
+    document.getElementById('pending-body').innerHTML = rows.map(r => `
+      <tr>
+        <td>${formatDate(r.created_at)}</td>
+        <td>${(r.profiles && r.profiles.full_name) || r.user_id}</td>
+        <td>${destinationLabel(r.linked_accounts)}</td>
+        <td>${formatNaira(Number(r.amount || 0))}</td>
+        <td><span class="status-pill status-pending">Pending</span></td>
+        <td>
+          <div class="row-actions">
+            <button class="action-btn positive" data-id="${r.id}" data-action="paid">Mark paid</button>
+            <button class="action-btn negative" data-id="${r.id}" data-action="failed">Mark failed</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  document.getElementById('pending-body').addEventListener('click', (event) => {
+    const btn = event.target.closest('.action-btn');
+    if (!btn || btn.disabled) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    const confirmMsg = action === 'paid'
+      ? 'Confirm this payout was sent to the user\'s bank account?'
+      : 'Mark this payout as failed? A refund will be issued to the user\'s balance.';
+    if (!window.confirm(confirmMsg)) return;
+    setPayoutStatus(id, action, btn);
+  });
+
+  async function setPayoutStatus(id, status, btn){
+    const row = btn.closest('tr');
+    row.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+    btn.textContent = status === 'paid' ? 'Marking paid…' : 'Marking failed…';
+
+    const { error } = await supabaseClient
+      .from('payout_requests')
+      .update({ status })
+      .eq('id', id)
+      .eq('status', 'pending'); // guard against double-processing
+
+    if (error) {
+      showToast("Couldn't update this request. Please try again.");
+      row.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
+      btn.textContent = status === 'paid' ? 'Mark paid' : 'Mark failed';
+      return;
+    }
+
+    showToast(status === 'paid' ? 'Marked as paid.' : 'Marked as failed — refund issued.');
+    // A status change moves a row out of "pending" and into either
+    // "paid" or "failed", so refresh all three payout sections.
+    await Promise.all([loadPendingPayouts(), loadPaidPayouts(), loadFailedPayouts()]);
+  }
+
+  // ---------------- Completed (paid) payouts ----------------
+
+  async function loadPaidPayouts(){
+    const loadingEl = document.getElementById('paid-loading');
+    const emptyEl = document.getElementById('paid-empty');
+    const tableEl = document.getElementById('paid-table');
+    const badge = document.getElementById('paid-count-badge');
+
+    loadingEl.style.display = 'block';
+    tableEl.style.display = 'none';
+    emptyEl.style.display = 'none';
+
+    const { data, error } = await supabaseClient
+      .from('payout_requests')
+      .select(`
+        id, user_id, amount, status, created_at, paid_at,
+        profiles ( full_name ),
+        linked_accounts ( bank_name, account_number )
+      `)
+      .eq('status', 'paid')
+      .order('paid_at', { ascending: false })
+      .limit(200);
+
+    loadingEl.style.display = 'none';
+
+    if (error) {
+      emptyEl.textContent = "Couldn't load completed payouts.";
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    const rows = data || [];
+    badge.textContent = rows.length;
+
+    if (rows.length === 0) {
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    tableEl.style.display = 'table';
+    document.getElementById('paid-body').innerHTML = rows.map(r => `
+      <tr>
+        <td>${formatDate(r.created_at)}</td>
+        <td>${(r.profiles && r.profiles.full_name) || r.user_id}</td>
+        <td>${destinationLabel(r.linked_accounts)}</td>
+        <td>${formatNaira(Number(r.amount || 0))}</td>
+        <td>${formatDate(r.paid_at)}</td>
+        <td><span class="status-pill status-paid">Paid</span></td>
+      </tr>`).join('');
+  }
+
+  // ---------------- Failed payouts ----------------
+
+  async function loadFailedPayouts(){
+    const loadingEl = document.getElementById('failed-loading');
+    const emptyEl = document.getElementById('failed-empty');
+    const tableEl = document.getElementById('failed-table');
+    const badge = document.getElementById('failed-count-badge');
+
+    loadingEl.style.display = 'block';
+    tableEl.style.display = 'none';
+    emptyEl.style.display = 'none';
+
+    const { data, error } = await supabaseClient
+      .from('payout_requests')
+      .select(`
+        id, user_id, amount, status, created_at,
+        profiles ( full_name ),
+        linked_accounts ( bank_name, account_number )
+      `)
+      .eq('status', 'failed')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    loadingEl.style.display = 'none';
+
+    if (error) {
+      emptyEl.textContent = "Couldn't load failed payouts.";
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    const rows = data || [];
+    badge.textContent = rows.length;
+
+    if (rows.length === 0) {
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    tableEl.style.display = 'table';
+    document.getElementById('failed-body').innerHTML = rows.map(r => `
+      <tr>
+        <td>${formatDate(r.created_at)}</td>
+        <td>${(r.profiles && r.profiles.full_name) || r.user_id}</td>
+        <td>${destinationLabel(r.linked_accounts)}</td>
+        <td>${formatNaira(Number(r.amount || 0))}</td>
+        <td><span class="status-pill status-failed">Failed</span></td>
+      </tr>`).join('');
+  }
+
+  // ---------------- Earnings ----------------
+
+  async function loadEarnings(){
+    const loadingEl = document.getElementById('earning-loading');
+    const emptyEl = document.getElementById('earning-empty');
+    const tableEl = document.getElementById('earning-table');
+    const badge = document.getElementById('earning-count-badge');
+
+    loadingEl.style.display = 'block';
+    tableEl.style.display = 'none';
+    emptyEl.style.display = 'none';
+
+    const { data, error } = await supabaseClient
+      .from('transactions')
+      .select(`
+        id, user_id, amount, status, created_at,
+        profiles ( full_name )
+      `)
+      .eq('type', 'earning')
+      .order('created_at', { ascending: false })
+      .limit(200);
+
+    loadingEl.style.display = 'none';
+
+    if (error) {
+      emptyEl.textContent = "Couldn't load earnings.";
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    const rows = data || [];
+    badge.textContent = rows.length;
+    const pendingCount = rows.filter(r => r.status === 'pending').length;
+    document.getElementById('stat-earning-pending-count').textContent = pendingCount;
+
+    if (rows.length === 0) {
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    tableEl.style.display = 'table';
+    document.getElementById('earning-body').innerHTML = rows.map(r => {
+      const isPending = r.status === 'pending';
+      return `
+      <tr>
+        <td>${formatDate(r.created_at)}</td>
+        <td>${(r.profiles && r.profiles.full_name) || r.user_id}</td>
+        <td>${formatNaira(Number(r.amount || 0))}</td>
+        <td><span class="status-pill status-${r.status}">${capitalize(r.status)}</span></td>
+        <td>
+          ${isPending ? `
+          <div class="row-actions">
+            <button class="action-btn positive" data-id="${r.id}" data-action="completed">Approve</button>
+            <button class="action-btn negative" data-id="${r.id}" data-action="failed">Reject</button>
+          </div>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  document.getElementById('earning-body').addEventListener('click', (event) => {
+    const btn = event.target.closest('.action-btn');
+    if (!btn || btn.disabled) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    const confirmMsg = action === 'completed'
+      ? 'Approve this earning? It will count toward the user\'s balance.'
+      : 'Reject this earning? It will not count toward the user\'s balance.';
+    if (!window.confirm(confirmMsg)) return;
+    setEarningStatus(id, action, btn);
+  });
+
+  async function setEarningStatus(id, status, btn){
+    const row = btn.closest('tr');
+    row.querySelectorAll('.action-btn').forEach(b => b.disabled = true);
+    btn.textContent = status === 'completed' ? 'Approving…' : 'Rejecting…';
+
+    const { error } = await supabaseClient
+      .from('transactions')
+      .update({ status })
+      .eq('id', id)
+      .eq('type', 'earning')
+      .eq('status', 'pending'); // guard against double-processing
+
+    if (error) {
+      showToast("Couldn't update this earning. Please try again.");
+      row.querySelectorAll('.action-btn').forEach(b => b.disabled = false);
+      btn.textContent = status === 'completed' ? 'Approve' : 'Reject';
+      return;
+    }
+
+    showToast(status === 'completed' ? 'Earning approved.' : 'Earning rejected.');
+    await loadEarnings();
+  }
+
+  // ---------------- Refresh buttons ----------------
+
+  document.querySelectorAll('[data-refresh]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.refresh;
+      if (target === 'pending') loadPendingPayouts();
+      if (target === 'paid') loadPaidPayouts();
+      if (target === 'failed') loadFailedPayouts();
+      if (target === 'earning') loadEarnings();
+    });
+  });
+
+  // ---------------- Bootstrap ----------------
+
+  async function loadAdmin(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const isAdmin = await checkAdmin(session.user.id);
+    if (!isAdmin) {
+      showAdminError("You don't have access to this page.");
+      return;
+    }
+
+    await Promise.all([
+      loadPendingPayouts(),
+      loadPaidPayouts(),
+      loadFailedPayouts(),
+      loadEarnings()
+    ]);
+
+    document.getElementById('admin-loading').style.display = 'none';
+    document.getElementById('admin-content').style.display = 'block';
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  loadAdmin();
+</script>
+
+</body>
+</html>
