@@ -322,7 +322,7 @@
       .from('payout_requests')
       .select(`
         id, user_id, amount, status, created_at,
-        profiles ( full_name ),
+        profiles!payout_requests_user_id_profiles_fkey ( full_name ),
         linked_accounts ( bank_name, account_number )
       `)
       .eq('status', 'pending')
@@ -418,7 +418,7 @@
       .from('payout_requests')
       .select(`
         id, user_id, amount, status, created_at, paid_at,
-        profiles ( full_name ),
+        profiles!payout_requests_user_id_profiles_fkey ( full_name ),
         linked_accounts ( bank_name, account_number )
       `)
       .eq('status', 'paid')
@@ -470,7 +470,7 @@
       .from('payout_requests')
       .select(`
         id, user_id, amount, status, created_at,
-        profiles ( full_name ),
+        profiles!payout_requests_user_id_profiles_fkey ( full_name ),
         linked_accounts ( bank_name, account_number )
       `)
       .eq('status', 'failed')
