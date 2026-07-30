@@ -114,7 +114,7 @@
           </select>
         </div>
         <div class="form-field">
-          <label for="postPayout">Payout (USD)</label>
+          <label for="postPayout">Payout (₦)</label>
           <input id="postPayout" type="number" step="0.01" min="0" required>
         </div>
         <div class="form-field">
@@ -217,7 +217,7 @@
 
   function formatCurrency(n){
     const num = Number(n) || 0;
-    return num.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    return num.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
   }
 
   function formatDate(iso){

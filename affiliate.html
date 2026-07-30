@@ -6,65 +6,49 @@
 <title>Affiliate program — EarnOva</title>
 <link rel="stylesheet" href="styles.css">
 <style>
-  .stat-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
-    gap:12px;
-    margin-top:12px;
-  }
-  .stat-card{
-    border:1px solid rgba(0,0,0,0.12);
-    border-radius:8px;
-    padding:16px;
-  }
-  .stat-label{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; margin-bottom:6px; }
-  .stat-value{ font-size:22px; font-weight:700; }
-  .work-at{ font-weight:700; color:#2563eb; }
-  .job-company{ font-weight:700; color:#0d9488; }
+  .stat-row{ display:flex; flex-wrap:wrap; gap:24px; margin-bottom:8px; }
+  .stat-label{ font-size:13px; opacity:0.7; }
+  .stat-value{ font-size:22px; font-weight:600; }
 
-  .referral-box{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap;
-    align-items:center;
-    margin-top:12px;
-  }
-  .referral-input{
-    flex:1;
-    min-width:220px;
-    padding:10px 12px;
-    border:1px solid rgba(0,0,0,0.15);
-    border-radius:6px;
-    font-size:14px;
-    background:rgba(0,0,0,0.02);
-  }
+  .product-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:12px; }
+  .product-card{ border:1px solid rgba(0,0,0,0.12); border-radius:8px; padding:14px; }
+  .product-card h4{ margin:0 0 4px 0; font-size:15px; }
+  .product-meta{ font-size:13px; opacity:0.7; margin-bottom:10px; }
+  .product-card .price{ font-weight:700; }
 
+  .link-row{ display:flex; align-items:center; gap:8px; margin-top:10px; }
+  .link-row input{
+    flex:1; padding:9px 10px; border:1px solid rgba(0,0,0,0.15); border-radius:8px;
+    font-size:12px; font-family:inherit; color:inherit; background:rgba(0,0,0,0.02);
+  }
+  .copy-btn{
+    padding:9px 12px; border-radius:8px; border:1px solid rgba(0,0,0,0.15);
+    background:none; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+  .copy-btn:hover{ background:rgba(0,0,0,0.04); }
+
+  .tier-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-top:12px; }
+  .tier-card{ border:1px solid rgba(0,0,0,0.12); border-radius:8px; padding:14px; }
+  .tier-card.current{ border-color:#2563eb; background:rgba(37,99,235,0.04); }
+  .tier-card h4{ margin:0 0 4px 0; font-size:14px; }
+  .tier-bonus{ font-size:20px; font-weight:700; color:#2563eb; }
+  .tier-range{ font-size:12px; opacity:0.7; }
   .job-tag{
-    display:inline-block;
-    font-size:12px;
-    font-weight:600;
-    padding:2px 8px;
-    border-radius:999px;
-    background:rgba(0,0,0,0.06);
-    margin-right:6px;
+    display:inline-block; font-size:11px; font-weight:600; padding:2px 8px;
+    border-radius:999px; background:#2563eb; color:#fff; margin-left:6px;
   }
-  .job-tag.tier-active{ background:#2563eb; color:#fff; }
 
-  table.data-table{ width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
-  table.data-table th, table.data-table td{ text-align:left; padding:10px 8px; border-bottom:1px solid rgba(0,0,0,0.08); }
-  table.data-table th{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; }
-  .status-pill{ display:inline-block; font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; }
-  .status-pill.confirmed{ background:rgba(13,148,136,0.12); color:#0d9488; }
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table{ width:100%; min-width:420px; border-collapse:collapse; }
+  th{ text-align:left; padding:8px 10px; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7; white-space:nowrap; }
+  td{ padding:10px; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; vertical-align:middle; white-space:nowrap; }
+  .status-pill{ font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; }
+  .status-pill.completed{ background:rgba(13,148,136,0.12); color:#0d9488; }
   .status-pill.pending{ background:rgba(217,119,6,0.12); color:#d97706; }
 
-  .tier-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-top:12px; }
-  .tier-card{ border:1px solid rgba(0,0,0,0.12); border-radius:8px; padding:16px; }
-  .tier-card h4{ margin:0 0 4px 0; font-size:15px; }
-  .tier-card .tier-rate{ font-size:24px; font-weight:700; color:#2563eb; margin:6px 0; }
-  .tier-card .tier-range{ font-size:13px; opacity:0.7; }
-  .tier-card.current{ border-color:#2563eb; background:rgba(37,99,235,0.04); }
-
-  .empty-note{ font-size:14px; opacity:0.65; margin-top:12px; }
+  .empty-note{ font-size:14px; opacity:0.7; padding:8px 0 4px; }
+  .picker-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+  .picker-row select{ flex:1; min-width:200px; padding:10px 12px; border:1px solid rgba(0,0,0,0.15); border-radius:8px; font-size:14px; }
 </style>
 </head>
 <body>
@@ -76,63 +60,93 @@
       <span class="tag">Think smart. Earn big.</span>
     </a>
     <div class="nav-actions">
-      <a class="btn btn-ghost" href="profile.html">Profile</a>
-      <a class="btn btn-ghost" href="settings.html">Settings</a>
+      <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
     </div>
   </div>
 </header>
 
 <main class="page">
-  <a href="dashboard.html" class="back-link">&larr; Back to dashboard</a>
   <div class="kicker">Affiliate program</div>
-  <h1>Your affiliate dashboard</h1>
-  <p class="lead">Share your referral link, track what you've earned, and see how close you are to your next commission tier.</p>
+  <h1>Sell products, earn commission</h1>
+  <p class="lead">Pick a product, get your own link, and earn a commission every time someone buys through it.</p>
 
-  <!-- Referral link -->
-  <div class="card">
-    <h3 style="margin-top:0;">Your referral link</h3>
-    <div class="referral-box">
-      <input id="referralLinkInput" class="referral-input" type="text" readonly value="Loading…">
-      <button class="btn btn-solid" id="copyLinkBtn">Copy link</button>
-    </div>
+  <div id="affiliate-loading" class="card">
+    <p>Loading…</p>
   </div>
 
-  <!-- Stats -->
-  <div class="stat-grid" id="statGrid">
-    <div class="stat-card">
-      <div class="stat-label">Total earnings</div>
-      <div class="stat-value" id="statTotalEarnings">—</div>
+  <div id="affiliate-content" style="display:none;">
+
+    <!-- Stats -->
+    <div class="card">
+      <div class="stat-row">
+        <div>
+          <div class="stat-label">Total earned</div>
+          <div class="stat-value" id="stat-total-earnings">₦0.00</div>
+        </div>
+        <div>
+          <div class="stat-label">Pending</div>
+          <div class="stat-value" id="stat-pending-earnings">₦0.00</div>
+        </div>
+        <div>
+          <div class="stat-label">Completed sales</div>
+          <div class="stat-value" id="stat-sales-count">0</div>
+        </div>
+        <div>
+          <div class="stat-label">Your tier</div>
+          <div class="stat-value" id="stat-current-tier">—</div>
+        </div>
+      </div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Pending earnings</div>
-      <div class="stat-value" id="statPendingEarnings">—</div>
+
+    <!-- Get a link -->
+    <div class="card" style="margin-top:20px;">
+      <h2 style="margin-top:0;">Get a link for a product</h2>
+      <div class="picker-row">
+        <select id="product-picker"><option value="">Loading products…</option></select>
+        <button class="btn btn-solid" id="get-link-btn">Get my link</button>
+      </div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">People referred</div>
-      <div class="stat-value" id="statReferralCount">—</div>
+
+    <!-- Your links -->
+    <div class="card" style="margin-top:20px;">
+      <h2 style="margin-top:0;">Your links</h2>
+      <div id="links-empty" class="empty-note" style="display:none;">
+        You haven't picked a product yet — choose one above to get your first link.
+      </div>
+      <div class="product-grid" id="links-grid"></div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Current tier</div>
-      <div class="stat-value" id="statCurrentTier">—</div>
+
+    <!-- Commission tiers -->
+    <div class="card" style="margin-top:20px;">
+      <h2 style="margin-top:0;">Commission tiers</h2>
+      <p class="empty-note" style="padding:0; margin:0 0 4px 0;">More completed sales moves you up a tier, adding a bonus % on top of every product's base commission.</p>
+      <div class="tier-grid" id="tier-grid"></div>
     </div>
+
+    <!-- Sales history -->
+    <div class="card" style="margin-top:20px;">
+      <h2 style="margin-top:0;">Your sales</h2>
+      <div id="sales-empty" class="empty-note" style="display:none;">
+        No sales yet — share your link above to start earning.
+      </div>
+      <div class="table-scroll">
+        <table id="sales-table" style="display:none;">
+          <thead>
+            <tr><th>Date</th><th>Product</th><th>Commission</th><th>Status</th></tr>
+          </thead>
+          <tbody id="sales-body"></tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 
-  <!-- Commission tiers -->
-  <div class="card" style="margin-top:20px;">
-    <h3 style="margin-top:0;">Commission tiers</h3>
-    <p class="empty-note" style="margin-top:0;">Refer more people to move up a tier and earn a higher commission rate on every referral.</p>
-    <div class="tier-grid" id="tierGrid">
-      <div class="empty-note">Loading tiers…</div>
-    </div>
+  <div id="affiliate-error" class="card" style="display:none;">
+    <p id="affiliate-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
   </div>
 
-  <!-- Referred people -->
-  <div class="card" style="margin-top:20px;">
-    <h3 style="margin-top:0;">People you've referred</h3>
-    <div id="referralsWrap">
-      <p class="empty-note">Loading your referrals…</p>
-    </div>
-  </div>
 </main>
 
 <footer>
@@ -149,18 +163,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
   /*
-    Assumed Supabase schema — rename to match your real tables/columns:
-
-    affiliates
-      id, user_id, referral_code, total_earnings, pending_earnings,
-      referral_count, tier_id, created_at
-
-    referrals
-      id, affiliate_id, referred_name, referred_email, status
-      ('pending' | 'confirmed'), commission_earned, created_at
-
-    commission_tiers
-      id, name, min_referrals, max_referrals, rate, sort_order
+    Tables used (see affiliate_schema.sql):
+      products          (id, name, price, commission_rate, category, image_url, is_active)
+      affiliate_links   (id, user_id, product_id, code, clicks)
+      affiliate_sales   (id, affiliate_link_id, sale_amount, commission_amount, status, created_at)
+      commission_tiers  (id, name, min_sales, max_sales, bonus_rate, sort_order)
+      transactions      (existing) — type = 'affiliate_commission', status = 'completed'/'pending'
   */
 
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
@@ -176,130 +184,228 @@
     toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
   }
 
+  function showAffiliateError(msg){
+    document.getElementById('affiliate-loading').style.display = 'none';
+    document.getElementById('affiliate-content').style.display = 'none';
+    const errBox = document.getElementById('affiliate-error');
+    document.getElementById('affiliate-error-text').textContent = msg;
+    errBox.style.display = 'block';
+  }
+
+  function formatNaira(n){
+    return (Number(n) || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+
+  function formatDate(iso){
+    return iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+  }
+
   function escapeHtml(str){
     const div = document.createElement('div');
     div.textContent = str || '';
     return div.innerHTML;
   }
 
-  function formatCurrency(n){
-    const num = Number(n) || 0;
-    return num.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  async function copyToClipboard(text, label){
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(`${label} copied!`);
+    } catch (err) {
+      showToast("Couldn't copy — long-press to select and copy manually.");
+    }
   }
 
-  function formatDate(iso){
-    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  }
+  let currentUserId = null;
+  let allProducts = [];
 
-  function renderTiers(tiers, currentTierId){
-    const grid = document.getElementById('tierGrid');
-    if (!tiers || tiers.length === 0) {
-      grid.innerHTML = '<div class="empty-note">Tier information isn\'t available right now.</div>';
+  function renderLinks(links){
+    const grid = document.getElementById('links-grid');
+    const emptyEl = document.getElementById('links-empty');
+
+    if (!links || links.length === 0) {
+      grid.innerHTML = '';
+      emptyEl.style.display = 'block';
       return;
     }
-    grid.innerHTML = tiers.map(tier => {
-      const isCurrent = String(tier.id) === String(currentTierId);
-      const range = tier.max_referrals
-        ? `${tier.min_referrals}–${tier.max_referrals} referrals`
-        : `${tier.min_referrals}+ referrals`;
+    emptyEl.style.display = 'none';
+
+    grid.innerHTML = links.map(link => {
+      const product = link.products || {};
+      const shareLink = `${window.location.origin}/product.html?ref=${encodeURIComponent(link.code)}`;
       return `
-        <div class="tier-card ${isCurrent ? 'current' : ''}">
-          <h4>${escapeHtml(tier.name)}${isCurrent ? ' <span class="job-tag tier-active">Current</span>' : ''}</h4>
-          <div class="tier-rate">${tier.rate}%</div>
+        <div class="product-card">
+          <h4>${escapeHtml(product.name || 'Product')}</h4>
+          <div class="product-meta">
+            <span class="price">${formatNaira(product.price)}</span> ·
+            ${product.commission_rate}% base commission
+          </div>
+          <div class="link-row">
+            <input type="text" readonly value="${escapeHtml(shareLink)}" data-code="${escapeHtml(link.code)}">
+            <button class="copy-btn copy-link-btn" data-link="${escapeHtml(shareLink)}">Copy</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    grid.querySelectorAll('.copy-link-btn').forEach(btn => {
+      btn.addEventListener('click', () => copyToClipboard(btn.getAttribute('data-link'), 'Link'));
+    });
+  }
+
+  function renderTiers(tiers, completedSalesCount){
+    const grid = document.getElementById('tier-grid');
+    if (!tiers || tiers.length === 0) {
+      grid.innerHTML = '<p class="empty-note">Tier info isn\'t available right now.</p>';
+      return;
+    }
+
+    let currentTierName = '—';
+    grid.innerHTML = tiers.map(tier => {
+      const inRange = completedSalesCount >= tier.min_sales &&
+        (tier.max_sales === null || completedSalesCount <= tier.max_sales);
+      if (inRange) currentTierName = tier.name;
+      const range = tier.max_sales ? `${tier.min_sales}–${tier.max_sales} sales` : `${tier.min_sales}+ sales`;
+      return `
+        <div class="tier-card ${inRange ? 'current' : ''}">
+          <h4>${escapeHtml(tier.name)}${inRange ? '<span class="job-tag">Current</span>' : ''}</h4>
+          <div class="tier-bonus">+${tier.bonus_rate}%</div>
           <div class="tier-range">${escapeHtml(range)}</div>
         </div>
       `;
     }).join('');
+
+    document.getElementById('stat-current-tier').textContent = currentTierName;
   }
 
-  function renderReferrals(referrals){
-    const wrap = document.getElementById('referralsWrap');
-    if (!referrals || referrals.length === 0) {
-      wrap.innerHTML = '<p class="empty-note">You haven\'t referred anyone yet. Share your link above to get started.</p>';
+  function renderSales(sales){
+    const tableEl = document.getElementById('sales-table');
+    const emptyEl = document.getElementById('sales-empty');
+
+    if (!sales || sales.length === 0) {
+      emptyEl.style.display = 'block';
+      tableEl.style.display = 'none';
       return;
     }
-    wrap.innerHTML = `
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Joined</th>
-            <th>Status</th>
-            <th>Commission earned</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${referrals.map(r => `
-            <tr>
-              <td>${escapeHtml(r.referred_name || r.referred_email || 'Referred user')}</td>
-              <td>${formatDate(r.created_at)}</td>
-              <td><span class="status-pill ${r.status === 'confirmed' ? 'confirmed' : 'pending'}">${escapeHtml(r.status || 'pending')}</span></td>
-              <td>${formatCurrency(r.commission_earned)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
+    emptyEl.style.display = 'none';
+    tableEl.style.display = 'table';
+
+    document.getElementById('sales-body').innerHTML = sales.map(sale => `
+      <tr>
+        <td>${formatDate(sale.created_at)}</td>
+        <td>${escapeHtml((sale.affiliate_links && sale.affiliate_links.products && sale.affiliate_links.products.name) || 'Product')}</td>
+        <td>${formatNaira(sale.commission_amount)}</td>
+        <td><span class="status-pill ${sale.status}">${escapeHtml(sale.status)}</span></td>
+      </tr>
+    `).join('');
   }
 
-  document.getElementById('copyLinkBtn').addEventListener('click', async () => {
-    const input = document.getElementById('referralLinkInput');
-    try {
-      await navigator.clipboard.writeText(input.value);
-      showToast('Referral link copied.');
-    } catch (e) {
-      input.select();
-      showToast('Select and copy your link above.');
+  function populateProductPicker(products, existingLinks){
+    const picker = document.getElementById('product-picker');
+    const linkedProductIds = new Set((existingLinks || []).map(l => l.product_id));
+    const available = products.filter(p => !linkedProductIds.has(p.id));
+
+    if (available.length === 0) {
+      picker.innerHTML = '<option value="">You already have a link for every product</option>';
+      document.getElementById('get-link-btn').disabled = true;
+      return;
     }
+    document.getElementById('get-link-btn').disabled = false;
+    picker.innerHTML = '<option value="">Choose a product…</option>' +
+      available.map(p => `<option value="${p.id}">${escapeHtml(p.name)} — ${formatNaira(p.price)}</option>`).join('');
+  }
+
+  document.getElementById('get-link-btn').addEventListener('click', async () => {
+    const productId = document.getElementById('product-picker').value;
+    if (!productId) {
+      showToast('Choose a product first.');
+      return;
+    }
+    const { error } = await supabaseClient
+      .from('affiliate_links')
+      .insert({ user_id: currentUserId, product_id: productId });
+
+    if (error) {
+      showToast("Couldn't create your link. Try again.");
+      return;
+    }
+    showToast('Link created!');
+    loadAffiliatePage();
   });
 
-  async function loadAffiliateData(){
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !userData?.user) {
-      document.getElementById('referralLinkInput').value = 'Sign in to see your referral link';
-      document.getElementById('referralsWrap').innerHTML = '<p class="empty-note">Sign in to view your affiliate stats.</p>';
-      document.getElementById('tierGrid').innerHTML = '';
-      return;
-    }
-    const userId = userData.user.id;
+  async function loadAffiliatePage(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
 
-    const { data: affiliate, error: affiliateError } = await supabaseClient
-      .from('affiliates')
-      .select('id, referral_code, total_earnings, pending_earnings, referral_count, tier_id')
-      .eq('user_id', userId)
-      .single();
-
-    if (affiliateError || !affiliate) {
-      showToast("Couldn't load your affiliate account.");
-      document.getElementById('referralLinkInput').value = 'Unavailable';
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
       return;
     }
 
-    document.getElementById('referralLinkInput').value =
-      `${window.location.origin}/signup.html?ref=${affiliate.referral_code}`;
-    document.getElementById('statTotalEarnings').textContent = formatCurrency(affiliate.total_earnings);
-    document.getElementById('statPendingEarnings').textContent = formatCurrency(affiliate.pending_earnings);
-    document.getElementById('statReferralCount').textContent = affiliate.referral_count ?? 0;
+    const user = session.user;
+    currentUserId = user.id;
 
-    const { data: tiers } = await supabaseClient
-      .from('commission_tiers')
-      .select('id, name, min_referrals, max_referrals, rate')
-      .order('sort_order', { ascending: true });
+    const [productsResult, linksResult, salesResult, tiersResult, transactionsResult] = await Promise.all([
+      supabaseClient.from('products').select('id, name, price, commission_rate').eq('is_active', true),
+      supabaseClient
+        .from('affiliate_links')
+        .select('id, code, product_id, products ( name, price, commission_rate )')
+        .eq('user_id', user.id),
+      supabaseClient
+        .from('affiliate_sales')
+        .select('id, sale_amount, commission_amount, status, created_at, affiliate_links!inner ( user_id, products ( name ) )')
+        .eq('affiliate_links.user_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabaseClient
+        .from('commission_tiers')
+        .select('id, name, min_sales, max_sales, bonus_rate')
+        .order('sort_order', { ascending: true }),
+      supabaseClient
+        .from('transactions')
+        .select('amount, status')
+        .eq('user_id', user.id)
+        .eq('type', 'affiliate_commission')
+    ]);
 
-    const currentTier = (tiers || []).find(t => String(t.id) === String(affiliate.tier_id));
-    document.getElementById('statCurrentTier').textContent = currentTier ? currentTier.name : '—';
-    renderTiers(tiers, affiliate.tier_id);
+    const { data: products, error: productsError } = productsResult;
+    const { data: links, error: linksError } = linksResult;
+    const { data: sales, error: salesError } = salesResult;
+    const { data: tiers, error: tiersError } = tiersResult;
+    const { data: transactions, error: transactionsError } = transactionsResult;
 
-    const { data: referrals } = await supabaseClient
-      .from('referrals')
-      .select('id, referred_name, referred_email, status, commission_earned, created_at')
-      .eq('affiliate_id', affiliate.id)
-      .order('created_at', { ascending: false });
+    if (productsError || linksError || salesError || tiersError || transactionsError) {
+      showAffiliateError("We couldn't load your affiliate details. Please try again.");
+      return;
+    }
 
-    renderReferrals(referrals);
+    allProducts = products || [];
+    populateProductPicker(allProducts, links);
+    renderLinks(links);
+    renderSales(sales);
+
+    const completedSalesCount = (sales || []).filter(s => s.status === 'completed').length;
+    document.getElementById('stat-sales-count').textContent = completedSalesCount;
+    renderTiers(tiers, completedSalesCount);
+
+    let totalEarnings = 0;
+    let pendingEarnings = 0;
+    (transactions || []).forEach(t => {
+      const amt = Number(t.amount || 0);
+      if (t.status === 'completed') totalEarnings += amt;
+      else pendingEarnings += amt;
+    });
+    document.getElementById('stat-total-earnings').textContent = formatNaira(totalEarnings);
+    document.getElementById('stat-pending-earnings').textContent = formatNaira(pendingEarnings);
+
+    document.getElementById('affiliate-loading').style.display = 'none';
+    document.getElementById('affiliate-content').style.display = 'block';
   }
 
-  loadAffiliateData();
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  loadAffiliatePage();
 </script>
 
 </body>

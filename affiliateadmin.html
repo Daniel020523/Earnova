@@ -6,45 +6,27 @@
 <title>Affiliate admin — EarnOva</title>
 <link rel="stylesheet" href="styles.css">
 <style>
-  .stat-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
-    gap:12px;
-    margin-top:12px;
-  }
-  .stat-card{
-    border:1px solid rgba(0,0,0,0.12);
-    border-radius:8px;
-    padding:16px;
-  }
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-top:12px; }
+  .stat-card{ border:1px solid rgba(0,0,0,0.12); border-radius:8px; padding:16px; }
   .stat-label{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; margin-bottom:6px; }
   .stat-value{ font-size:22px; font-weight:700; }
-  .work-at{ font-weight:700; color:#2563eb; }
+
+  .section-title{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:28px; }
+  .section-title h2{ margin:0; font-size:19px; }
 
   .search-row{ display:flex; gap:8px; margin:12px 0; flex-wrap:wrap; }
-  .search-row input{ flex:1; min-width:200px; padding:10px 12px; border:1px solid rgba(0,0,0,0.15); border-radius:6px; font-size:14px; }
+  .search-row input, .search-row select{ padding:10px 12px; border:1px solid rgba(0,0,0,0.15); border-radius:6px; font-size:14px; }
+  .search-row input{ flex:1; min-width:200px; }
 
   table.data-table{ width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
   table.data-table th, table.data-table td{ text-align:left; padding:10px 8px; border-bottom:1px solid rgba(0,0,0,0.08); vertical-align:middle; }
   table.data-table th{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; }
   .job-tag{ display:inline-block; font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; background:rgba(0,0,0,0.06); }
-
-  .section-title{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:28px; }
-  .section-title h2{ margin:0; font-size:19px; }
-
-  .tier-editor{ display:grid; gap:10px; margin-top:12px; }
-  .tier-row{
-    display:grid;
-    grid-template-columns:1.4fr 1fr 1fr 1fr auto;
-    gap:8px;
-    align-items:center;
-    border:1px solid rgba(0,0,0,0.1);
-    border-radius:8px;
-    padding:10px 12px;
-  }
-  .tier-row input{ padding:8px 10px; border:1px solid rgba(0,0,0,0.15); border-radius:6px; font-size:13px; width:100%; }
-  .tier-row label{ font-size:11px; text-transform:uppercase; opacity:0.55; display:block; margin-bottom:3px; }
-  .tier-row .field{ min-width:0; }
+  .job-tag.active{ background:rgba(13,148,136,0.12); color:#0d9488; }
+  .job-tag.inactive{ background:rgba(0,0,0,0.06); color:rgba(0,0,0,0.5); }
+  .status-pill{ font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; }
+  .status-pill.completed{ background:rgba(13,148,136,0.12); color:#0d9488; }
+  .status-pill.pending{ background:rgba(217,119,6,0.12); color:#d97706; }
 
   .form-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:12px; }
   .form-field label{ font-size:12px; font-weight:600; display:block; margin-bottom:4px; }
@@ -55,10 +37,18 @@
   .checkbox-field{ display:flex; align-items:center; gap:8px; }
   .checkbox-field input{ width:auto; }
 
+  .tier-editor{ display:grid; gap:10px; margin-top:12px; }
+  .tier-row{ display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr auto; gap:8px; align-items:center; border:1px solid rgba(0,0,0,0.1); border-radius:8px; padding:10px 12px; }
+  .tier-row input{ padding:8px 10px; border:1px solid rgba(0,0,0,0.15); border-radius:6px; font-size:13px; width:100%; }
+  .tier-row label{ font-size:11px; text-transform:uppercase; opacity:0.55; display:block; margin-bottom:3px; }
+
   .product-thumb{ width:40px; height:40px; border-radius:6px; object-fit:cover; background:rgba(0,0,0,0.06); }
   .empty-note{ font-size:14px; opacity:0.65; margin-top:12px; }
   .btn-danger{ background:none; border:1px solid rgba(220,38,38,0.4); color:#dc2626; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
   .btn-danger:hover{ background:rgba(220,38,38,0.08); }
+  .btn-toggle{ background:none; border:1px solid rgba(0,0,0,0.2); border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .btn-toggle:hover{ background:rgba(0,0,0,0.04); }
+  .row-actions{ display:flex; gap:6px; flex-wrap:wrap; }
 </style>
 </head>
 <body>
@@ -79,53 +69,29 @@
   <a href="dashboard.html" class="back-link">&larr; Back to dashboard</a>
   <div class="kicker">Admin</div>
   <h1>Affiliate program admin</h1>
-  <p class="lead">Review affiliate performance, adjust commission tiers, and add products to the affiliate catalog.</p>
+  <p class="lead">Add products, adjust commission tiers, and log sales made through affiliate links.</p>
 
-  <!-- Overview stats -->
   <div class="stat-grid">
     <div class="stat-card">
-      <div class="stat-label">Total affiliates</div>
-      <div class="stat-value" id="statAffiliateCount">—</div>
+      <div class="stat-label">Active products</div>
+      <div class="stat-value" id="statProducts">—</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Total referrals</div>
-      <div class="stat-value" id="statReferralCount">—</div>
+      <div class="stat-label">Affiliate links created</div>
+      <div class="stat-value" id="statLinks">—</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Total commissions paid</div>
-      <div class="stat-value" id="statTotalPaid">—</div>
+      <div class="stat-label">Commissions paid</div>
+      <div class="stat-value" id="statPaid">—</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Pending commissions</div>
-      <div class="stat-value" id="statTotalPending">—</div>
+      <div class="stat-value" id="statPending">—</div>
     </div>
   </div>
 
-  <!-- Affiliates table -->
-  <div class="section-title">
-    <h2>All affiliates</h2>
-  </div>
-  <div class="search-row">
-    <input id="affiliateSearch" type="text" placeholder="Search by name or email…">
-  </div>
-  <div id="affiliatesWrap">
-    <p class="empty-note">Loading affiliates…</p>
-  </div>
-
-  <!-- Commission tiers -->
-  <div class="section-title">
-    <h2>Commission tiers</h2>
-    <button class="btn btn-ghost" id="addTierBtn">+ Add tier</button>
-  </div>
-  <p class="empty-note" style="margin-top:0;">Edit rates or referral thresholds, then save each tier individually.</p>
-  <div class="tier-editor" id="tierEditor">
-    <p class="empty-note">Loading tiers…</p>
-  </div>
-
   <!-- Add product -->
-  <div class="section-title">
-    <h2>Products</h2>
-  </div>
+  <div class="section-title"><h2>Products</h2></div>
   <div class="card" style="margin-top:12px;">
     <h3 style="margin-top:0;">Add a product</h3>
     <form id="productForm">
@@ -135,11 +101,11 @@
           <input id="productName" type="text" required>
         </div>
         <div class="form-field">
-          <label for="productPrice">Price (USD)</label>
+          <label for="productPrice">Price (₦)</label>
           <input id="productPrice" type="number" step="0.01" min="0" required>
         </div>
         <div class="form-field">
-          <label for="productCommission">Commission rate (%)</label>
+          <label for="productCommission">Base commission rate (%)</label>
           <input id="productCommission" type="number" step="0.1" min="0" max="100" required>
         </div>
         <div class="form-field">
@@ -166,6 +132,68 @@
   <div id="productsWrap" style="margin-top:16px;">
     <p class="empty-note">Loading products…</p>
   </div>
+
+  <!-- Commission tiers -->
+  <div class="section-title">
+    <h2>Commission tiers</h2>
+    <button class="btn btn-ghost" id="addTierBtn">+ Add tier</button>
+  </div>
+  <p class="empty-note" style="margin-top:0;">Bonus % is added on top of a product's base commission rate once an affiliate reaches this many completed sales.</p>
+  <div class="tier-editor" id="tierEditor">
+    <p class="empty-note">Loading tiers…</p>
+  </div>
+
+  <!-- Log a sale -->
+  <div class="section-title"><h2>Log a sale</h2></div>
+  <p class="empty-note" style="margin-top:0;">Sales happen off-platform, so record them here by affiliate link code. Marking a sale "Completed" automatically credits the affiliate's balance.</p>
+  <div class="card" style="margin-top:12px;">
+    <form id="saleForm">
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="saleLinkCode">Affiliate link code</label>
+          <input id="saleLinkCode" type="text" placeholder="e.g. a1b2c3d4" required>
+        </div>
+        <div class="form-field">
+          <label for="saleAmount">Sale amount (₦)</label>
+          <input id="saleAmount" type="number" step="0.01" min="0" required>
+        </div>
+        <div class="form-field">
+          <label for="saleCommission">Commission amount (₦)</label>
+          <input id="saleCommission" type="number" step="0.01" min="0" required>
+        </div>
+        <div class="form-field">
+          <label for="saleStatus">Status</label>
+          <select id="saleStatus">
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="saleBuyerName">Buyer name (optional)</label>
+          <input id="saleBuyerName" type="text">
+        </div>
+        <div class="form-field">
+          <label for="saleBuyerEmail">Buyer email (optional)</label>
+          <input id="saleBuyerEmail" type="email">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-solid" style="margin-top:14px;">Log sale</button>
+    </form>
+  </div>
+
+  <!-- All sales -->
+  <div class="section-title"><h2>All sales</h2></div>
+  <div class="search-row">
+    <input id="saleSearch" type="text" placeholder="Search by link code or product…">
+    <select id="saleStatusFilter">
+      <option value="">All statuses</option>
+      <option value="pending">Pending</option>
+      <option value="completed">Completed</option>
+    </select>
+  </div>
+  <div id="salesWrap">
+    <p class="empty-note">Loading sales…</p>
+  </div>
 </main>
 
 <footer>
@@ -182,25 +210,18 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
   /*
-    Assumed Supabase schema — rename to match your real tables/columns:
+    Tables used (see affiliate_schema.sql):
+      products          (id, name, price, commission_rate, category, image_url, description, is_active, created_at)
+      affiliate_links   (id, user_id, product_id, code, clicks, created_at) — embeds profiles(full_name, email)
+      affiliate_sales   (id, affiliate_link_id, buyer_name, buyer_email, sale_amount, commission_amount, status, created_at)
+      commission_tiers  (id, name, min_sales, max_sales, bonus_rate, sort_order)
 
-    affiliates
-      id, user_id, name, email, referral_code, total_earnings,
-      pending_earnings, referral_count, tier_id, created_at
+    Marking a sale "completed" fires a DB trigger (post_affiliate_commission)
+    that inserts into transactions (type='affiliate_commission', status='completed'),
+    which is what actually credits the affiliate's balance / payout eligibility.
 
-    referrals
-      id, affiliate_id, status ('pending' | 'confirmed'), commission_earned, created_at
-
-    commission_tiers
-      id, name, min_referrals, max_referrals, rate, sort_order
-
-    products
-      id, name, price, commission_rate, category, image_url,
-      description, is_active, created_at
-
-    This page assumes it is only reachable by admins (e.g. gated by your
-    own auth/role check before this page loads). No admin-role check is
-    performed client-side here.
+    This page assumes it is only reachable by admins (profiles.is_admin = true),
+    enforced by RLS policies in affiliate_schema.sql — not re-checked client-side here.
   */
 
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
@@ -222,89 +243,88 @@
     return div.innerHTML;
   }
 
-  function formatCurrency(n){
-    const num = Number(n) || 0;
-    return num.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  function formatNaira(n){
+    return (Number(n) || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
   }
 
   function formatDate(iso){
-    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
   }
 
-  let allAffiliates = [];
-  let allTiers = [];
   let allProducts = [];
+  let allTiers = [];
+  let allSales = [];
+  let allLinks = [];
 
-  // ---------- Affiliates ----------
-  function renderAffiliates(affiliates){
-    const wrap = document.getElementById('affiliatesWrap');
-    if (!affiliates || affiliates.length === 0) {
-      wrap.innerHTML = '<p class="empty-note">No affiliates yet.</p>';
+  // ---------- Products ----------
+  function renderProducts(products){
+    const wrap = document.getElementById('productsWrap');
+    if (!products || products.length === 0) {
+      wrap.innerHTML = '<p class="empty-note">No products added yet.</p>';
       return;
     }
     wrap.innerHTML = `
       <table class="data-table">
         <thead>
-          <tr>
-            <th>Affiliate</th>
-            <th>Referral code</th>
-            <th>Referrals</th>
-            <th>Total earned</th>
-            <th>Pending</th>
-            <th>Tier</th>
-            <th>Joined</th>
-          </tr>
+          <tr><th></th><th>Product</th><th>Price</th><th>Commission</th><th>Category</th><th>Status</th><th></th></tr>
         </thead>
         <tbody>
-          ${affiliates.map(a => {
-            const tier = allTiers.find(t => String(t.id) === String(a.tier_id));
-            return `
-              <tr>
-                <td>${escapeHtml(a.name || a.email || 'Unnamed')}</td>
-                <td><span class="job-tag">${escapeHtml(a.referral_code || '—')}</span></td>
-                <td>${a.referral_count ?? 0}</td>
-                <td>${formatCurrency(a.total_earnings)}</td>
-                <td>${formatCurrency(a.pending_earnings)}</td>
-                <td>${tier ? escapeHtml(tier.name) : '—'}</td>
-                <td>${a.created_at ? formatDate(a.created_at) : '—'}</td>
-              </tr>
-            `;
-          }).join('')}
+          ${products.map(p => `
+            <tr data-product-id="${p.id}">
+              <td>${p.image_url ? `<img class="product-thumb" src="${escapeHtml(p.image_url)}" alt="">` : ''}</td>
+              <td>${escapeHtml(p.name)}</td>
+              <td>${formatNaira(p.price)}</td>
+              <td>${p.commission_rate}%</td>
+              <td>${escapeHtml(p.category || '—')}</td>
+              <td><span class="job-tag ${p.is_active ? 'active' : 'inactive'}">${p.is_active ? 'Active' : 'Inactive'}</span></td>
+              <td><button type="button" class="btn-danger delete-product-btn">Remove</button></td>
+            </tr>
+          `).join('')}
         </tbody>
       </table>
     `;
+    wrap.querySelectorAll('.delete-product-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.closest('tr').getAttribute('data-product-id');
+        const { error } = await supabaseClient.from('products').delete().eq('id', id);
+        if (error) { showToast("Couldn't remove product."); }
+        else { showToast('Product removed.'); loadProducts(); }
+      });
+    });
   }
 
-  document.getElementById('affiliateSearch').addEventListener('input', (e) => {
-    const q = e.target.value.trim().toLowerCase();
-    const filtered = !q ? allAffiliates : allAffiliates.filter(a =>
-      (a.name || '').toLowerCase().includes(q) || (a.email || '').toLowerCase().includes(q)
-    );
-    renderAffiliates(filtered);
-  });
-
-  async function loadAffiliates(){
+  async function loadProducts(){
     const { data, error } = await supabaseClient
-      .from('affiliates')
-      .select('id, name, email, referral_code, total_earnings, pending_earnings, referral_count, tier_id, created_at')
-      .order('total_earnings', { ascending: false });
+      .from('products')
+      .select('id, name, price, commission_rate, category, image_url, description, is_active, created_at')
+      .order('created_at', { ascending: false });
 
-    if (error) {
-      showToast("Couldn't load affiliates.");
-      document.getElementById('affiliatesWrap').innerHTML = '<p class="empty-note">Couldn\'t load affiliates.</p>';
-      return;
-    }
-    allAffiliates = data || [];
-    renderAffiliates(allAffiliates);
-
-    document.getElementById('statAffiliateCount').textContent = allAffiliates.length;
-    const totalReferrals = allAffiliates.reduce((sum, a) => sum + (a.referral_count || 0), 0);
-    const totalPaid = allAffiliates.reduce((sum, a) => sum + (Number(a.total_earnings) || 0), 0);
-    const totalPending = allAffiliates.reduce((sum, a) => sum + (Number(a.pending_earnings) || 0), 0);
-    document.getElementById('statReferralCount').textContent = totalReferrals;
-    document.getElementById('statTotalPaid').textContent = formatCurrency(totalPaid);
-    document.getElementById('statTotalPending').textContent = formatCurrency(totalPending);
+    if (error) { document.getElementById('productsWrap').innerHTML = '<p class="empty-note">Couldn\'t load products.</p>'; return; }
+    allProducts = data || [];
+    renderProducts(allProducts);
+    document.getElementById('statProducts').textContent = allProducts.filter(p => p.is_active).length;
   }
+
+  document.getElementById('productForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newProduct = {
+      name: document.getElementById('productName').value.trim(),
+      price: Number(document.getElementById('productPrice').value) || 0,
+      commission_rate: Number(document.getElementById('productCommission').value) || 0,
+      category: document.getElementById('productCategory').value.trim() || null,
+      image_url: document.getElementById('productImage').value.trim() || null,
+      description: document.getElementById('productDescription').value.trim() || null,
+      is_active: document.getElementById('productActive').checked,
+    };
+    if (!newProduct.name) { showToast('Give the product a name.'); return; }
+
+    const { error } = await supabaseClient.from('products').insert(newProduct);
+    if (error) { showToast("Couldn't add product."); return; }
+    showToast('Product added.');
+    e.target.reset();
+    document.getElementById('productActive').checked = true;
+    loadProducts();
+  });
 
   // ---------- Commission tiers ----------
   function renderTierEditor(tiers){
@@ -315,22 +335,10 @@
     }
     editor.innerHTML = tiers.map(tier => `
       <div class="tier-row" data-tier-id="${tier.id}">
-        <div class="field">
-          <label>Tier name</label>
-          <input type="text" class="tier-name" value="${escapeHtml(tier.name)}">
-        </div>
-        <div class="field">
-          <label>Min referrals</label>
-          <input type="number" min="0" class="tier-min" value="${tier.min_referrals ?? 0}">
-        </div>
-        <div class="field">
-          <label>Max referrals</label>
-          <input type="number" min="0" class="tier-max" placeholder="No limit" value="${tier.max_referrals ?? ''}">
-        </div>
-        <div class="field">
-          <label>Rate (%)</label>
-          <input type="number" min="0" max="100" step="0.1" class="tier-rate" value="${tier.rate ?? 0}">
-        </div>
+        <div><label>Tier name</label><input type="text" class="tier-name" value="${escapeHtml(tier.name)}"></div>
+        <div><label>Min sales</label><input type="number" min="0" class="tier-min" value="${tier.min_sales ?? 0}"></div>
+        <div><label>Max sales</label><input type="number" min="0" class="tier-max" placeholder="No limit" value="${tier.max_sales ?? ''}"></div>
+        <div><label>Bonus (%)</label><input type="number" min="0" max="100" step="0.1" class="tier-bonus" value="${tier.bonus_rate ?? 0}"></div>
         <button type="button" class="btn btn-solid save-tier-btn">Save</button>
       </div>
     `).join('');
@@ -343,19 +351,15 @@
         const min = Number(row.querySelector('.tier-min').value) || 0;
         const maxRaw = row.querySelector('.tier-max').value;
         const max = maxRaw === '' ? null : Number(maxRaw);
-        const rate = Number(row.querySelector('.tier-rate').value) || 0;
+        const bonus = Number(row.querySelector('.tier-bonus').value) || 0;
 
         const { error } = await supabaseClient
           .from('commission_tiers')
-          .update({ name, min_referrals: min, max_referrals: max, rate })
+          .update({ name, min_sales: min, max_sales: max, bonus_rate: bonus })
           .eq('id', tierId);
 
-        if (error) {
-          showToast("Couldn't save tier.");
-        } else {
-          showToast(`${name} tier saved.`);
-          loadTiers();
-        }
+        if (error) { showToast("Couldn't save tier."); }
+        else { showToast(`${name} tier saved.`); loadTiers(); }
       });
     });
   }
@@ -363,130 +367,156 @@
   document.getElementById('addTierBtn').addEventListener('click', async () => {
     const { error } = await supabaseClient
       .from('commission_tiers')
-      .insert({ name: 'New tier', min_referrals: 0, max_referrals: null, rate: 0, sort_order: allTiers.length });
-
-    if (error) {
-      showToast("Couldn't add tier.");
-    } else {
-      showToast('Tier added — edit it below.');
-      loadTiers();
-    }
+      .insert({ name: 'New tier', min_sales: 0, max_sales: null, bonus_rate: 0, sort_order: allTiers.length });
+    if (error) { showToast("Couldn't add tier."); }
+    else { showToast('Tier added — edit it below.'); loadTiers(); }
   });
 
   async function loadTiers(){
     const { data, error } = await supabaseClient
       .from('commission_tiers')
-      .select('id, name, min_referrals, max_referrals, rate, sort_order')
+      .select('id, name, min_sales, max_sales, bonus_rate, sort_order')
       .order('sort_order', { ascending: true });
-
-    if (error) {
-      document.getElementById('tierEditor').innerHTML = '<p class="empty-note">Couldn\'t load tiers.</p>';
-      return;
-    }
+    if (error) { document.getElementById('tierEditor').innerHTML = '<p class="empty-note">Couldn\'t load tiers.</p>'; return; }
     allTiers = data || [];
     renderTierEditor(allTiers);
-    renderAffiliates(allAffiliates); // refresh tier names shown in affiliate table
   }
 
-  // ---------- Products ----------
-  function renderProducts(products){
-    const wrap = document.getElementById('productsWrap');
-    if (!products || products.length === 0) {
-      wrap.innerHTML = '<p class="empty-note">No products added yet.</p>';
+  // ---------- Sales ----------
+  function renderSales(sales){
+    const wrap = document.getElementById('salesWrap');
+    if (!sales || sales.length === 0) {
+      wrap.innerHTML = '<p class="empty-note">No sales logged yet.</p>';
       return;
     }
     wrap.innerHTML = `
       <table class="data-table">
         <thead>
-          <tr>
-            <th></th>
-            <th>Product</th>
-            <th>Price</th>
-            <th>Commission</th>
-            <th>Category</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
+          <tr><th>Date</th><th>Link code</th><th>Product</th><th>Sale</th><th>Commission</th><th>Status</th><th></th></tr>
         </thead>
         <tbody>
-          ${products.map(p => `
-            <tr data-product-id="${p.id}">
-              <td>${p.image_url ? `<img class="product-thumb" src="${escapeHtml(p.image_url)}" alt="">` : ''}</td>
-              <td>${escapeHtml(p.name)}</td>
-              <td>${formatCurrency(p.price)}</td>
-              <td>${p.commission_rate}%</td>
-              <td>${escapeHtml(p.category || '—')}</td>
-              <td><span class="job-tag">${p.is_active ? 'Active' : 'Inactive'}</span></td>
-              <td><button type="button" class="btn-danger delete-product-btn">Remove</button></td>
-            </tr>
-          `).join('')}
+          ${sales.map(s => {
+            const link = s.affiliate_links || {};
+            const product = link.products || {};
+            return `
+              <tr data-sale-id="${s.id}">
+                <td>${formatDate(s.created_at)}</td>
+                <td>${escapeHtml(link.code || '—')}</td>
+                <td>${escapeHtml(product.name || '—')}</td>
+                <td>${formatNaira(s.sale_amount)}</td>
+                <td>${formatNaira(s.commission_amount)}</td>
+                <td><span class="status-pill ${s.status}">${escapeHtml(s.status)}</span></td>
+                <td>
+                  <div class="row-actions">
+                    ${s.status === 'pending' ? '<button type="button" class="btn-toggle complete-sale-btn">Mark completed</button>' : ''}
+                    <button type="button" class="btn-danger delete-sale-btn">Delete</button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('')}
         </tbody>
       </table>
     `;
 
-    wrap.querySelectorAll('.delete-product-btn').forEach(btn => {
+    wrap.querySelectorAll('.complete-sale-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const row = btn.closest('tr');
-        const productId = row.getAttribute('data-product-id');
-        const { error } = await supabaseClient.from('products').delete().eq('id', productId);
-        if (error) {
-          showToast("Couldn't remove product.");
-        } else {
-          showToast('Product removed.');
-          loadProducts();
-        }
+        const id = btn.closest('tr').getAttribute('data-sale-id');
+        const { error } = await supabaseClient.from('affiliate_sales').update({ status: 'completed' }).eq('id', id);
+        if (error) { showToast("Couldn't update sale."); }
+        else { showToast('Sale marked completed — commission credited.'); loadSales(); }
+      });
+    });
+    wrap.querySelectorAll('.delete-sale-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.closest('tr').getAttribute('data-sale-id');
+        const { error } = await supabaseClient.from('affiliate_sales').delete().eq('id', id);
+        if (error) { showToast("Couldn't delete sale."); }
+        else { showToast('Sale deleted.'); loadSales(); }
       });
     });
   }
 
-  async function loadProducts(){
-    const { data, error } = await supabaseClient
-      .from('products')
-      .select('id, name, price, commission_rate, category, image_url, description, is_active, created_at')
-      .order('created_at', { ascending: false });
+  function applySaleFilters(){
+    const q = document.getElementById('saleSearch').value.trim().toLowerCase();
+    const status = document.getElementById('saleStatusFilter').value;
 
-    if (error) {
-      document.getElementById('productsWrap').innerHTML = '<p class="empty-note">Couldn\'t load products.</p>';
-      return;
-    }
-    allProducts = data || [];
-    renderProducts(allProducts);
+    const filtered = allSales.filter(s => {
+      const link = s.affiliate_links || {};
+      const product = link.products || {};
+      const matchesQuery = !q ||
+        (link.code || '').toLowerCase().includes(q) ||
+        (product.name || '').toLowerCase().includes(q);
+      const matchesStatus = !status || s.status === status;
+      return matchesQuery && matchesStatus;
+    });
+    renderSales(filtered);
   }
 
-  document.getElementById('productForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+  document.getElementById('saleSearch').addEventListener('input', applySaleFilters);
+  document.getElementById('saleStatusFilter').addEventListener('change', applySaleFilters);
 
-    const newProduct = {
-      name: document.getElementById('productName').value.trim(),
-      price: Number(document.getElementById('productPrice').value) || 0,
-      commission_rate: Number(document.getElementById('productCommission').value) || 0,
-      category: document.getElementById('productCategory').value.trim() || null,
-      image_url: document.getElementById('productImage').value.trim() || null,
-      description: document.getElementById('productDescription').value.trim() || null,
-      is_active: document.getElementById('productActive').checked,
+  async function loadSales(){
+    const { data, error } = await supabaseClient
+      .from('affiliate_sales')
+      .select('id, sale_amount, commission_amount, status, buyer_name, buyer_email, created_at, affiliate_links ( code, products ( name ) )')
+      .order('created_at', { ascending: false });
+
+    if (error) { document.getElementById('salesWrap').innerHTML = '<p class="empty-note">Couldn\'t load sales.</p>'; return; }
+    allSales = data || [];
+    applySaleFilters();
+
+    const paid = allSales.filter(s => s.status === 'completed').reduce((sum, s) => sum + (Number(s.commission_amount) || 0), 0);
+    const pending = allSales.filter(s => s.status === 'pending').reduce((sum, s) => sum + (Number(s.commission_amount) || 0), 0);
+    document.getElementById('statPaid').textContent = formatNaira(paid);
+    document.getElementById('statPending').textContent = formatNaira(pending);
+  }
+
+  document.getElementById('saleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const code = document.getElementById('saleLinkCode').value.trim();
+
+    const { data: link, error: linkError } = await supabaseClient
+      .from('affiliate_links')
+      .select('id')
+      .eq('code', code)
+      .single();
+
+    if (linkError || !link) { showToast("No affiliate link found with that code."); return; }
+
+    const payload = {
+      affiliate_link_id: link.id,
+      sale_amount: Number(document.getElementById('saleAmount').value) || 0,
+      commission_amount: Number(document.getElementById('saleCommission').value) || 0,
+      status: document.getElementById('saleStatus').value,
+      buyer_name: document.getElementById('saleBuyerName').value.trim() || null,
+      buyer_email: document.getElementById('saleBuyerEmail').value.trim() || null,
     };
 
-    if (!newProduct.name) {
-      showToast('Give the product a name.');
-      return;
-    }
+    const { error } = await supabaseClient.from('affiliate_sales').insert(payload);
+    if (error) { showToast("Couldn't log sale."); return; }
 
-    const { error } = await supabaseClient.from('products').insert(newProduct);
-    if (error) {
-      showToast("Couldn't add product.");
-      return;
-    }
-    showToast('Product added.');
+    showToast('Sale logged.');
     e.target.reset();
-    document.getElementById('productActive').checked = true;
-    loadProducts();
+    document.getElementById('saleStatus').value = 'pending';
+    loadSales();
   });
+
+  // ---------- Links (for stat count only) ----------
+  async function loadLinks(){
+    const { data, error } = await supabaseClient.from('affiliate_links').select('id');
+    if (!error) {
+      allLinks = data || [];
+      document.getElementById('statLinks').textContent = allLinks.length;
+    }
+  }
 
   // ---------- Init ----------
   async function init(){
     await loadTiers();
-    await loadAffiliates();
     await loadProducts();
+    await loadLinks();
+    await loadSales();
   }
 
   init();
