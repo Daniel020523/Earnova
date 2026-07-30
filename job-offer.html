@@ -200,8 +200,8 @@
     listEl.innerHTML = jobs.map(job => `
       <div class="job-card" data-job-id="${job.id}" role="button" tabindex="0">
         <h3>${escapeHtml(job.title)}</h3>
-        <div class="job-meta">${escapeHtml(job.company)} · ${escapeHtml(job.location)} · Posted ${formatDate(job.created_at)}</div>
-        <span class="job-tag">${escapeHtml(job.job_type)}</span>
+        <div class="job-meta">Work at ${escapeHtml(job.company)} · ${escapeHtml(job.location)} · Posted ${formatDate(job.created_at)}</div>
+        <span class="job-tag">Job type: ${escapeHtml(job.job_type)}</span>
         ${job.salary_range ? `<span class="job-tag">${escapeHtml(job.salary_range)}</span>` : ''}
         ${job.summary ? `<p class="job-summary">${escapeHtml(job.summary)}</p>` : ''}
       </div>
@@ -218,13 +218,13 @@
     const job = allJobs.find(j => String(j.id) === String(jobId));
     if (!job) return;
 
-    document.getElementById('modalCompany').textContent = job.company;
+    document.getElementById('modalCompany').textContent = `Work at ${job.company}`;
     document.getElementById('modalTitle').textContent = job.title;
     document.getElementById('modalMeta').textContent =
       `${job.location} · Posted ${formatDate(job.created_at)}`;
 
     const tagsEl = document.getElementById('modalTags');
-    tagsEl.innerHTML = `<span class="job-tag">${escapeHtml(job.job_type)}</span>` +
+    tagsEl.innerHTML = `<span class="job-tag">Job type: ${escapeHtml(job.job_type)}</span>` +
       (job.salary_range ? `<span class="job-tag">${escapeHtml(job.salary_range)}</span>` : '');
 
     document.getElementById('modalRequirements').textContent = job.requirements || 'Not specified.';
