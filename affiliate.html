@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Affiliate program — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .stat-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+    gap:12px;
+    margin-top:12px;
+  }
+  .stat-card{
+    border:1px solid rgba(0,0,0,0.12);
+    border-radius:8px;
+    padding:16px;
+  }
+  .stat-label{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; margin-bottom:6px; }
+  .stat-value{ font-size:22px; font-weight:700; }
+  .work-at{ font-weight:700; color:#2563eb; }
+  .job-company{ font-weight:700; color:#0d9488; }
+
+  .referral-box{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+    margin-top:12px;
+  }
+  .referral-input{
+    flex:1;
+    min-width:220px;
+    padding:10px 12px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:6px;
+    font-size:14px;
+    background:rgba(0,0,0,0.02);
+  }
+
+  .job-tag{
+    display:inline-block;
+    font-size:12px;
+    font-weight:600;
+    padding:2px 8px;
+    border-radius:999px;
+    background:rgba(0,0,0,0.06);
+    margin-right:6px;
+  }
+  .job-tag.tier-active{ background:#2563eb; color:#fff; }
+
+  table.data-table{ width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
+  table.data-table th, table.data-table td{ text-align:left; padding:10px 8px; border-bottom:1px solid rgba(0,0,0,0.08); }
+  table.data-table th{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; }
+  .status-pill{ display:inline-block; font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; }
+  .status-pill.confirmed{ background:rgba(13,148,136,0.12); color:#0d9488; }
+  .status-pill.pending{ background:rgba(217,119,6,0.12); color:#d97706; }
+
+  .tier-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-top:12px; }
+  .tier-card{ border:1px solid rgba(0,0,0,0.12); border-radius:8px; padding:16px; }
+  .tier-card h4{ margin:0 0 4px 0; font-size:15px; }
+  .tier-card .tier-rate{ font-size:24px; font-weight:700; color:#2563eb; margin:6px 0; }
+  .tier-card .tier-range{ font-size:13px; opacity:0.7; }
+  .tier-card.current{ border-color:#2563eb; background:rgba(37,99,235,0.04); }
+
+  .empty-note{ font-size:14px; opacity:0.65; margin-top:12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="profile.html">Profile</a>
+      <a class="btn btn-ghost" href="settings.html">Settings</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <a href="dashboard.html" class="back-link">&larr; Back to dashboard</a>
+  <div class="kicker">Affiliate program</div>
+  <h1>Your affiliate dashboard</h1>
+  <p class="lead">Share your referral link, track what you've earned, and see how close you are to your next commission tier.</p>
+
+  <!-- Referral link -->
+  <div class="card">
+    <h3 style="margin-top:0;">Your referral link</h3>
+    <div class="referral-box">
+      <input id="referralLinkInput" class="referral-input" type="text" readonly value="Loading…">
+      <button class="btn btn-solid" id="copyLinkBtn">Copy link</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-grid" id="statGrid">
+    <div class="stat-card">
+      <div class="stat-label">Total earnings</div>
+      <div class="stat-value" id="statTotalEarnings">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Pending earnings</div>
+      <div class="stat-value" id="statPendingEarnings">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">People referred</div>
+      <div class="stat-value" id="statReferralCount">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Current tier</div>
+      <div class="stat-value" id="statCurrentTier">—</div>
+    </div>
+  </div>
+
+  <!-- Commission tiers -->
+  <div class="card" style="margin-top:20px;">
+    <h3 style="margin-top:0;">Commission tiers</h3>
+    <p class="empty-note" style="margin-top:0;">Refer more people to move up a tier and earn a higher commission rate on every referral.</p>
+    <div class="tier-grid" id="tierGrid">
+      <div class="empty-note">Loading tiers…</div>
+    </div>
+  </div>
+
+  <!-- Referred people -->
+  <div class="card" style="margin-top:20px;">
+    <h3 style="margin-top:0;">People you've referred</h3>
+    <div id="referralsWrap">
+      <p class="empty-note">Loading your referrals…</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  /*
+    Assumed Supabase schema — rename to match your real tables/columns:
+
+    affiliates
+      id, user_id, referral_code, total_earnings, pending_earnings,
+      referral_count, tier_id, created_at
+
+    referrals
+      id, affiliate_id, referred_name, referred_email, status
+      ('pending' | 'confirmed'), commission_earned, created_at
+
+    commission_tiers
+      id, name, min_referrals, max_referrals, rate, sort_order
+  */
+
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function formatCurrency(n){
+    const num = Number(n) || 0;
+    return num.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  }
+
+  function formatDate(iso){
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function renderTiers(tiers, currentTierId){
+    const grid = document.getElementById('tierGrid');
+    if (!tiers || tiers.length === 0) {
+      grid.innerHTML = '<div class="empty-note">Tier information isn\'t available right now.</div>';
+      return;
+    }
+    grid.innerHTML = tiers.map(tier => {
+      const isCurrent = String(tier.id) === String(currentTierId);
+      const range = tier.max_referrals
+        ? `${tier.min_referrals}–${tier.max_referrals} referrals`
+        : `${tier.min_referrals}+ referrals`;
+      return `
+        <div class="tier-card ${isCurrent ? 'current' : ''}">
+          <h4>${escapeHtml(tier.name)}${isCurrent ? ' <span class="job-tag tier-active">Current</span>' : ''}</h4>
+          <div class="tier-rate">${tier.rate}%</div>
+          <div class="tier-range">${escapeHtml(range)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderReferrals(referrals){
+    const wrap = document.getElementById('referralsWrap');
+    if (!referrals || referrals.length === 0) {
+      wrap.innerHTML = '<p class="empty-note">You haven\'t referred anyone yet. Share your link above to get started.</p>';
+      return;
+    }
+    wrap.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Joined</th>
+            <th>Status</th>
+            <th>Commission earned</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${referrals.map(r => `
+            <tr>
+              <td>${escapeHtml(r.referred_name || r.referred_email || 'Referred user')}</td>
+              <td>${formatDate(r.created_at)}</td>
+              <td><span class="status-pill ${r.status === 'confirmed' ? 'confirmed' : 'pending'}">${escapeHtml(r.status || 'pending')}</span></td>
+              <td>${formatCurrency(r.commission_earned)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  document.getElementById('copyLinkBtn').addEventListener('click', async () => {
+    const input = document.getElementById('referralLinkInput');
+    try {
+      await navigator.clipboard.writeText(input.value);
+      showToast('Referral link copied.');
+    } catch (e) {
+      input.select();
+      showToast('Select and copy your link above.');
+    }
+  });
+
+  async function loadAffiliateData(){
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !userData?.user) {
+      document.getElementById('referralLinkInput').value = 'Sign in to see your referral link';
+      document.getElementById('referralsWrap').innerHTML = '<p class="empty-note">Sign in to view your affiliate stats.</p>';
+      document.getElementById('tierGrid').innerHTML = '';
+      return;
+    }
+    const userId = userData.user.id;
+
+    const { data: affiliate, error: affiliateError } = await supabaseClient
+      .from('affiliates')
+      .select('id, referral_code, total_earnings, pending_earnings, referral_count, tier_id')
+      .eq('user_id', userId)
+      .single();
+
+    if (affiliateError || !affiliate) {
+      showToast("Couldn't load your affiliate account.");
+      document.getElementById('referralLinkInput').value = 'Unavailable';
+      return;
+    }
+
+    document.getElementById('referralLinkInput').value =
+      `${window.location.origin}/signup.html?ref=${affiliate.referral_code}`;
+    document.getElementById('statTotalEarnings').textContent = formatCurrency(affiliate.total_earnings);
+    document.getElementById('statPendingEarnings').textContent = formatCurrency(affiliate.pending_earnings);
+    document.getElementById('statReferralCount').textContent = affiliate.referral_count ?? 0;
+
+    const { data: tiers } = await supabaseClient
+      .from('commission_tiers')
+      .select('id, name, min_referrals, max_referrals, rate')
+      .order('sort_order', { ascending: true });
+
+    const currentTier = (tiers || []).find(t => String(t.id) === String(affiliate.tier_id));
+    document.getElementById('statCurrentTier').textContent = currentTier ? currentTier.name : '—';
+    renderTiers(tiers, affiliate.tier_id);
+
+    const { data: referrals } = await supabaseClient
+      .from('referrals')
+      .select('id, referred_name, referred_email, status, commission_earned, created_at')
+      .eq('affiliate_id', affiliate.id)
+      .order('created_at', { ascending: false });
+
+    renderReferrals(referrals);
+  }
+
+  loadAffiliateData();
+</script>
+
+</body>
+</html>

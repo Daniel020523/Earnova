@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sponsored posts admin — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .stat-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+    gap:12px;
+    margin-top:12px;
+  }
+  .stat-card{ border:1px solid rgba(0,0,0,0.12); border-radius:8px; padding:16px; }
+  .stat-label{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; margin-bottom:6px; }
+  .stat-value{ font-size:22px; font-weight:700; }
+  .work-at{ font-weight:700; color:#2563eb; }
+  .job-company{ font-weight:700; color:#0d9488; }
+
+  .search-row{ display:flex; gap:8px; margin:12px 0; flex-wrap:wrap; }
+  .search-row input, .search-row select{ padding:10px 12px; border:1px solid rgba(0,0,0,0.15); border-radius:6px; font-size:14px; }
+  .search-row input{ flex:1; min-width:200px; }
+
+  table.data-table{ width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
+  table.data-table th, table.data-table td{ text-align:left; padding:10px 8px; border-bottom:1px solid rgba(0,0,0,0.08); vertical-align:middle; }
+  table.data-table th{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; }
+  .job-tag{ display:inline-block; font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; background:rgba(0,0,0,0.06); }
+  .job-tag.active{ background:rgba(13,148,136,0.12); color:#0d9488; }
+  .job-tag.inactive{ background:rgba(0,0,0,0.06); color:rgba(0,0,0,0.5); }
+
+  .section-title{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:28px; }
+  .section-title h2{ margin:0; font-size:19px; }
+
+  .form-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:12px; }
+  .form-field label{ font-size:12px; font-weight:600; display:block; margin-bottom:4px; }
+  .form-field input, .form-field textarea, .form-field select{
+    width:100%; padding:10px 12px; border:1px solid rgba(0,0,0,0.15); border-radius:6px; font-size:14px; font-family:inherit;
+  }
+  .form-field.full{ grid-column:1 / -1; }
+  .checkbox-field{ display:flex; align-items:center; gap:8px; }
+  .checkbox-field input{ width:auto; }
+
+  .empty-note{ font-size:14px; opacity:0.65; margin-top:12px; }
+  .btn-danger{ background:none; border:1px solid rgba(220,38,38,0.4); color:#dc2626; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .btn-danger:hover{ background:rgba(220,38,38,0.08); }
+  .btn-toggle{ background:none; border:1px solid rgba(0,0,0,0.2); border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .btn-toggle:hover{ background:rgba(0,0,0,0.04); }
+  .row-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+
+  .cancel-edit{ margin-left:8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="dashboard.html">Exit admin</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <a href="dashboard.html" class="back-link">&larr; Back to dashboard</a>
+  <div class="kicker">Admin</div>
+  <h1>Sponsored posts admin</h1>
+  <p class="lead">Add new sponsored post campaigns, edit existing ones, and control which are visible to users.</p>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total campaigns</div>
+      <div class="stat-value" id="statTotal">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Active campaigns</div>
+      <div class="stat-value" id="statActive">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total payout offered</div>
+      <div class="stat-value" id="statPayout">—</div>
+    </div>
+  </div>
+
+  <!-- Add / edit campaign -->
+  <div class="section-title">
+    <h2 id="formTitle">Add a campaign</h2>
+  </div>
+  <div class="card" style="margin-top:12px;">
+    <form id="postForm">
+      <input type="hidden" id="postId" value="">
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="postTitle">Campaign title</label>
+          <input id="postTitle" type="text" required>
+        </div>
+        <div class="form-field">
+          <label for="postBrand">Brand / sponsor</label>
+          <input id="postBrand" type="text" required>
+        </div>
+        <div class="form-field">
+          <label for="postPlatform">Platform</label>
+          <select id="postPlatform" required>
+            <option value="">Select platform</option>
+            <option value="Instagram">Instagram</option>
+            <option value="TikTok">TikTok</option>
+            <option value="YouTube">YouTube</option>
+            <option value="X">X</option>
+            <option value="Blog">Blog</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="postPayout">Payout (USD)</label>
+          <input id="postPayout" type="number" step="0.01" min="0" required>
+        </div>
+        <div class="form-field">
+          <label for="postDeadline">Deadline</label>
+          <input id="postDeadline" type="date">
+        </div>
+        <div class="form-field">
+          <label for="postApplyLink">Apply link</label>
+          <input id="postApplyLink" type="url" placeholder="https://…">
+        </div>
+        <div class="form-field">
+          <label for="postApplyEmail">Apply email (used if no link)</label>
+          <input id="postApplyEmail" type="email" placeholder="brand@example.com">
+        </div>
+        <div class="form-field checkbox-field">
+          <input id="postActive" type="checkbox" checked>
+          <label for="postActive" style="margin:0;">Active (visible to users)</label>
+        </div>
+        <div class="form-field full">
+          <label for="postSummary">Short summary (shown on the card)</label>
+          <textarea id="postSummary" rows="2"></textarea>
+        </div>
+        <div class="form-field full">
+          <label for="postRequirements">Requirements</label>
+          <textarea id="postRequirements" rows="3"></textarea>
+        </div>
+        <div class="form-field full">
+          <label for="postGuidelines">Content guidelines</label>
+          <textarea id="postGuidelines" rows="3"></textarea>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <button type="submit" class="btn btn-solid" id="postSubmitBtn">Add campaign</button>
+        <button type="button" class="btn btn-ghost cancel-edit" id="cancelEditBtn" style="display:none;">Cancel edit</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Campaign list -->
+  <div class="section-title">
+    <h2>All campaigns</h2>
+  </div>
+  <div class="search-row">
+    <input id="postSearch" type="text" placeholder="Search by title or brand…">
+    <select id="postStatusFilter">
+      <option value="">All statuses</option>
+      <option value="active">Active only</option>
+      <option value="inactive">Inactive only</option>
+    </select>
+  </div>
+  <div id="postsWrap">
+    <p class="empty-note">Loading campaigns…</p>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  /*
+    Assumed Supabase table — matches sponsoredpost.html and schema.sql:
+
+    sponsored_posts
+      id, title, brand, platform, payout, summary, requirements,
+      content_guidelines, deadline, apply_link, apply_email,
+      is_active, created_at
+
+    This page assumes it is only reachable by admins (e.g. gated by your
+    own auth/role check before this page loads). No admin-role check is
+    performed client-side here.
+  */
+
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function formatCurrency(n){
+    const num = Number(n) || 0;
+    return num.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  }
+
+  function formatDate(iso){
+    if (!iso) return 'No deadline';
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  let allPosts = [];
+
+  function renderPosts(posts){
+    const wrap = document.getElementById('postsWrap');
+    if (!posts || posts.length === 0) {
+      wrap.innerHTML = '<p class="empty-note">No campaigns match right now.</p>';
+      return;
+    }
+    wrap.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Campaign</th>
+            <th>Brand</th>
+            <th>Platform</th>
+            <th>Payout</th>
+            <th>Deadline</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${posts.map(p => `
+            <tr data-post-id="${p.id}">
+              <td>${escapeHtml(p.title)}</td>
+              <td>${escapeHtml(p.brand)}</td>
+              <td>${escapeHtml(p.platform)}</td>
+              <td>${formatCurrency(p.payout)}</td>
+              <td>${formatDate(p.deadline)}</td>
+              <td><span class="job-tag ${p.is_active ? 'active' : 'inactive'}">${p.is_active ? 'Active' : 'Inactive'}</span></td>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="btn-toggle edit-post-btn">Edit</button>
+                  <button type="button" class="btn-toggle toggle-post-btn">${p.is_active ? 'Deactivate' : 'Activate'}</button>
+                  <button type="button" class="btn-danger delete-post-btn">Delete</button>
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+
+    wrap.querySelectorAll('.edit-post-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.closest('tr').getAttribute('data-post-id');
+        startEdit(id);
+      });
+    });
+    wrap.querySelectorAll('.toggle-post-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.closest('tr').getAttribute('data-post-id');
+        toggleActive(id);
+      });
+    });
+    wrap.querySelectorAll('.delete-post-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.closest('tr').getAttribute('data-post-id');
+        deletePost(id);
+      });
+    });
+  }
+
+  function applyFilters(){
+    const q = document.getElementById('postSearch').value.trim().toLowerCase();
+    const status = document.getElementById('postStatusFilter').value;
+
+    const filtered = allPosts.filter(p => {
+      const matchesQuery = !q ||
+        p.title.toLowerCase().includes(q) ||
+        p.brand.toLowerCase().includes(q);
+      const matchesStatus = !status ||
+        (status === 'active' && p.is_active) ||
+        (status === 'inactive' && !p.is_active);
+      return matchesQuery && matchesStatus;
+    });
+
+    renderPosts(filtered);
+  }
+
+  document.getElementById('postSearch').addEventListener('input', applyFilters);
+  document.getElementById('postStatusFilter').addEventListener('change', applyFilters);
+
+  function updateStats(){
+    document.getElementById('statTotal').textContent = allPosts.length;
+    document.getElementById('statActive').textContent = allPosts.filter(p => p.is_active).length;
+    const totalPayout = allPosts.reduce((sum, p) => sum + (Number(p.payout) || 0), 0);
+    document.getElementById('statPayout').textContent = formatCurrency(totalPayout);
+  }
+
+  async function loadPosts(){
+    const { data, error } = await supabaseClient
+      .from('sponsored_posts')
+      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, deadline, apply_link, apply_email, is_active, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      document.getElementById('postsWrap').innerHTML = '<p class="empty-note">Couldn\'t load campaigns.</p>';
+      return;
+    }
+    allPosts = data || [];
+    applyFilters();
+    updateStats();
+  }
+
+  async function toggleActive(id){
+    const post = allPosts.find(p => String(p.id) === String(id));
+    if (!post) return;
+    const { error } = await supabaseClient
+      .from('sponsored_posts')
+      .update({ is_active: !post.is_active })
+      .eq('id', id);
+
+    if (error) {
+      showToast("Couldn't update campaign.");
+    } else {
+      showToast(post.is_active ? 'Campaign deactivated.' : 'Campaign activated.');
+      loadPosts();
+    }
+  }
+
+  async function deletePost(id){
+    const { error } = await supabaseClient.from('sponsored_posts').delete().eq('id', id);
+    if (error) {
+      showToast("Couldn't delete campaign.");
+    } else {
+      showToast('Campaign deleted.');
+      if (document.getElementById('postId').value === String(id)) resetForm();
+      loadPosts();
+    }
+  }
+
+  function startEdit(id){
+    const post = allPosts.find(p => String(p.id) === String(id));
+    if (!post) return;
+
+    document.getElementById('postId').value = post.id;
+    document.getElementById('postTitle').value = post.title || '';
+    document.getElementById('postBrand').value = post.brand || '';
+    document.getElementById('postPlatform').value = post.platform || '';
+    document.getElementById('postPayout').value = post.payout || '';
+    document.getElementById('postDeadline').value = post.deadline ? post.deadline.slice(0, 10) : '';
+    document.getElementById('postApplyLink').value = post.apply_link || '';
+    document.getElementById('postApplyEmail').value = post.apply_email || '';
+    document.getElementById('postActive').checked = !!post.is_active;
+    document.getElementById('postSummary').value = post.summary || '';
+    document.getElementById('postRequirements').value = post.requirements || '';
+    document.getElementById('postGuidelines').value = post.content_guidelines || '';
+
+    document.getElementById('formTitle').textContent = `Editing "${post.title}"`;
+    document.getElementById('postSubmitBtn').textContent = 'Save changes';
+    document.getElementById('cancelEditBtn').style.display = 'inline-block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function resetForm(){
+    document.getElementById('postForm').reset();
+    document.getElementById('postId').value = '';
+    document.getElementById('postActive').checked = true;
+    document.getElementById('formTitle').textContent = 'Add a campaign';
+    document.getElementById('postSubmitBtn').textContent = 'Add campaign';
+    document.getElementById('cancelEditBtn').style.display = 'none';
+  }
+
+  document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
+
+  document.getElementById('postForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const id = document.getElementById('postId').value;
+    const payload = {
+      title: document.getElementById('postTitle').value.trim(),
+      brand: document.getElementById('postBrand').value.trim(),
+      platform: document.getElementById('postPlatform').value,
+      payout: Number(document.getElementById('postPayout').value) || 0,
+      deadline: document.getElementById('postDeadline').value || null,
+      apply_link: document.getElementById('postApplyLink').value.trim() || null,
+      apply_email: document.getElementById('postApplyEmail').value.trim() || null,
+      is_active: document.getElementById('postActive').checked,
+      summary: document.getElementById('postSummary').value.trim() || null,
+      requirements: document.getElementById('postRequirements').value.trim() || null,
+      content_guidelines: document.getElementById('postGuidelines').value.trim() || null,
+    };
+
+    if (!payload.title || !payload.brand || !payload.platform) {
+      showToast('Fill in title, brand, and platform.');
+      return;
+    }
+
+    let error;
+    if (id) {
+      ({ error } = await supabaseClient.from('sponsored_posts').update(payload).eq('id', id));
+    } else {
+      ({ error } = await supabaseClient.from('sponsored_posts').insert(payload));
+    }
+
+    if (error) {
+      showToast("Couldn't save campaign.");
+      return;
+    }
+
+    showToast(id ? 'Campaign updated.' : 'Campaign added.');
+    resetForm();
+    loadPosts();
+  });
+
+  loadPosts();
+</script>
+
+</body>
+</html>
