@@ -49,6 +49,21 @@
   .row-actions{ display:flex; gap:6px; flex-wrap:wrap; }
 
   .cancel-edit{ margin-left:8px; }
+
+  .status-badge{
+    display:inline-block; font-size:12px; font-weight:600;
+    padding:3px 10px; border-radius:999px; white-space:nowrap;
+  }
+  .status-pending_submission{ background:rgba(37,99,235,0.12); color:#2563eb; }
+  .status-submitted{ background:rgba(217,119,6,0.12); color:#d97706; }
+  .status-approved{ background:rgba(13,148,136,0.12); color:#0d9488; }
+  .status-rejected{ background:rgba(220,38,38,0.12); color:#dc2626; }
+  .status-completed{ background:rgba(22,163,74,0.14); color:#16a34a; }
+  .btn-approve{ background:none; border:1px solid rgba(13,148,136,0.4); color:#0d9488; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .btn-approve:hover{ background:rgba(13,148,136,0.08); }
+  .btn-complete{ background:#16a34a; border:1px solid #16a34a; color:#fff; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .btn-complete:hover{ background:#128a3e; }
+  .link-cell{ max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; }
 </style>
 </head>
 <body>
@@ -83,6 +98,10 @@
     <div class="stat-card">
       <div class="stat-label">Total payout offered</div>
       <div class="stat-value" id="statPayout">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Submissions awaiting review</div>
+      <div class="stat-value" id="statPendingReview">—</div>
     </div>
   </div>
 
@@ -129,6 +148,14 @@
           <label for="postApplyEmail">Apply email (used if no link)</label>
           <input id="postApplyEmail" type="email" placeholder="brand@example.com">
         </div>
+        <div class="form-field">
+          <label for="postMinLikes">Minimum likes required</label>
+          <input id="postMinLikes" type="number" min="0" placeholder="e.g. 1000">
+        </div>
+        <div class="form-field">
+          <label for="postReviewHoldDays">Review hold period (days)</label>
+          <input id="postReviewHoldDays" type="number" min="0" placeholder="e.g. 3">
+        </div>
         <div class="form-field checkbox-field">
           <input id="postActive" type="checkbox" checked>
           <label for="postActive" style="margin:0;">Active (visible to users)</label>
@@ -167,6 +194,26 @@
   </div>
   <div id="postsWrap">
     <p class="empty-note">Loading campaigns…</p>
+  </div>
+
+  <!-- Submissions review -->
+  <div class="section-title">
+    <h2>Campaign submissions</h2>
+  </div>
+  <p class="lead" style="margin-top:4px;">Review each user's posted video, then approve or reject it. Rewards are never credited automatically — click "Complete &amp; credit" once a submission has passed its review window and engagement requirements.</p>
+  <div class="search-row">
+    <input id="subSearch" type="text" placeholder="Search by campaign, brand, or handle…">
+    <select id="subStatusFilter">
+      <option value="">All statuses</option>
+      <option value="pending_submission">Not submitted yet</option>
+      <option value="submitted">Awaiting review</option>
+      <option value="approved">Approved · awaiting payout</option>
+      <option value="rejected">Rejected</option>
+      <option value="completed">Completed</option>
+    </select>
+  </div>
+  <div id="submissionsWrap">
+    <p class="empty-note">Loading submissions…</p>
   </div>
 </main>
 
@@ -318,7 +365,7 @@
   async function loadPosts(){
     const { data, error } = await supabaseClient
       .from('sponsored_posts')
-      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, deadline, apply_link, apply_email, is_active, created_at')
+      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, deadline, apply_link, apply_email, is_active, created_at, min_likes, review_hold_days')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -369,6 +416,8 @@
     document.getElementById('postDeadline').value = post.deadline ? post.deadline.slice(0, 10) : '';
     document.getElementById('postApplyLink').value = post.apply_link || '';
     document.getElementById('postApplyEmail').value = post.apply_email || '';
+    document.getElementById('postMinLikes').value = post.min_likes || '';
+    document.getElementById('postReviewHoldDays').value = post.review_hold_days || '';
     document.getElementById('postActive').checked = !!post.is_active;
     document.getElementById('postSummary').value = post.summary || '';
     document.getElementById('postRequirements').value = post.requirements || '';
@@ -403,6 +452,8 @@
       deadline: document.getElementById('postDeadline').value || null,
       apply_link: document.getElementById('postApplyLink').value.trim() || null,
       apply_email: document.getElementById('postApplyEmail').value.trim() || null,
+      min_likes: document.getElementById('postMinLikes').value ? Number(document.getElementById('postMinLikes').value) : null,
+      review_hold_days: document.getElementById('postReviewHoldDays').value ? Number(document.getElementById('postReviewHoldDays').value) : null,
       is_active: document.getElementById('postActive').checked,
       summary: document.getElementById('postSummary').value.trim() || null,
       requirements: document.getElementById('postRequirements').value.trim() || null,
@@ -432,6 +483,181 @@
   });
 
   loadPosts();
+
+  // ---- Submissions review --------------------------------------------------
+  /*
+    Assumes public.sponsored_post_participations (see updated schema.sql) with
+    a foreign key to sponsored_posts (post_id) and profiles (user_id), so
+    Supabase can embed both via the select() below. Also assumes profiles has
+    full_name / email columns for display — adjust if your columns differ.
+  */
+
+  let allSubmissions = [];
+
+  function statusLabel(status){
+    return {
+      pending_submission: 'Not submitted yet',
+      submitted: 'Awaiting review',
+      approved: 'Approved · awaiting payout',
+      rejected: 'Rejected',
+      completed: 'Completed'
+    }[status] || status;
+  }
+
+  function truncateLink(url){
+    if (!url) return '—';
+    return `<a class="link-cell" href="${url}" target="_blank" rel="noopener" title="${escapeHtml(url)}">${escapeHtml(url)}</a>`;
+  }
+
+  function renderSubmissions(subs){
+    const wrap = document.getElementById('submissionsWrap');
+    if (!subs || subs.length === 0) {
+      wrap.innerHTML = '<p class="empty-note">No submissions match right now.</p>';
+      return;
+    }
+
+    wrap.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Campaign</th>
+            <th>Participant</th>
+            <th>Handle</th>
+            <th>Video</th>
+            <th>Payout</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${subs.map(s => {
+            const post = s.sponsored_posts || {};
+            const profile = s.profiles || {};
+            const participantLabel = profile.full_name || profile.email || s.user_id;
+            let actions = '';
+            if (s.status === 'submitted') {
+              actions = `
+                <button type="button" class="btn-approve approve-sub-btn">Approve</button>
+                <button type="button" class="btn-danger reject-sub-btn">Reject</button>
+              `;
+            } else if (s.status === 'approved') {
+              actions = `<button type="button" class="btn-complete complete-sub-btn">Complete &amp; credit</button>`;
+            } else if (s.status === 'pending_submission') {
+              actions = `<span class="empty-note">Waiting on user</span>`;
+            } else if (s.status === 'rejected') {
+              actions = `<span class="empty-note">${escapeHtml(s.admin_notes || 'Rejected')}</span>`;
+            } else if (s.status === 'completed') {
+              actions = `<span class="empty-note">Credited ${formatCurrency(post.payout)}</span>`;
+            }
+            return `
+              <tr data-sub-id="${s.id}">
+                <td>${escapeHtml(post.title || '')}<br><span class="empty-note">${escapeHtml(post.brand || '')}</span></td>
+                <td>${escapeHtml(String(participantLabel))}</td>
+                <td>${s.social_handle_url ? truncateLink(s.social_handle_url) : '—'}</td>
+                <td>${s.video_url ? truncateLink(s.video_url) : '—'}</td>
+                <td>${formatCurrency(post.payout)}</td>
+                <td><span class="status-badge status-${s.status}">${statusLabel(s.status)}</span></td>
+                <td><div class="row-actions">${actions}</div></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+
+    wrap.querySelectorAll('.approve-sub-btn').forEach(btn => {
+      btn.addEventListener('click', () => reviewSubmission(btn.closest('tr').getAttribute('data-sub-id'), 'approved'));
+    });
+    wrap.querySelectorAll('.reject-sub-btn').forEach(btn => {
+      btn.addEventListener('click', () => rejectSubmission(btn.closest('tr').getAttribute('data-sub-id')));
+    });
+    wrap.querySelectorAll('.complete-sub-btn').forEach(btn => {
+      btn.addEventListener('click', () => completeSubmission(btn.closest('tr').getAttribute('data-sub-id')));
+    });
+  }
+
+  function applySubFilters(){
+    const q = document.getElementById('subSearch').value.trim().toLowerCase();
+    const status = document.getElementById('subStatusFilter').value;
+
+    const filtered = allSubmissions.filter(s => {
+      const post = s.sponsored_posts || {};
+      const profile = s.profiles || {};
+      const haystack = `${post.title || ''} ${post.brand || ''} ${profile.full_name || ''} ${profile.email || ''} ${s.social_handle_url || ''}`.toLowerCase();
+      const matchesQuery = !q || haystack.includes(q);
+      const matchesStatus = !status || s.status === status;
+      return matchesQuery && matchesStatus;
+    });
+
+    renderSubmissions(filtered);
+  }
+
+  document.getElementById('subSearch').addEventListener('input', applySubFilters);
+  document.getElementById('subStatusFilter').addEventListener('change', applySubFilters);
+
+  async function loadSubmissions(){
+    const { data, error } = await supabaseClient
+      .from('sponsored_post_participations')
+      .select('*, sponsored_posts(title, brand, payout, min_likes, review_hold_days), profiles(full_name, email)')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      document.getElementById('submissionsWrap').innerHTML = '<p class="empty-note">Couldn\'t load submissions.</p>';
+      return;
+    }
+
+    allSubmissions = data || [];
+    applySubFilters();
+    document.getElementById('statPendingReview').textContent =
+      allSubmissions.filter(s => s.status === 'submitted').length;
+  }
+
+  async function reviewSubmission(id, newStatus){
+    const { error } = await supabaseClient
+      .from('sponsored_post_participations')
+      .update({ status: newStatus, reviewed_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) {
+      showToast("Couldn't update this submission.");
+      return;
+    }
+    showToast(newStatus === 'approved' ? 'Submission approved.' : 'Submission updated.');
+    loadSubmissions();
+  }
+
+  async function rejectSubmission(id){
+    const reason = prompt('Reason for rejecting this submission (shown to the user):');
+    if (reason === null) return; // cancelled
+    const { error } = await supabaseClient
+      .from('sponsored_post_participations')
+      .update({ status: 'rejected', admin_notes: reason || null, reviewed_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) {
+      showToast("Couldn't reject this submission.");
+      return;
+    }
+    showToast('Submission rejected.');
+    loadSubmissions();
+  }
+
+  async function completeSubmission(id){
+    if (!confirm('Mark this complete and credit the user their payout now?')) return;
+    const { error } = await supabaseClient
+      .from('sponsored_post_participations')
+      .update({ status: 'completed' })
+      .eq('id', id);
+
+    if (error) {
+      showToast("Couldn't complete this submission.");
+      return;
+    }
+    showToast('Marked complete — payout credited.');
+    loadSubmissions();
+  }
+
+  loadSubmissions();
 </script>
 
 </body>
