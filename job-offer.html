@@ -22,6 +22,8 @@
   }
   .job-card h3{ margin:0 0 4px 0; font-size:16px; }
   .job-meta{ font-size:13px; opacity:0.7; margin-bottom:8px; }
+  .work-at{ font-weight:700; color:#7c3aed; }
+  .job-company{ font-weight:700; color:#0d9488; }
   .job-tag{
     display:inline-block;
     font-size:12px;
@@ -200,9 +202,9 @@
     listEl.innerHTML = jobs.map(job => `
       <div class="job-card" data-job-id="${job.id}" role="button" tabindex="0">
         <h3>${escapeHtml(job.title)}</h3>
-        <div class="job-meta">Work at ${escapeHtml(job.company)} · ${escapeHtml(job.location)} · Posted ${formatDate(job.created_at)}</div>
+        <div class="job-meta"><span class="work-at">Work at</span> <span class="job-company">${escapeHtml(job.company)}</span> · ${escapeHtml(job.location)}</div>
         <span class="job-tag">Job type: ${escapeHtml(job.job_type)}</span>
-        ${job.salary_range ? `<span class="job-tag">${escapeHtml(job.salary_range)}</span>` : ''}
+        ${job.salary_range ? `<span class="job-tag">Salary: ${escapeHtml(job.salary_range)}</span>` : ''}
         ${job.summary ? `<p class="job-summary">${escapeHtml(job.summary)}</p>` : ''}
       </div>
     `).join('');
@@ -218,14 +220,13 @@
     const job = allJobs.find(j => String(j.id) === String(jobId));
     if (!job) return;
 
-    document.getElementById('modalCompany').textContent = `Work at ${job.company}`;
+    document.getElementById('modalCompany').innerHTML = `<span class="work-at">Work at</span> <span class="job-company">${escapeHtml(job.company)}</span>`;
     document.getElementById('modalTitle').textContent = job.title;
-    document.getElementById('modalMeta').textContent =
-      `${job.location} · Posted ${formatDate(job.created_at)}`;
+    document.getElementById('modalMeta').textContent = job.location;
 
     const tagsEl = document.getElementById('modalTags');
     tagsEl.innerHTML = `<span class="job-tag">Job type: ${escapeHtml(job.job_type)}</span>` +
-      (job.salary_range ? `<span class="job-tag">${escapeHtml(job.salary_range)}</span>` : '');
+      (job.salary_range ? `<span class="job-tag">Salary: ${escapeHtml(job.salary_range)}</span>` : '');
 
     document.getElementById('modalRequirements').textContent = job.requirements || 'Not specified.';
     document.getElementById('modalResponsibilities').textContent = job.responsibilities || 'Not specified.';
