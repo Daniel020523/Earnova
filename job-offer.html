@@ -22,8 +22,10 @@
   }
   .job-card h3{ margin:0 0 4px 0; font-size:16px; }
   .job-meta{ font-size:13px; opacity:0.7; margin-bottom:8px; }
-  .work-at{ font-weight:700; color:#7c3aed; }
+  .work-at{ font-weight:700; color:#2563eb; }
   .job-company{ font-weight:700; color:#0d9488; }
+  .position-label{ font-weight:700; color:#2563eb; }
+  .job-title-text{ font-weight:700; color:#16a34a; }
   .job-tag{
     display:inline-block;
     font-size:12px;
@@ -201,7 +203,7 @@
 
     listEl.innerHTML = jobs.map(job => `
       <div class="job-card" data-job-id="${job.id}" role="button" tabindex="0">
-        <h3>Position: "${escapeHtml(job.title)}"</h3>
+        <h3><span class="position-label">Position:</span> <span class="job-title-text">${escapeHtml(job.title)}</span></h3>
         <div class="job-meta"><span class="work-at">Work at</span> <span class="job-company">${escapeHtml(job.company)}</span> · ${escapeHtml(job.location)}</div>
         <span class="job-tag">Job type: ${escapeHtml(job.job_type)}</span>
         ${job.salary_range ? `<span class="job-tag">Salary: ${escapeHtml(job.salary_range)}</span>` : ''}
@@ -221,7 +223,7 @@
     if (!job) return;
 
     document.getElementById('modalCompany').innerHTML = `<span class="work-at">Work at</span> <span class="job-company">${escapeHtml(job.company)}</span>`;
-    document.getElementById('modalTitle').textContent = `Position: "${job.title}"`;
+    document.getElementById('modalTitle').innerHTML = `<span class="position-label">Position:</span> <span class="job-title-text">${escapeHtml(job.title)}</span>`;
     document.getElementById('modalMeta').textContent = job.location;
 
     const tagsEl = document.getElementById('modalTags');
