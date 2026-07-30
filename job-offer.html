@@ -201,7 +201,7 @@
 
     listEl.innerHTML = jobs.map(job => `
       <div class="job-card" data-job-id="${job.id}" role="button" tabindex="0">
-        <h3>${escapeHtml(job.title)}</h3>
+        <h3>Position: "${escapeHtml(job.title)}"</h3>
         <div class="job-meta"><span class="work-at">Work at</span> <span class="job-company">${escapeHtml(job.company)}</span> · ${escapeHtml(job.location)}</div>
         <span class="job-tag">Job type: ${escapeHtml(job.job_type)}</span>
         ${job.salary_range ? `<span class="job-tag">Salary: ${escapeHtml(job.salary_range)}</span>` : ''}
@@ -221,7 +221,7 @@
     if (!job) return;
 
     document.getElementById('modalCompany').innerHTML = `<span class="work-at">Work at</span> <span class="job-company">${escapeHtml(job.company)}</span>`;
-    document.getElementById('modalTitle').textContent = job.title;
+    document.getElementById('modalTitle').textContent = `Position: "${job.title}"`;
     document.getElementById('modalMeta').textContent = job.location;
 
     const tagsEl = document.getElementById('modalTags');
