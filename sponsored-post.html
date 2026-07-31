@@ -81,7 +81,6 @@
     opacity:0.6;
   }
   .modal-section p{ margin:0; font-size:14px; white-space:pre-wrap; }
-  .modal-apply{ margin-top:20px; }
 
   /* Participation */
   .card-actions{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
@@ -174,8 +173,6 @@
       <p id="modalDeadline"></p>
     </div>
 
-    <a class="btn btn-solid modal-apply" id="modalApplyBtn" href="#" target="_blank" rel="noopener">Apply now</a>
-
     <div class="modal-section">
       <h4>Your participation</h4>
       <div id="modalParticipationArea"></div>
@@ -215,7 +212,7 @@
 
     sponsored_posts
       id, title, brand, platform, payout, summary, requirements,
-      content_guidelines, deadline, apply_link, apply_email,
+      content_guidelines, deadline,
       is_active, created_at
   */
 
@@ -338,20 +335,6 @@
     document.getElementById('modalDeadline').textContent = formatDate(post.deadline);
 
     renderParticipationArea(post);
-
-    const applyBtn = document.getElementById('modalApplyBtn');
-    if (post.apply_link) {
-      applyBtn.href = post.apply_link;
-      applyBtn.target = '_blank';
-      applyBtn.textContent = 'Apply now';
-    } else if (post.apply_email) {
-      applyBtn.href = `mailto:${post.apply_email}`;
-      applyBtn.removeAttribute('target');
-      applyBtn.textContent = 'Apply via email';
-    } else {
-      applyBtn.href = '#';
-      applyBtn.textContent = 'No application link provided';
-    }
 
     document.getElementById('postModalOverlay').classList.add('show');
     document.body.style.overflow = 'hidden';
@@ -579,7 +562,7 @@
 
     const { data, error } = await supabaseClient
       .from('sponsored_posts')
-      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, deadline, apply_link, apply_email, is_active, created_at, min_likes, review_hold_days')
+      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, deadline, is_active, created_at, min_likes, review_hold_days')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
