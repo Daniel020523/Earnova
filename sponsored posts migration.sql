@@ -119,9 +119,19 @@ create trigger "10_enforce_participation_update"
 
 -- ----------------------------------------------------------------------------
 -- 4. Trigger: credit the user when an admin marks a submission "completed"
---    NOTE: assumes public.profiles has a numeric "balance" column and
---    public.transactions has (user_id, type, amount, description) columns —
---    adjust the column names below if your actual tables differ.
+--
+--    EarnOva doesn't store a running balance on public.profiles — dashboard.html
+--    confirms "Available balance" is calculated live by summing
+--    public.transactions rows (type = 'earning'/'referral', status =
+--    'completed', minus 'payout', plus 'refund'). So crediting a sponsored
+--    post payout is purely an INSERT into public.transactions with
+--    type = 'earning' and status = 'completed' — nothing to update on
+--    profiles.
+--
+--    user_id, type, amount, status, and created_at are confirmed to exist
+--    on public.transactions (dashboard.html queries all of them directly).
+--    `description` is not confirmed, so it's added dynamically only if the
+--    column actually exists — this avoids failing on a guessed column name.
 -- ----------------------------------------------------------------------------
 create or replace function public.credit_sponsored_post_completion()
 returns trigger
@@ -130,24 +140,38 @@ security definer
 set search_path = public
 as $$
 declare
-  post_payout numeric(10,2);
-  post_title  text;
+  post_payout     numeric(10,2);
+  post_title      text;
+  col_list        text := 'user_id, type, amount, status';
+  val_list        text;
+  has_description boolean;
+  has_created_at  boolean;
 begin
   if new.status = 'completed' and old.status is distinct from 'completed' and new.credited = false then
     select payout, title into post_payout, post_title
     from public.sponsored_posts where id = new.post_id;
 
-    update public.profiles
-      set balance = coalesce(balance, 0) + coalesce(post_payout, 0)
-      where id = new.user_id;
+    val_list := format('%L::uuid, %L, %L::numeric, %L', new.user_id, 'earning', coalesce(post_payout, 0), 'completed');
 
-    insert into public.transactions (user_id, type, amount, description)
-    values (
-      new.user_id,
-      'sponsored_post_payout',
-      coalesce(post_payout, 0),
-      'Sponsored post payout: ' || coalesce(post_title, 'Campaign')
-    );
+    select exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'transactions' and column_name = 'description'
+    ) into has_description;
+    if has_description then
+      col_list := col_list || ', description';
+      val_list := val_list || format(', %L', 'Sponsored post payout: ' || coalesce(post_title, 'Campaign'));
+    end if;
+
+    select exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'transactions' and column_name = 'created_at'
+    ) into has_created_at;
+    if has_created_at then
+      col_list := col_list || ', created_at';
+      val_list := val_list || format(', %L', now());
+    end if;
+
+    execute format('insert into public.transactions (%s) values (%s)', col_list, val_list);
 
     new.credited     := true;
     new.completed_at := now();
@@ -162,6 +186,7 @@ drop trigger if exists "20_credit_sponsored_post_completion" on public.sponsored
 create trigger "20_credit_sponsored_post_completion"
   before update on public.sponsored_post_participations
   for each row execute function public.credit_sponsored_post_completion();
+
 
 
 -- ============================================================================
