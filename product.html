@@ -18,9 +18,9 @@
   .product-hero img{
     width:100%;
     aspect-ratio:16/9;
-    object-fit:cover;
+    object-fit:contain;
     border-radius:10px;
-    background:rgba(0,0,0,0.06);
+    background:rgba(0,0,0,0.04);
   }
   .product-category{
     font-size:12px;
@@ -179,7 +179,7 @@
   // ---------------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
-  const PAYSTACK_PUBLIC_KEY = "pk_live_2958efcbdba4cf15d53ec8ea997dcc8f542505dc";
+  const PAYSTACK_PUBLIC_KEY = "pk_test_REPLACE_WITH_YOUR_PAYSTACK_PUBLIC_KEY";
 
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
