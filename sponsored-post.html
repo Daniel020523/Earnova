@@ -514,19 +514,19 @@
       `;
     } else if (part.status === 'rejected') {
       const attemptsUsed = part.attempt_number || 1;
-      const attemptsLeft = 3 - attemptsUsed;
+      const attemptsLeft = 4 - attemptsUsed;
       body = `
         <p class="job-summary" style="margin:0 0 6px 0;"><strong>Video:</strong> <a href="${escapeHtml(part.video_url || '#')}" target="_blank" rel="noopener">${escapeHtml(part.video_url || '')}</a></p>
         <p class="job-summary" style="margin:0 0 12px 0;"><strong>Feedback:</strong> ${escapeHtml(part.admin_notes || 'No reason given.')}</p>
         ${attemptsLeft > 0 ? `
-          <p class="job-summary" style="margin:0 0 10px 0; opacity:0.7;">Attempt ${attemptsUsed} of 3 — ${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} left.</p>
+          <p class="job-summary" style="margin:0 0 10px 0; opacity:0.7;">Attempt ${attemptsUsed} of 4 — ${attemptsLeft} ${attemptsLeft === 1 ? 'retry' : 'retries'} left.</p>
           <div class="participation-box">
             <label for="participationVideoUrl">Resubmit a video URL</label>
             <input id="participationVideoUrl" type="url" placeholder="https://…">
             <button type="button" class="btn btn-solid" id="participationSubmitVideoBtn">Resubmit for review</button>
           </div>
         ` : `
-          <p class="job-summary" style="margin:0;">You've used all 3 attempts for this campaign, so it's no longer possible to resubmit.</p>
+          <p class="job-summary" style="margin:0;">You've used all 3 retries for this campaign, so it's no longer possible to resubmit.</p>
         `}
       `;
     } else if (part.status === 'completed') {
@@ -643,7 +643,7 @@
           <div class="job-meta"><span class="work-at">Sponsored by</span> <span class="job-company">${escapeHtml(post.brand || '')}</span></div>
           <p style="margin:0 0 10px 0;">
             <span class="status-badge status-${part.status}">${statusLabel(part.status)}</span>
-            ${part.status === 'rejected' ? `<span style="font-size:12px; opacity:0.65; margin-left:8px;">Attempt ${part.attempt_number || 1} of 3</span>` : ''}
+            ${part.status === 'rejected' ? `<span style="font-size:12px; opacity:0.65; margin-left:8px;">Attempt ${part.attempt_number || 1} of 4</span>` : ''}
           </p>
           <div class="card-actions">
             <button type="button" class="btn btn-ghost view-participation-btn" data-post-id="${part.post_id}">View / manage</button>
