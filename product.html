@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .product-page{
+    max-width:720px;
+    margin:0 auto;
+  }
+  .product-hero{
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+  .product-hero img{
+    width:100%;
+    aspect-ratio:16/9;
+    object-fit:cover;
+    border-radius:10px;
+    background:rgba(0,0,0,0.06);
+  }
+  .product-category{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    opacity:0.6;
+    font-weight:600;
+  }
+  .product-title{ font-size:24px; font-weight:700; margin-top:4px; }
+  .product-desc{ font-size:15px; line-height:1.55; opacity:0.85; margin-top:8px; }
+
+  .buy-box{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    margin-top:20px;
+    padding-top:16px;
+    border-top:1px solid rgba(0,0,0,0.1);
+  }
+  .buy-price{ font-size:26px; font-weight:700; }
+  .buy-price-sub{ font-size:13px; opacity:0.6; margin-top:2px; }
+
+  .email-row{
+    display:flex;
+    gap:8px;
+    margin-top:16px;
+    flex-wrap:wrap;
+  }
+  .email-input{
+    flex:1 1 240px;
+    padding:11px 12px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:6px;
+    font-size:14px;
+  }
+  .pay-btn{
+    padding:11px 22px;
+    border-radius:6px;
+    border:none;
+    background:rgba(0,0,0,0.85);
+    color:#fff;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .pay-btn:hover{ opacity:0.92; }
+  .pay-btn:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  .field-error{ font-size:13px; color:#a40000; margin-top:6px; display:none; }
+
+  .status-panel{
+    text-align:center;
+    padding:32px 16px;
+  }
+  .status-icon{ font-size:40px; }
+  .status-title{ font-size:20px; font-weight:700; margin-top:12px; }
+  .status-body{ font-size:14px; opacity:0.75; margin-top:8px; line-height:1.5; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+  </div>
+</header>
+
+<main class="page product-page">
+
+  <div id="page-loading" class="card">
+    <p>Loading product…</p>
+  </div>
+
+  <div id="page-error" class="card status-panel" style="display:none;">
+    <div class="status-icon">⚠️</div>
+    <div class="status-title" id="page-error-title">Product not found</div>
+    <div class="status-body" id="page-error-body"></div>
+  </div>
+
+  <div id="page-content" class="card" style="display:none;">
+    <div class="product-hero">
+      <img id="product-image" alt="">
+      <div>
+        <div class="product-category" id="product-category"></div>
+        <div class="product-title" id="product-title"></div>
+        <div class="product-desc" id="product-desc"></div>
+      </div>
+    </div>
+
+    <div class="buy-box">
+      <div>
+        <div class="buy-price" id="product-price"></div>
+        <div class="buy-price-sub">One-time payment, secured by Paystack</div>
+      </div>
+    </div>
+
+    <div class="email-row">
+      <input class="email-input" id="buyer-name" type="text" placeholder="Your full name" required>
+      <input class="email-input" id="buyer-email" type="email" placeholder="Your email address" required>
+    </div>
+    <div class="email-row">
+      <button class="pay-btn" id="pay-btn" style="flex:1 1 100%;">Pay now</button>
+    </div>
+    <div class="field-error" id="email-error">Enter your name and a valid email to continue.</div>
+  </div>
+
+  <div id="status-success" class="card status-panel" style="display:none;">
+    <div class="status-icon">✅</div>
+    <div class="status-title">Payment confirmed</div>
+    <div class="status-body">Thanks for your purchase — a receipt has been sent to your email.</div>
+  </div>
+
+  <div id="status-failed" class="card status-panel" style="display:none;">
+    <div class="status-icon">❌</div>
+    <div class="status-title">We couldn't confirm this payment</div>
+    <div class="status-body" id="status-failed-body">If you were charged, contact support with your payment reference and we'll sort it out.</div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+  // ---------------------------------------------------------------
+  // This page is public — reachable by anyone with a product link,
+  // logged in or not. It never touches card details directly; Paystack's
+  // own iframe collects payment info. Once Paystack reports success,
+  // this page hands the transaction reference to a Supabase Edge
+  // Function which re-verifies it server-side (with the Paystack
+  // secret key, which must never appear in client code) before any
+  // affiliate_sales row is written. The client never inserts into
+  // affiliate_sales directly — that table controls real commission
+  // payouts, so it can only be written from the trusted server side.
+  //
+  // Requires an Edge Function named "verify-paystack" (see the
+  // accompanying index.ts) deployed to this Supabase project, plus:
+  //   - affiliate_products RLS: anon + authenticated can select active=true
+  //   - affiliate_clicks RLS: anon + authenticated can insert their own row
+  // ---------------------------------------------------------------
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const PAYSTACK_PUBLIC_KEY = "pk_test_REPLACE_WITH_YOUR_PAYSTACK_PUBLIC_KEY";
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function formatNaira(n){
+    return Number(n || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const productId = params.get('pid');
+  const refCode = params.get('ref') || null; // this is an affiliate_links.code, not a user id
+
+  let product = null;
+  let affiliateLink = null; // resolved from refCode, may stay null
+  let clickRecorded = false;
+
+  function showError(title, body){
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'none';
+    document.getElementById('page-error').style.display = 'block';
+    document.getElementById('page-error-title').textContent = title;
+    document.getElementById('page-error-body').textContent = body;
+  }
+
+  async function recordClick(){
+    if (clickRecorded || !refCode) return;
+    clickRecorded = true;
+    // Best-effort — a failed click log should never block checkout.
+    supabaseClient.rpc('increment_link_click', { link_code: refCode }).then(({ error }) => {
+      if (error) console.warn('Could not record click:', error.message);
+    });
+  }
+
+  async function resolveAffiliateLink(){
+    if (!refCode) return;
+    const { data, error } = await supabaseClient
+      .from('affiliate_links')
+      .select('id, user_id, product_id, code')
+      .eq('code', refCode)
+      .maybeSingle();
+
+    if (error || !data) {
+      console.warn('Affiliate link not found for code:', refCode);
+      return;
+    }
+    // Only credit the affiliate if their link actually points at this product.
+    if (data.product_id && data.product_id !== productId) {
+      console.warn('Affiliate link product does not match this page — ignoring ref.');
+      return;
+    }
+    affiliateLink = data;
+  }
+
+  async function loadProduct(){
+    if (!productId) {
+      showError('Missing product', 'This link is missing a product to show.');
+      return;
+    }
+
+    const { data, error } = await supabaseClient
+      .from('products')
+      .select('id, name, description, price, commission_rate, image_url, category, is_active')
+      .eq('id', productId)
+      .single();
+
+    if (error || !data || !data.is_active) {
+      showError('Product not found', "This product isn't available anymore.");
+      return;
+    }
+
+    product = data;
+    document.getElementById('product-image').src = product.image_url || 'assets/product-placeholder.png';
+    document.getElementById('product-image').alt = product.name;
+    document.getElementById('product-category').textContent = product.category || 'General';
+    document.getElementById('product-title').textContent = product.name;
+    document.getElementById('product-desc').textContent = product.description || '';
+    document.getElementById('product-price').textContent = formatNaira(product.price);
+
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'block';
+
+    await resolveAffiliateLink();
+    recordClick();
+  }
+
+  function isValidEmail(email){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  async function verifyWithBackend(reference, buyerName, buyerEmail){
+    const { data: { session } } = await supabaseClient.auth.getSession();
+
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/verify-paystack`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session ? session.access_token : SUPABASE_ANON_KEY}`,
+        apikey: SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({
+        reference,
+        product_id: productId,
+        ref_code: refCode,
+        buyer_name: buyerName,
+        buyer_email: buyerEmail
+      })
+    });
+
+    return resp.json();
+  }
+
+  document.getElementById('pay-btn').addEventListener('click', () => {
+    const nameInput = document.getElementById('buyer-name');
+    const emailInput = document.getElementById('buyer-email');
+    const emailError = document.getElementById('email-error');
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+
+    if (!name || !isValidEmail(email)) {
+      emailError.style.display = 'block';
+      (name ? emailInput : nameInput).focus();
+      return;
+    }
+    emailError.style.display = 'none';
+
+    if (!product) return;
+
+    const payBtn = document.getElementById('pay-btn');
+    payBtn.disabled = true;
+    payBtn.textContent = 'Opening Paystack…';
+
+    const handler = PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: email,
+      amount: Math.round(Number(product.price) * 100), // kobo
+      currency: 'NGN',
+      ref: `earnova_${productId}_${Date.now()}`,
+      metadata: {
+        product_id: productId,
+        ref_code: refCode
+      },
+      callback: function(response){
+        payBtn.textContent = 'Confirming payment…';
+        verifyWithBackend(response.reference, name, email)
+          .then(result => {
+            if (result && result.verified) {
+              document.getElementById('page-content').style.display = 'none';
+              document.getElementById('status-success').style.display = 'block';
+            } else {
+              document.getElementById('status-failed-body').textContent =
+                `We couldn't confirm this payment (ref: ${response.reference}). If you were charged, contact support with this reference.`;
+              document.getElementById('page-content').style.display = 'none';
+              document.getElementById('status-failed').style.display = 'block';
+            }
+          })
+          .catch(() => {
+            document.getElementById('status-failed-body').textContent =
+              `We couldn't reach our server to confirm this payment (ref: ${response.reference}). If you were charged, contact support with this reference.`;
+            document.getElementById('page-content').style.display = 'none';
+            document.getElementById('status-failed').style.display = 'block';
+          });
+      },
+      onClose: function(){
+        payBtn.disabled = false;
+        payBtn.textContent = 'Pay now';
+      }
+    });
+
+    handler.openIframe();
+  });
+
+  loadProduct();
+</script>
+
+</body>
+</html>
