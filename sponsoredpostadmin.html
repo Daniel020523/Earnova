@@ -40,6 +40,7 @@
   .form-field.full{ grid-column:1 / -1; }
   .checkbox-field{ display:flex; align-items:center; gap:8px; }
   .checkbox-field input{ width:auto; }
+  .field-hint{ font-size:12px; opacity:0.65; margin:4px 0 0 0; }
 
   .empty-note{ font-size:14px; opacity:0.65; margin-top:12px; }
   .btn-danger{ background:none; border:1px solid rgba(220,38,38,0.4); color:#dc2626; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
@@ -103,6 +104,10 @@
       <div class="stat-value" id="statPayout">—</div>
     </div>
     <div class="stat-card">
+      <div class="stat-label">Total payout completed</div>
+      <div class="stat-value" id="statPayoutCompleted">—</div>
+    </div>
+    <div class="stat-card">
       <div class="stat-label">Submissions awaiting review</div>
       <div class="stat-value" id="statPendingReview">—</div>
     </div>
@@ -148,12 +153,9 @@
           <input id="postDeadline" type="date">
         </div>
         <div class="form-field">
-          <label for="postMinLikes">Minimum likes required</label>
-          <input id="postMinLikes" type="number" min="0" placeholder="e.g. 1000">
-        </div>
-        <div class="form-field">
-          <label for="postReviewHoldDays">Review hold period (days)</label>
-          <input id="postReviewHoldDays" type="number" min="0" placeholder="e.g. 3">
+          <label for="postCampaignEnds">Campaign ends</label>
+          <input id="postCampaignEnds" type="date">
+          <p class="field-hint">Submissions are typically reviewed after this date, once engagement has had time to settle.</p>
         </div>
         <div class="form-field checkbox-field">
           <input id="postActive" type="checkbox" checked>
@@ -165,7 +167,8 @@
         </div>
         <div class="form-field full">
           <label for="postRequirements">Requirements</label>
-          <textarea id="postRequirements" rows="3"></textarea>
+          <textarea id="postRequirements" rows="3" placeholder="e.g. Minimum 1,000 likes, must tag @brand, post must stay up 30 days…"></textarea>
+          <p class="field-hint">Write any minimum engagement requirement (likes, views, etc.) directly into this text — there's no separate field for it.</p>
         </div>
         <div class="form-field full">
           <label for="postGuidelines">Content guidelines</label>
@@ -235,7 +238,7 @@
 
     sponsored_posts
       id, title, brand, platform, payout, summary, requirements,
-      content_guidelines, deadline, is_active, created_at
+      content_guidelines, deadline, campaign_ends_at, is_active, created_at
 
     This page assumes it is only reachable by admins (e.g. gated by your
     own auth/role check before this page loads). No admin-role check is
@@ -288,6 +291,7 @@
             <th>Platform</th>
             <th>Payout</th>
             <th>Deadline</th>
+            <th>Campaign ends</th>
             <th>Status</th>
             <th></th>
           </tr>
@@ -300,6 +304,7 @@
               <td>${escapeHtml(p.platform)}</td>
               <td>${formatCurrency(p.payout)}</td>
               <td>${formatDate(p.deadline)}</td>
+              <td>${formatDate(p.campaign_ends_at)}</td>
               <td><span class="job-tag ${p.is_active ? 'active' : 'inactive'}">${p.is_active ? 'Active' : 'Inactive'}</span></td>
               <td>
                 <div class="row-actions">
@@ -364,7 +369,7 @@
   async function loadPosts(){
     const { data, error } = await supabaseClient
       .from('sponsored_posts')
-      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, deadline, is_active, created_at, min_likes, review_hold_days')
+      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, deadline, is_active, created_at, campaign_ends_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -413,8 +418,7 @@
     document.getElementById('postPlatform').value = post.platform || '';
     document.getElementById('postPayout').value = post.payout || '';
     document.getElementById('postDeadline').value = post.deadline ? post.deadline.slice(0, 10) : '';
-    document.getElementById('postMinLikes').value = post.min_likes || '';
-    document.getElementById('postReviewHoldDays').value = post.review_hold_days || '';
+    document.getElementById('postCampaignEnds').value = post.campaign_ends_at ? post.campaign_ends_at.slice(0, 10) : '';
     document.getElementById('postActive').checked = !!post.is_active;
     document.getElementById('postSummary').value = post.summary || '';
     document.getElementById('postRequirements').value = post.requirements || '';
@@ -447,8 +451,7 @@
       platform: document.getElementById('postPlatform').value,
       payout: Number(document.getElementById('postPayout').value) || 0,
       deadline: document.getElementById('postDeadline').value || null,
-      min_likes: document.getElementById('postMinLikes').value ? Number(document.getElementById('postMinLikes').value) : null,
-      review_hold_days: document.getElementById('postReviewHoldDays').value ? Number(document.getElementById('postReviewHoldDays').value) : null,
+      campaign_ends_at: document.getElementById('postCampaignEnds').value || null,
       is_active: document.getElementById('postActive').checked,
       summary: document.getElementById('postSummary').value.trim() || null,
       requirements: document.getElementById('postRequirements').value.trim() || null,
@@ -606,7 +609,7 @@
   async function loadSubmissions(){
     const { data, error } = await supabaseClient
       .from('sponsored_post_participations')
-      .select('*, sponsored_posts(title, brand, payout, min_likes, review_hold_days), profiles!sponsored_post_participations_user_id_fkey(full_name, email)')
+      .select('*, sponsored_posts(title, brand, payout), profiles!sponsored_post_participations_user_id_fkey(full_name, email)')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -622,6 +625,10 @@
       allSubmissions.filter(s => s.status === 'submitted').length;
     document.getElementById('statDisqualified').textContent =
       allSubmissions.filter(s => s.status === 'disqualified').length;
+    const payoutCompleted = allSubmissions
+      .filter(s => s.status === 'completed')
+      .reduce((sum, s) => sum + (Number((s.sponsored_posts || {}).payout) || 0), 0);
+    document.getElementById('statPayoutCompleted').textContent = formatCurrency(payoutCompleted);
   }
 
   async function reviewSubmission(id, newStatus){
