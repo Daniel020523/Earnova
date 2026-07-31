@@ -204,7 +204,7 @@
 
     <div class="card">
       <h2>Your affiliate ID</h2>
-      <p style="font-size:13px; opacity:0.7; margin-top:4px;">This ID is baked into every link you grab below, so sales are tracked back to you.</p>
+      <p style="font-size:13px; opacity:0.7; margin-top:4px;">This is your internal EarnOva ID. Each product below gets its own tracking link when you tap "Get affiliate link" — you don't need to share this ID directly.</p>
       <div class="link-row">
         <input class="link-input" id="affiliate-id-display" type="text" readonly>
         <button class="btn btn-solid" id="copy-id-btn">Copy ID</button>
@@ -265,25 +265,24 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
   // ---------------------------------------------------------------
-  // Schema this page expects (in addition to profiles/transactions
-  // already used on dashboard.html):
+  // Real schema this page uses:
   //
-  //   affiliate_products
-  //     id, name, description, price, commission_percent,
-  //     image_url, category, active, created_at
+  //   products
+  //     id, name, description, price, commission_rate,
+  //     image_url, category, is_active, created_at
+  //
+  //   affiliate_links
+  //     id, user_id (-> profiles.id), product_id (-> products.id),
+  //     code (unique, used as ?ref= on product.html), clicks, created_at
   //
   //   affiliate_sales
-  //     id, affiliate_id (uuid, -> profiles.id), product_id (-> affiliate_products.id),
+  //     id, affiliate_link_id (-> affiliate_links.id), buyer_name, buyer_email,
   //     sale_amount, commission_amount, status ('pending' | 'completed' | 'rejected'),
   //     created_at
   //
-  //   affiliate_clicks
-  //     id, affiliate_id (uuid, -> profiles.id), product_id (-> affiliate_products.id),
-  //     created_at
-  //
-  // A product link is just product.html?ref=<affiliate_id>&pid=<product_id> —
-  // the product/checkout page is responsible for recording the click and,
-  // on purchase, inserting the affiliate_sales row.
+  // A product link is product.html?ref=<affiliate_links.code>&pid=<product_id>.
+  // Each affiliate gets one link (one code) per product, created on demand
+  // the first time they click "Get affiliate link".
   // ---------------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
@@ -325,8 +324,53 @@
   let salesExpanded = false;
   let activeCategory = 'all';
 
-  function affiliateLinkFor(productId){
-    return `${window.location.origin}/product.html?ref=${currentUserId}&pid=${productId}`;
+  function generateCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
+    let out = '';
+    for (let i = 0; i < 8; i++) out += chars[Math.floor(Math.random() * chars.length)];
+    return out;
+  }
+
+  const linkCodeCache = {}; // productId -> code, avoids refetching mid-session
+
+  async function getOrCreateLinkCode(productId){
+    if (linkCodeCache[productId]) return linkCodeCache[productId];
+
+    const { data: existing } = await supabaseClient
+      .from('affiliate_links')
+      .select('code')
+      .eq('user_id', currentUserId)
+      .eq('product_id', productId)
+      .maybeSingle();
+
+    if (existing) {
+      linkCodeCache[productId] = existing.code;
+      return existing.code;
+    }
+
+    const { data: created, error } = await supabaseClient
+      .from('affiliate_links')
+      .insert({ user_id: currentUserId, product_id: productId, code: generateCode(), clicks: 0 })
+      .select('code')
+      .single();
+
+    if (error) {
+      // Someone else may have created it a moment ago (unique constraint) — refetch.
+      const { data: retry } = await supabaseClient
+        .from('affiliate_links')
+        .select('code')
+        .eq('user_id', currentUserId)
+        .eq('product_id', productId)
+        .maybeSingle();
+      if (retry) {
+        linkCodeCache[productId] = retry.code;
+        return retry.code;
+      }
+      return null;
+    }
+
+    linkCodeCache[productId] = created.code;
+    return created.code;
   }
 
   function renderCategoryFilters(){
@@ -381,7 +425,7 @@
           <div class="product-desc">${p.description || ''}</div>
           <div class="product-meta">
             <div class="product-price">${formatNaira(p.price)}</div>
-            <div class="product-commission">${p.commission_percent}% commission</div>
+            <div class="product-commission">${p.commission_rate}% commission</div>
           </div>
           <button class="get-link-btn" data-product-id="${p.id}">Get affiliate link</button>
         </div>
@@ -390,12 +434,25 @@
 
     grid.querySelectorAll('.get-link-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const link = affiliateLinkFor(btn.dataset.productId);
+        btn.disabled = true;
+        const originalLabel = btn.textContent;
+        btn.textContent = 'Generating…';
         try {
-          await navigator.clipboard.writeText(link);
-          showToast('Affiliate link copied');
-        } catch (e) {
-          showToast(link);
+          const code = await getOrCreateLinkCode(btn.dataset.productId);
+          if (!code) {
+            showToast("Couldn't generate a link — try again");
+            return;
+          }
+          const link = `${window.location.origin}/product.html?ref=${code}&pid=${btn.dataset.productId}`;
+          try {
+            await navigator.clipboard.writeText(link);
+            showToast('Affiliate link copied');
+          } catch (e) {
+            showToast(link);
+          }
+        } finally {
+          btn.disabled = false;
+          btn.textContent = originalLabel;
         }
       });
     });
@@ -406,9 +463,9 @@
     loadingEl.style.display = 'block';
 
     const { data, error } = await supabaseClient
-      .from('affiliate_products')
-      .select('id, name, description, price, commission_percent, image_url, category, active')
-      .eq('active', true)
+      .from('products')
+      .select('id, name, description, price, commission_rate, image_url, category, is_active')
+      .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     loadingEl.style.display = 'none';
@@ -432,7 +489,7 @@
     bodyEl.innerHTML = rows.map(row => `
       <tr>
         <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${formatDate(row.created_at)}</td>
-        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${productNameById[row.product_id] || 'Product'}</td>
+        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${productNameById[row.affiliate_links?.product_id] || 'Product'}</td>
         <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right;">${formatNaira(row.sale_amount)}</td>
         <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right;">${formatNaira(row.commission_amount)}</td>
         <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right; opacity:0.75;">${capitalize(row.status)}</td>
@@ -473,10 +530,11 @@
 
     const { data, error } = await supabaseClient
       .from('affiliate_sales')
-      .select('product_id, sale_amount, commission_amount, status, created_at')
-      .eq('affiliate_id', userId)
+      .select('sale_amount, commission_amount, status, created_at, affiliate_links(product_id)')
       .order('created_at', { ascending: false })
       .limit(50);
+    // No .eq() filter needed here — RLS restricts rows to sales made
+    // through affiliate_links this user owns.
 
     loadingEl.style.display = 'none';
 
@@ -505,12 +563,17 @@
   }
 
   async function loadClickCount(userId){
-    const { count, error } = await supabaseClient
-      .from('affiliate_clicks')
-      .select('id', { count: 'exact', head: true })
-      .eq('affiliate_id', userId);
+    const { data, error } = await supabaseClient
+      .from('affiliate_links')
+      .select('clicks')
+      .eq('user_id', userId);
 
-    document.getElementById('stat-clicks').textContent = error ? '—' : (count || 0);
+    if (error) {
+      document.getElementById('stat-clicks').textContent = '—';
+      return;
+    }
+    const total = (data || []).reduce((sum, row) => sum + Number(row.clicks || 0), 0);
+    document.getElementById('stat-clicks').textContent = total;
   }
 
   document.getElementById('copy-id-btn').addEventListener('click', async () => {

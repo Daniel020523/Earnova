@@ -307,11 +307,11 @@
   // admins can write to them).
   //
   // Schema this page expects (shared with affiliate.html):
-  //   affiliate_products(id, name, description, price, commission_percent,
-  //     image_url, category, active, created_at)
-  //   affiliate_sales(id, affiliate_id, product_id, sale_amount,
-  //     commission_amount, status, created_at)
-  //   affiliate_clicks(id, affiliate_id, product_id, created_at)
+  //   products(id, name, description, price, commission_rate,
+  //     image_url, category, is_active, created_at)
+  //   affiliate_links(id, user_id, product_id, code, clicks, created_at)
+  //   affiliate_sales(id, affiliate_link_id, buyer_name, buyer_email,
+  //     sale_amount, commission_amount, status, created_at)
   //   profiles(id, full_name, is_admin)
   // ---------------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
@@ -370,8 +370,8 @@
     tableEl.style.display = 'none';
 
     const { data, error } = await supabaseClient
-      .from('affiliate_products')
-      .select('id, name, description, price, commission_percent, image_url, category, active, created_at')
+      .from('products')
+      .select('id, name, description, price, commission_rate, image_url, category, is_active, created_at')
       .order('created_at', { ascending: false });
 
     loadingEl.style.display = 'none';
@@ -396,8 +396,8 @@
         <td>${p.name}</td>
         <td>${p.category ? capitalize(p.category) : '—'}</td>
         <td>${formatNaira(p.price)}</td>
-        <td>${p.commission_percent}%</td>
-        <td><span class="pill ${p.active ? 'pill-active' : 'pill-inactive'}">${p.active ? 'Active' : 'Inactive'}</span></td>
+        <td>${p.commission_rate}%</td>
+        <td><span class="pill ${p.is_active ? 'pill-active' : 'pill-inactive'}">${p.is_active ? 'Active' : 'Inactive'}</span></td>
         <td>
           <div class="row-actions">
             <button data-edit="${p.id}">Edit</button>
@@ -424,10 +424,10 @@
     document.getElementById('product-name').value = p.name || '';
     document.getElementById('product-category').value = p.category || '';
     document.getElementById('product-price').value = p.price || 0;
-    document.getElementById('product-commission').value = p.commission_percent || 0;
+    document.getElementById('product-commission').value = p.commission_rate || 0;
     document.getElementById('product-image').value = p.image_url || '';
     document.getElementById('product-description').value = p.description || '';
-    document.getElementById('product-active').checked = !!p.active;
+    document.getElementById('product-active').checked = !!p.is_active;
     document.getElementById('product-submit-btn').textContent = 'Save changes';
     document.getElementById('product-cancel-btn').style.display = 'inline-block';
     window.scrollTo({ top: document.getElementById('product-form').offsetTop - 80, behavior: 'smooth' });
@@ -452,10 +452,10 @@
       name: document.getElementById('product-name').value.trim(),
       category: document.getElementById('product-category').value.trim() || null,
       price: Number(document.getElementById('product-price').value),
-      commission_percent: Number(document.getElementById('product-commission').value),
+      commission_rate: Number(document.getElementById('product-commission').value),
       image_url: document.getElementById('product-image').value.trim() || null,
       description: document.getElementById('product-description').value.trim() || null,
-      active: document.getElementById('product-active').checked
+      is_active: document.getElementById('product-active').checked
     };
 
     const submitBtn = document.getElementById('product-submit-btn');
@@ -463,9 +463,9 @@
 
     let error;
     if (id) {
-      ({ error } = await supabaseClient.from('affiliate_products').update(payload).eq('id', id));
+      ({ error } = await supabaseClient.from('products').update(payload).eq('id', id));
     } else {
-      ({ error } = await supabaseClient.from('affiliate_products').insert(payload));
+      ({ error } = await supabaseClient.from('products').insert(payload));
     }
 
     submitBtn.disabled = false;
@@ -483,7 +483,7 @@
   async function deleteProduct(id){
     if (!confirm('Delete this product? This cannot be undone.')) return;
 
-    const { error } = await supabaseClient.from('affiliate_products').delete().eq('id', id);
+    const { error } = await supabaseClient.from('products').delete().eq('id', id);
     if (error) {
       showToast("Couldn't delete product");
       return;
@@ -504,7 +504,7 @@
 
     const { data, error } = await supabaseClient
       .from('affiliate_sales')
-      .select('id, product_id, affiliate_id, sale_amount, commission_amount, status, created_at')
+      .select('id, sale_amount, commission_amount, status, created_at, buyer_name, buyer_email, affiliate_links(product_id, user_id)')
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -527,11 +527,14 @@
     const productNameById = {};
     allProducts.forEach(p => { productNameById[p.id] = p.name; });
 
-    document.getElementById('sales-body').innerHTML = data.map(row => `
+    document.getElementById('sales-body').innerHTML = data.map(row => {
+      const productId = row.affiliate_links?.product_id;
+      const affiliateId = row.affiliate_links?.user_id;
+      return `
       <tr>
         <td>${formatDate(row.created_at)}</td>
-        <td>${productNameById[row.product_id] || 'Product'}</td>
-        <td>${profileNameById[row.affiliate_id] || row.affiliate_id.slice(0, 8)}</td>
+        <td>${productNameById[productId] || 'Product'}</td>
+        <td>${affiliateId ? (profileNameById[affiliateId] || affiliateId.slice(0, 8)) : '— (direct sale)'}</td>
         <td>${formatNaira(row.sale_amount)}</td>
         <td>${formatNaira(row.commission_amount)}</td>
         <td><span class="pill pill-${row.status}">${capitalize(row.status)}</span></td>
@@ -543,7 +546,8 @@
             </div>` : ''}
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
 
     document.querySelectorAll('[data-approve]').forEach(btn => {
       btn.addEventListener('click', () => updateSaleStatus(btn.dataset.approve, 'completed'));
@@ -570,7 +574,7 @@
     const totalSalesValue = sales.reduce((s, r) => s + Number(r.sale_amount || 0), 0);
     const commissionPaid = sales.filter(r => r.status === 'completed')
       .reduce((s, r) => s + Number(r.commission_amount || 0), 0);
-    const affiliateSet = new Set(sales.map(r => r.affiliate_id));
+    const affiliateSet = new Set(sales.map(r => r.affiliate_links?.user_id).filter(Boolean));
 
     document.getElementById('stat-sales-value').textContent = formatNaira(totalSalesValue);
     document.getElementById('stat-commission-paid').textContent = formatNaira(commissionPaid);
@@ -592,12 +596,14 @@
 
     const byAffiliate = {};
     sales.forEach(row => {
-      if (!byAffiliate[row.affiliate_id]) {
-        byAffiliate[row.affiliate_id] = { count: 0, commission: 0 };
+      const affiliateId = row.affiliate_links?.user_id;
+      if (!affiliateId) return; // skip direct sales with no affiliate credited
+      if (!byAffiliate[affiliateId]) {
+        byAffiliate[affiliateId] = { count: 0, commission: 0 };
       }
-      byAffiliate[row.affiliate_id].count += 1;
+      byAffiliate[affiliateId].count += 1;
       if (row.status === 'completed') {
-        byAffiliate[row.affiliate_id].commission += Number(row.commission_amount || 0);
+        byAffiliate[affiliateId].commission += Number(row.commission_amount || 0);
       }
     });
 
