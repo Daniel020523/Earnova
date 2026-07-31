@@ -598,11 +598,13 @@
   async function loadSubmissions(){
     const { data, error } = await supabaseClient
       .from('sponsored_post_participations')
-      .select('*, sponsored_posts(title, brand, payout, min_likes, review_hold_days), profiles(full_name, email)')
+      .select('*, sponsored_posts(title, brand, payout, min_likes, review_hold_days), profiles!sponsored_post_participations_user_id_fkey(full_name, email)')
       .order('created_at', { ascending: false });
 
     if (error) {
-      document.getElementById('submissionsWrap').innerHTML = '<p class="empty-note">Couldn\'t load submissions.</p>';
+      console.error('loadSubmissions error:', error);
+      document.getElementById('submissionsWrap').innerHTML =
+        `<p class="empty-note">Couldn't load submissions. (${escapeHtml(error.message || 'unknown error')})</p>`;
       return;
     }
 
