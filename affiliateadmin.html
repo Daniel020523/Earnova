@@ -196,8 +196,11 @@
               <input type="number" id="product-commission" min="0" max="100" step="1" required>
             </div>
             <div class="field full">
-              <label for="product-image">Image URL</label>
-              <input type="text" id="product-image" placeholder="https://…">
+              <label for="product-image-file">Photo</label>
+              <input type="file" id="product-image-file" accept="image/png, image/jpeg, image/webp">
+              <input type="hidden" id="product-image">
+              <img id="product-image-preview" alt="" style="display:none; margin-top:10px; max-width:220px; border-radius:8px; border:1px solid rgba(0,0,0,0.12);">
+              <div id="product-image-status" style="font-size:12px; opacity:0.65; margin-top:6px;"></div>
             </div>
             <div class="field full">
               <label for="product-description">Description</label>
@@ -415,6 +418,43 @@
     });
   }
 
+  const PRODUCT_IMAGE_BUCKET = 'product-images';
+  let imageUploading = false;
+
+  document.getElementById('product-image-file').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('product-image-status');
+    const previewEl = document.getElementById('product-image-preview');
+    statusEl.textContent = 'Uploading…';
+    imageUploading = true;
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const path = `${Date.now()}-${safeName}`;
+
+    const { error: uploadError } = await supabaseClient.storage
+      .from(PRODUCT_IMAGE_BUCKET)
+      .upload(path, file, { upsert: false });
+
+    if (uploadError) {
+      statusEl.textContent = "Couldn't upload photo — try again.";
+      showToast("Couldn't upload photo");
+      imageUploading = false;
+      return;
+    }
+
+    const { data: publicUrlData } = supabaseClient.storage
+      .from(PRODUCT_IMAGE_BUCKET)
+      .getPublicUrl(path);
+
+    document.getElementById('product-image').value = publicUrlData.publicUrl;
+    previewEl.src = publicUrlData.publicUrl;
+    previewEl.style.display = 'block';
+    statusEl.textContent = 'Photo uploaded';
+    imageUploading = false;
+  });
+
   function startEditProduct(id){
     const p = allProducts.find(x => x.id === id);
     if (!p) return;
@@ -426,6 +466,15 @@
     document.getElementById('product-price').value = p.price || 0;
     document.getElementById('product-commission').value = p.commission_rate || 0;
     document.getElementById('product-image').value = p.image_url || '';
+    const previewEl = document.getElementById('product-image-preview');
+    if (p.image_url) {
+      previewEl.src = p.image_url;
+      previewEl.style.display = 'block';
+    } else {
+      previewEl.style.display = 'none';
+    }
+    document.getElementById('product-image-status').textContent = '';
+    document.getElementById('product-image-file').value = '';
     document.getElementById('product-description').value = p.description || '';
     document.getElementById('product-active').checked = !!p.is_active;
     document.getElementById('product-submit-btn').textContent = 'Save changes';
@@ -437,6 +486,9 @@
     document.getElementById('product-form-title').textContent = 'Add a product';
     document.getElementById('product-form').reset();
     document.getElementById('product-id').value = '';
+    document.getElementById('product-image').value = '';
+    document.getElementById('product-image-preview').style.display = 'none';
+    document.getElementById('product-image-status').textContent = '';
     document.getElementById('product-active').checked = true;
     document.getElementById('product-submit-btn').textContent = 'Add product';
     document.getElementById('product-cancel-btn').style.display = 'none';
@@ -446,6 +498,11 @@
 
   document.getElementById('product-form').addEventListener('submit', async (event) => {
     event.preventDefault();
+
+    if (imageUploading) {
+      showToast('Wait for the photo to finish uploading');
+      return;
+    }
 
     const id = document.getElementById('product-id').value;
     const payload = {
