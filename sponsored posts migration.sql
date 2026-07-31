@@ -93,14 +93,15 @@ begin
     end if;
 
     -- A rejected submission can be retried (resubmitted with a new video),
-    -- up to 3 attempts total per campaign. Approving a submission ends the
-    -- campaign for that user — there's no retry path once approved,
-    -- completed, or disqualified.
+    -- up to 3 retries after a rejection — so attempt_number can reach 4
+    -- (the original submission + 3 more chances) before it's locked out.
+    -- Approving a submission ends the campaign for that user — there's no
+    -- retry path once approved, completed, or disqualified.
     is_retry := (old.status = 'rejected' and new.status = 'submitted');
 
     if is_retry then
-      if old.attempt_number >= 3 then
-        raise exception 'You have reached the maximum of 3 attempts for this campaign';
+      if old.attempt_number >= 4 then
+        raise exception 'You have used all 3 retries for this campaign';
       end if;
 
       new.attempt_number := old.attempt_number + 1;
@@ -263,16 +264,18 @@ alter table public.sponsored_posts
 
 
 -- ============================================================================
--- 7. Allow up to 3 attempts per campaign after a rejection
+-- 7. Allow up to 3 retries per campaign after a rejection
 --
 -- Previously, once a participation was rejected, the enforce_participation_update
 -- trigger blocked the user from ever touching that row again — so a rejected
 -- user could never actually retry. Now: a rejected participation can be
 -- resubmitted (status goes rejected -> submitted with a new video_url) up to
--- 3 total attempts, tracked by attempt_number. The trigger itself enforces
--- the cap and auto-increments attempt_number — the app doesn't need to send
--- it. Once a submission is approved, completed, or disqualified, there is no
--- retry path — that campaign is done for that user, win or lose.
+-- 3 times after a rejection — attempt_number counts submissions, so it goes
+-- 1 (original) -> 2 -> 3 -> 4 (last allowed retry), then locks. The trigger
+-- itself enforces the cap and auto-increments attempt_number — the app
+-- doesn't need to send it. Once a submission is approved, completed, or
+-- disqualified, there is no retry path — that campaign is done for that
+-- user, win or lose.
 -- ============================================================================
 
 alter table public.sponsored_post_participations
