@@ -560,7 +560,10 @@
                 <td>${s.social_handle_url ? truncateLink(s.social_handle_url) : '—'}</td>
                 <td>${s.video_url ? truncateLink(s.video_url) : '—'}</td>
                 <td>${formatCurrency(post.payout)}</td>
-                <td><span class="status-badge status-${s.status}">${statusLabel(s.status)}</span></td>
+                <td>
+                  <span class="status-badge status-${s.status}">${statusLabel(s.status)}</span>
+                  ${(s.attempt_number || 1) > 1 ? `<br><span class="empty-note">Attempt ${s.attempt_number}/3</span>` : ''}
+                </td>
                 <td><div class="row-actions">${actions}</div></td>
               </tr>
             `;
