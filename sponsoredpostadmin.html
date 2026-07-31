@@ -59,10 +59,13 @@
   .status-approved{ background:rgba(13,148,136,0.12); color:#0d9488; }
   .status-rejected{ background:rgba(220,38,38,0.12); color:#dc2626; }
   .status-completed{ background:rgba(22,163,74,0.14); color:#16a34a; }
+  .status-disqualified{ background:rgba(75,85,99,0.14); color:#4b5563; }
   .btn-approve{ background:none; border:1px solid rgba(13,148,136,0.4); color:#0d9488; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
   .btn-approve:hover{ background:rgba(13,148,136,0.08); }
   .btn-complete{ background:#16a34a; border:1px solid #16a34a; color:#fff; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
   .btn-complete:hover{ background:#128a3e; }
+  .btn-disqualify{ background:none; border:1px solid rgba(75,85,99,0.4); color:#4b5563; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .btn-disqualify:hover{ background:rgba(75,85,99,0.08); }
   .link-cell{ max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block; }
 </style>
 </head>
@@ -102,6 +105,10 @@
     <div class="stat-card">
       <div class="stat-label">Submissions awaiting review</div>
       <div class="stat-value" id="statPendingReview">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Disqualified participants</div>
+      <div class="stat-value" id="statDisqualified">—</div>
     </div>
   </div>
 
@@ -202,6 +209,7 @@
       <option value="approved">Approved · awaiting payout</option>
       <option value="rejected">Rejected</option>
       <option value="completed">Completed</option>
+      <option value="disqualified">Disqualified</option>
     </select>
   </div>
   <div id="submissionsWrap">
@@ -483,11 +491,12 @@
 
   function statusLabel(status){
     return {
-      pending_submission: 'Not submitted yet',
-      submitted: 'Awaiting review',
+      pending_submission: 'Video not submitted',
+      submitted: 'Under review',
       approved: 'Approved · awaiting payout',
       rejected: 'Rejected',
-      completed: 'Completed'
+      completed: 'Completed · paid',
+      disqualified: 'Disqualified'
     }[status] || status;
   }
 
@@ -526,15 +535,24 @@
               actions = `
                 <button type="button" class="btn-approve approve-sub-btn">Approve</button>
                 <button type="button" class="btn-danger reject-sub-btn">Reject</button>
+                <button type="button" class="btn-disqualify disqualify-sub-btn">Disqualify</button>
               `;
             } else if (s.status === 'approved') {
-              actions = `<button type="button" class="btn-complete complete-sub-btn">Complete &amp; credit</button>`;
+              actions = `
+                <button type="button" class="btn-complete complete-sub-btn">Complete &amp; credit</button>
+                <button type="button" class="btn-disqualify disqualify-sub-btn">Disqualify</button>
+              `;
             } else if (s.status === 'pending_submission') {
               actions = `<span class="empty-note">Waiting on user</span>`;
             } else if (s.status === 'rejected') {
               actions = `<span class="empty-note">${escapeHtml(s.admin_notes || 'Rejected')}</span>`;
             } else if (s.status === 'completed') {
-              actions = `<span class="empty-note">Credited ${formatCurrency(post.payout)}</span>`;
+              actions = `
+                <span class="empty-note">Credited ${formatCurrency(post.payout)}</span>
+                <button type="button" class="btn-disqualify disqualify-sub-btn">Disqualify</button>
+              `;
+            } else if (s.status === 'disqualified') {
+              actions = `<span class="empty-note">${escapeHtml(s.admin_notes || 'Disqualified')}</span>`;
             }
             return `
               <tr data-sub-id="${s.id}">
@@ -560,6 +578,9 @@
     });
     wrap.querySelectorAll('.complete-sub-btn').forEach(btn => {
       btn.addEventListener('click', () => completeSubmission(btn.closest('tr').getAttribute('data-sub-id')));
+    });
+    wrap.querySelectorAll('.disqualify-sub-btn').forEach(btn => {
+      btn.addEventListener('click', () => disqualifySubmission(btn.closest('tr').getAttribute('data-sub-id')));
     });
   }
 
@@ -599,6 +620,8 @@
     applySubFilters();
     document.getElementById('statPendingReview').textContent =
       allSubmissions.filter(s => s.status === 'submitted').length;
+    document.getElementById('statDisqualified').textContent =
+      allSubmissions.filter(s => s.status === 'disqualified').length;
   }
 
   async function reviewSubmission(id, newStatus){
@@ -628,6 +651,35 @@
       return;
     }
     showToast('Submission rejected.');
+    loadSubmissions();
+  }
+
+  async function disqualifySubmission(id){
+    const sub = allSubmissions.find(s => String(s.id) === String(id));
+    if (!sub) return;
+
+    if (sub.status === 'completed') {
+      const proceed = confirm(
+        'This participant was already marked complete and their payout was credited. ' +
+        'Disqualifying them now will NOT automatically remove that payout from their balance — ' +
+        'you\'ll need to reverse it manually if needed. Continue disqualifying?'
+      );
+      if (!proceed) return;
+    }
+
+    const reason = prompt('Reason for disqualifying this participant (shown to the user):');
+    if (reason === null) return; // cancelled
+
+    const { error } = await supabaseClient
+      .from('sponsored_post_participations')
+      .update({ status: 'disqualified', admin_notes: reason || null, reviewed_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) {
+      showToast("Couldn't disqualify this participant.");
+      return;
+    }
+    showToast('Participant disqualified.');
     loadSubmissions();
   }
 
