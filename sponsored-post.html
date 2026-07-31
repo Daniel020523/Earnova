@@ -94,7 +94,12 @@
   .status-rejected{ background:rgba(220,38,38,0.12); color:#dc2626; }
   .status-completed{ background:rgba(22,163,74,0.14); color:#16a34a; }
   .status-disqualified{ background:rgba(75,85,99,0.14); color:#4b5563; }
-  .my-participations-row{ margin:12px 0; }
+  .top-actions-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:12px 0; }
+  .total-earned-chip{ display:flex; align-items:center; gap:6px; padding:8px 14px; border:1px solid rgba(0,0,0,0.12); border-radius:999px; font-size:13px; }
+  .total-earned-label{ opacity:0.65; }
+  .total-earned-value{ font-weight:700; }
+  .rules-list{ margin:0; padding-left:20px; font-size:14px; line-height:1.6; }
+  .rules-list li{ margin-bottom:8px; }
   .participation-box{
     border:1px solid rgba(0,0,0,0.1); border-radius:8px; padding:14px; margin-top:8px; background:rgba(0,0,0,0.02);
   }
@@ -127,8 +132,13 @@
   <h1>Sponsored post opportunities</h1>
   <p class="lead">Browse paid sponsored post campaigns from verified brands. Click a campaign to see full requirements and apply.</p>
 
-  <div class="my-participations-row">
+  <div class="top-actions-row">
     <button type="button" class="btn btn-ghost" id="myParticipationsBtn">My participations</button>
+    <button type="button" class="btn btn-ghost" id="rulesBtn">Rules</button>
+    <div class="total-earned-chip">
+      <span class="total-earned-label">Total earned</span>
+      <span class="total-earned-value" id="totalEarnedValue">₦0.00</span>
+    </div>
   </div>
 
   <div class="search-row">
@@ -215,6 +225,24 @@
     <button class="modal-close" id="myParticipationsListCloseBtn" aria-label="Close">&times;</button>
     <h2 style="margin:4px 0 8px 0;">My participations</h2>
     <div id="myParticipationsListArea"></div>
+  </div>
+</div>
+
+<!-- Rules modal: general participation rules that apply to every campaign -->
+<div class="modal-overlay" id="rulesModalOverlay">
+  <div class="modal-box">
+    <button class="modal-close" id="rulesCloseBtn" aria-label="Close">&times;</button>
+    <h2 style="margin:4px 0 8px 0;">Sponsored post rules</h2>
+    <p class="job-summary" style="margin-bottom:14px;">These apply to every campaign you join. Breaking them can get a submission rejected — or a participation disqualified, even after it's been approved or paid out.</p>
+    <ul class="rules-list">
+      <li>Post the content yourself, from the social handle you submitted when you joined the campaign.</li>
+      <li>Keep the post live and public for the full review period — don't delete, archive, or make it private before an admin has reviewed it.</li>
+      <li>Meet any minimum engagement requirement listed in the campaign's "Requirements" section.</li>
+      <li><strong>Don't promote the video or run ads</strong> — no paid boosts, promotion services, engagement pods, bots, or purchased followers/likes/views to inflate its likes or views. Engagement must be organic.</li>
+      <li>Follow the campaign's content guidelines exactly — don't change required captions, tags, or disclosures.</li>
+      <li>Submit only your own original video link — never someone else's content or a placeholder link.</li>
+      <li>Submit once per campaign. Only resubmit if your first submission was reviewed and rejected.</li>
+    </ul>
   </div>
 </div>
 
@@ -387,8 +415,13 @@
   document.getElementById('myParticipationsListOverlay').addEventListener('click', (e) => {
     if (e.target.id === 'myParticipationsListOverlay') closeMyParticipationsList();
   });
+  document.getElementById('rulesBtn').addEventListener('click', openRulesModal);
+  document.getElementById('rulesCloseBtn').addEventListener('click', closeRulesModal);
+  document.getElementById('rulesModalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'rulesModalOverlay') closeRulesModal();
+  });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { closeModal(); closeParticipateModal(); closeParticipationModal(); closeMyParticipationsList(); }
+    if (e.key === 'Escape') { closeModal(); closeParticipateModal(); closeParticipationModal(); closeMyParticipationsList(); closeRulesModal(); }
   });
 
   // ---- Participation flow -------------------------------------------------
@@ -553,7 +586,7 @@
   }
 
   async function loadMyParticipations(){
-    if (!currentUserId) { myParticipations = {}; updateMyParticipationsButtonLabel(); return; }
+    if (!currentUserId) { myParticipations = {}; updateMyParticipationsButtonLabel(); updateTotalEarnedDisplay(); return; }
     const { data, error } = await supabaseClient
       .from('sponsored_post_participations')
       .select('*')
@@ -563,6 +596,7 @@
     myParticipations = {};
     (data || []).forEach(p => { myParticipations[p.post_id] = p; });
     updateMyParticipationsButtonLabel();
+    updateTotalEarnedDisplay();
   }
 
   // ---- "My participations" — one place to see every campaign joined ------
@@ -571,6 +605,16 @@
     const btn = document.getElementById('myParticipationsBtn');
     const count = Object.keys(myParticipations).length;
     btn.textContent = count > 0 ? `My participations (${count})` : 'My participations';
+  }
+
+  function updateTotalEarnedDisplay(){
+    const total = Object.values(myParticipations)
+      .filter(part => part.status === 'completed')
+      .reduce((sum, part) => {
+        const post = allPosts.find(p => String(p.id) === String(part.post_id));
+        return sum + (post ? Number(post.payout) || 0 : 0);
+      }, 0);
+    document.getElementById('totalEarnedValue').textContent = formatCurrency(total);
   }
 
   function renderMyParticipationsList(){
@@ -613,6 +657,16 @@
 
   function closeMyParticipationsList(){
     document.getElementById('myParticipationsListOverlay').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  function openRulesModal(){
+    document.getElementById('rulesModalOverlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeRulesModal(){
+    document.getElementById('rulesModalOverlay').classList.remove('show');
     document.body.style.overflow = '';
   }
 
