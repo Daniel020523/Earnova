@@ -6,49 +6,117 @@
 <title>Affiliate admin — EarnOva</title>
 <link rel="stylesheet" href="styles.css">
 <style>
-  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-top:12px; }
-  .stat-card{ border:1px solid rgba(0,0,0,0.12); border-radius:8px; padding:16px; }
-  .stat-label{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; margin-bottom:6px; }
-  .stat-value{ font-size:22px; font-weight:700; }
-
-  .section-title{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:28px; }
-  .section-title h2{ margin:0; font-size:19px; }
-
-  .search-row{ display:flex; gap:8px; margin:12px 0; flex-wrap:wrap; }
-  .search-row input, .search-row select{ padding:10px 12px; border:1px solid rgba(0,0,0,0.15); border-radius:6px; font-size:14px; }
-  .search-row input{ flex:1; min-width:200px; }
-
-  table.data-table{ width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
-  table.data-table th, table.data-table td{ text-align:left; padding:10px 8px; border-bottom:1px solid rgba(0,0,0,0.08); vertical-align:middle; }
-  table.data-table th{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; }
-  .job-tag{ display:inline-block; font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; background:rgba(0,0,0,0.06); }
-  .job-tag.active{ background:rgba(13,148,136,0.12); color:#0d9488; }
-  .job-tag.inactive{ background:rgba(0,0,0,0.06); color:rgba(0,0,0,0.5); }
-  .status-pill{ font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; }
-  .status-pill.completed{ background:rgba(13,148,136,0.12); color:#0d9488; }
-  .status-pill.pending{ background:rgba(217,119,6,0.12); color:#d97706; }
-
-  .form-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:12px; }
-  .form-field label{ font-size:12px; font-weight:600; display:block; margin-bottom:4px; }
-  .form-field input, .form-field textarea, .form-field select{
-    width:100%; padding:10px 12px; border:1px solid rgba(0,0,0,0.15); border-radius:6px; font-size:14px; font-family:inherit;
+  .stat-grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:12px;
+    margin-top:12px;
   }
-  .form-field.full{ grid-column:1 / -1; }
-  .checkbox-field{ display:flex; align-items:center; gap:8px; }
-  .checkbox-field input{ width:auto; }
+  .stat-tile{
+    border:1px solid rgba(0,0,0,0.12);
+    border-radius:8px;
+    padding:16px;
+  }
+  .stat-label{ font-size:13px; opacity:0.7; }
+  .stat-value{ font-size:22px; font-weight:600; margin-top:4px; }
+  @media (max-width:700px){
+    .stat-grid{ grid-template-columns:repeat(2, 1fr); }
+  }
 
-  .tier-editor{ display:grid; gap:10px; margin-top:12px; }
-  .tier-row{ display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr auto; gap:8px; align-items:center; border:1px solid rgba(0,0,0,0.1); border-radius:8px; padding:10px 12px; }
-  .tier-row input{ padding:8px 10px; border:1px solid rgba(0,0,0,0.15); border-radius:6px; font-size:13px; width:100%; }
-  .tier-row label{ font-size:11px; text-transform:uppercase; opacity:0.55; display:block; margin-bottom:3px; }
+  .tab-bar{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:16px;
+  }
+  .tab-btn{
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:999px;
+    padding:8px 16px;
+    font-size:13px;
+    font-weight:600;
+    background:none;
+    cursor:pointer;
+    opacity:0.75;
+  }
+  .tab-btn.active{
+    background:rgba(0,0,0,0.85);
+    color:#fff;
+    opacity:1;
+  }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
 
-  .product-thumb{ width:40px; height:40px; border-radius:6px; object-fit:cover; background:rgba(0,0,0,0.06); }
-  .empty-note{ font-size:14px; opacity:0.65; margin-top:12px; }
-  .btn-danger{ background:none; border:1px solid rgba(220,38,38,0.4); color:#dc2626; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
-  .btn-danger:hover{ background:rgba(220,38,38,0.08); }
-  .btn-toggle{ background:none; border:1px solid rgba(0,0,0,0.2); border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
-  .btn-toggle:hover{ background:rgba(0,0,0,0.04); }
-  .row-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .form-grid{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:12px;
+    margin-top:12px;
+  }
+  .form-grid .full{ grid-column:1 / -1; }
+  @media (max-width:600px){
+    .form-grid{ grid-template-columns:1fr; }
+  }
+  .field label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    margin-bottom:4px;
+    opacity:0.8;
+  }
+  .field input, .field textarea{
+    width:100%;
+    padding:9px 10px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:6px;
+    font-size:14px;
+    font-family:inherit;
+    background:rgba(0,0,0,0.02);
+  }
+  .field textarea{ resize:vertical; min-height:64px; }
+  .checkbox-field{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .checkbox-field label{ margin-bottom:0; }
+
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table.admin-table{ width:100%; min-width:640px; border-collapse:collapse; }
+  table.admin-table th, table.admin-table td{
+    text-align:left;
+    padding:8px 10px;
+    border-bottom:1px solid rgba(0,0,0,0.08);
+    font-size:14px;
+    white-space:nowrap;
+  }
+  table.admin-table th{ font-size:12px; opacity:0.65; text-transform:uppercase; letter-spacing:0.03em; }
+
+  .pill{
+    display:inline-block;
+    padding:3px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:600;
+  }
+  .pill-pending{ background:rgba(200,150,0,0.15); color:#8a6400; }
+  .pill-completed{ background:rgba(0,150,80,0.15); color:#0a7a4a; }
+  .pill-rejected{ background:rgba(200,0,0,0.12); color:#a40000; }
+  .pill-active{ background:rgba(0,150,80,0.15); color:#0a7a4a; }
+  .pill-inactive{ background:rgba(0,0,0,0.08); color:rgba(0,0,0,0.6); }
+
+  .row-actions{ display:flex; gap:6px; }
+  .row-actions button{
+    border:1px solid rgba(0,0,0,0.15);
+    background:none;
+    border-radius:6px;
+    padding:5px 10px;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .row-actions button:hover{ background:rgba(0,0,0,0.05); }
+  .row-actions .danger{ color:#a40000; border-color:rgba(164,0,0,0.3); }
 </style>
 </head>
 <body>
@@ -57,143 +125,166 @@
   <div class="nav">
     <a href="dashboard.html" class="logo">
       <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
-      <span class="tag">Think smart. Earn big.</span>
+      <span class="tag">Admin</span>
     </a>
     <div class="nav-actions">
-      <a class="btn btn-ghost" href="dashboard.html">Exit admin</a>
+      <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
     </div>
   </div>
 </header>
 
 <main class="page">
-  <a href="dashboard.html" class="back-link">&larr; Back to dashboard</a>
-  <div class="kicker">Admin</div>
-  <h1>Affiliate program admin</h1>
-  <p class="lead">Add products, adjust commission tiers, and log sales made through affiliate links.</p>
+  <div class="kicker">Affiliate program</div>
+  <h1>Admin panel</h1>
+  <p class="lead">Manage products, approve commissions, and track your top affiliates.</p>
 
-  <div class="stat-grid">
-    <div class="stat-card">
-      <div class="stat-label">Active products</div>
-      <div class="stat-value" id="statProducts">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Affiliate links created</div>
-      <div class="stat-value" id="statLinks">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Commissions paid</div>
-      <div class="stat-value" id="statPaid">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Pending commissions</div>
-      <div class="stat-value" id="statPending">—</div>
-    </div>
+  <div id="page-loading" class="card">
+    <p>Loading admin panel…</p>
   </div>
 
-  <!-- Add product -->
-  <div class="section-title"><h2>Products</h2></div>
-  <div class="card" style="margin-top:12px;">
-    <h3 style="margin-top:0;">Add a product</h3>
-    <form id="productForm">
-      <div class="form-grid">
-        <div class="form-field">
-          <label for="productName">Product name</label>
-          <input id="productName" type="text" required>
+  <div id="page-content" style="display:none;">
+
+    <div class="card">
+      <div class="stat-grid">
+        <div class="stat-tile">
+          <div class="stat-label">Products</div>
+          <div class="stat-value" id="stat-products">0</div>
         </div>
-        <div class="form-field">
-          <label for="productPrice">Price (₦)</label>
-          <input id="productPrice" type="number" step="0.01" min="0" required>
+        <div class="stat-tile">
+          <div class="stat-label">Affiliates with sales</div>
+          <div class="stat-value" id="stat-affiliates">0</div>
         </div>
-        <div class="form-field">
-          <label for="productCommission">Base commission rate (%)</label>
-          <input id="productCommission" type="number" step="0.1" min="0" max="100" required>
+        <div class="stat-tile">
+          <div class="stat-label">Total sales value</div>
+          <div class="stat-value" id="stat-sales-value">₦0.00</div>
         </div>
-        <div class="form-field">
-          <label for="productCategory">Category</label>
-          <input id="productCategory" type="text" placeholder="e.g. Courses, Software">
-        </div>
-        <div class="form-field">
-          <label for="productImage">Image URL</label>
-          <input id="productImage" type="url" placeholder="https://…">
-        </div>
-        <div class="form-field checkbox-field">
-          <input id="productActive" type="checkbox" checked>
-          <label for="productActive" style="margin:0;">Active immediately</label>
-        </div>
-        <div class="form-field full">
-          <label for="productDescription">Description</label>
-          <textarea id="productDescription" rows="3"></textarea>
+        <div class="stat-tile">
+          <div class="stat-label">Commission paid</div>
+          <div class="stat-value" id="stat-commission-paid">₦0.00</div>
         </div>
       </div>
-      <button type="submit" class="btn btn-solid" style="margin-top:14px;">Add product</button>
-    </form>
-  </div>
+    </div>
 
-  <div id="productsWrap" style="margin-top:16px;">
-    <p class="empty-note">Loading products…</p>
-  </div>
+    <div class="card">
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="products">Products</button>
+        <button class="tab-btn" data-tab="sales">Sales &amp; commissions</button>
+        <button class="tab-btn" data-tab="leaderboard">Top affiliates</button>
+      </div>
 
-  <!-- Commission tiers -->
-  <div class="section-title">
-    <h2>Commission tiers</h2>
-    <button class="btn btn-ghost" id="addTierBtn">+ Add tier</button>
-  </div>
-  <p class="empty-note" style="margin-top:0;">Bonus % is added on top of a product's base commission rate once an affiliate reaches this many completed sales.</p>
-  <div class="tier-editor" id="tierEditor">
-    <p class="empty-note">Loading tiers…</p>
-  </div>
+      <!-- Products tab -->
+      <div class="tab-panel active" id="tab-products">
+        <h2 id="product-form-title">Add a product</h2>
+        <form id="product-form">
+          <input type="hidden" id="product-id">
+          <div class="form-grid">
+            <div class="field">
+              <label for="product-name">Name</label>
+              <input type="text" id="product-name" required>
+            </div>
+            <div class="field">
+              <label for="product-category">Category</label>
+              <input type="text" id="product-category" placeholder="e.g. course, ebook, software">
+            </div>
+            <div class="field">
+              <label for="product-price">Price (₦)</label>
+              <input type="number" id="product-price" min="0" step="1" required>
+            </div>
+            <div class="field">
+              <label for="product-commission">Commission (%)</label>
+              <input type="number" id="product-commission" min="0" max="100" step="1" required>
+            </div>
+            <div class="field full">
+              <label for="product-image">Image URL</label>
+              <input type="text" id="product-image" placeholder="https://…">
+            </div>
+            <div class="field full">
+              <label for="product-description">Description</label>
+              <textarea id="product-description"></textarea>
+            </div>
+            <div class="field checkbox-field full">
+              <input type="checkbox" id="product-active" checked>
+              <label for="product-active">Active (visible in the marketplace)</label>
+            </div>
+          </div>
+          <div style="margin-top:14px; display:flex; gap:8px;">
+            <button type="submit" class="btn btn-solid" id="product-submit-btn">Add product</button>
+            <button type="button" class="btn btn-ghost" id="product-cancel-btn" style="display:none;">Cancel edit</button>
+          </div>
+        </form>
 
-  <!-- Log a sale -->
-  <div class="section-title"><h2>Log a sale</h2></div>
-  <p class="empty-note" style="margin-top:0;">Sales happen off-platform, so record them here by affiliate link code. Marking a sale "Completed" automatically credits the affiliate's balance.</p>
-  <div class="card" style="margin-top:12px;">
-    <form id="saleForm">
-      <div class="form-grid">
-        <div class="form-field">
-          <label for="saleLinkCode">Affiliate link code</label>
-          <input id="saleLinkCode" type="text" placeholder="e.g. a1b2c3d4" required>
-        </div>
-        <div class="form-field">
-          <label for="saleAmount">Sale amount (₦)</label>
-          <input id="saleAmount" type="number" step="0.01" min="0" required>
-        </div>
-        <div class="form-field">
-          <label for="saleCommission">Commission amount (₦)</label>
-          <input id="saleCommission" type="number" step="0.01" min="0" required>
-        </div>
-        <div class="form-field">
-          <label for="saleStatus">Status</label>
-          <select id="saleStatus">
-            <option value="pending">Pending</option>
-            <option value="completed">Completed</option>
-          </select>
-        </div>
-        <div class="form-field">
-          <label for="saleBuyerName">Buyer name (optional)</label>
-          <input id="saleBuyerName" type="text">
-        </div>
-        <div class="form-field">
-          <label for="saleBuyerEmail">Buyer email (optional)</label>
-          <input id="saleBuyerEmail" type="email">
+        <h2 style="margin-top:28px;">All products</h2>
+        <div id="products-loading" style="font-size:14px; opacity:0.7;">Loading products…</div>
+        <div id="products-empty" style="font-size:14px; opacity:0.7; display:none;">No products yet — add your first one above.</div>
+        <div class="table-scroll">
+          <table class="admin-table" id="products-table" style="display:none;">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Commission</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="products-body"></tbody>
+          </table>
         </div>
       </div>
-      <button type="submit" class="btn btn-solid" style="margin-top:14px;">Log sale</button>
-    </form>
+
+      <!-- Sales tab -->
+      <div class="tab-panel" id="tab-sales">
+        <h2>Sales &amp; commissions</h2>
+        <div id="sales-loading" style="font-size:14px; opacity:0.7;">Loading sales…</div>
+        <div id="sales-empty" style="font-size:14px; opacity:0.7; display:none;">No sales recorded yet.</div>
+        <div class="table-scroll">
+          <table class="admin-table" id="sales-table" style="display:none;">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Product</th>
+                <th>Affiliate</th>
+                <th>Sale amount</th>
+                <th>Commission</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="sales-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Leaderboard tab -->
+      <div class="tab-panel" id="tab-leaderboard">
+        <h2>Top affiliates</h2>
+        <div id="leaderboard-loading" style="font-size:14px; opacity:0.7;">Loading leaderboard…</div>
+        <div id="leaderboard-empty" style="font-size:14px; opacity:0.7; display:none;">No affiliate sales yet.</div>
+        <div class="table-scroll">
+          <table class="admin-table" id="leaderboard-table" style="display:none;">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Affiliate</th>
+                <th>Sales</th>
+                <th>Total commission</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
   </div>
 
-  <!-- All sales -->
-  <div class="section-title"><h2>All sales</h2></div>
-  <div class="search-row">
-    <input id="saleSearch" type="text" placeholder="Search by link code or product…">
-    <select id="saleStatusFilter">
-      <option value="">All statuses</option>
-      <option value="pending">Pending</option>
-      <option value="completed">Completed</option>
-    </select>
+  <div id="page-error" class="card" style="display:none;">
+    <p id="page-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
   </div>
-  <div id="salesWrap">
-    <p class="empty-note">Loading sales…</p>
-  </div>
+
 </main>
 
 <footer>
@@ -209,23 +300,23 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-  /*
-    Tables used (see affiliate_schema.sql):
-      products          (id, name, price, commission_rate, category, image_url, description, is_active, created_at)
-      affiliate_links   (id, user_id, product_id, code, clicks, created_at) — embeds profiles(full_name, email)
-      affiliate_sales   (id, affiliate_link_id, buyer_name, buyer_email, sale_amount, commission_amount, status, created_at)
-      commission_tiers  (id, name, min_sales, max_sales, bonus_rate, sort_order)
-
-    Marking a sale "completed" fires a DB trigger (post_affiliate_commission)
-    that inserts into transactions (type='affiliate_commission', status='completed'),
-    which is what actually credits the affiliate's balance / payout eligibility.
-
-    This page assumes it is only reachable by admins (profiles.is_admin = true),
-    enforced by RLS policies in affiliate_schema.sql — not re-checked client-side here.
-  */
-
+  // ---------------------------------------------------------------
+  // Access control: requires profiles.is_admin = true for the
+  // logged-in user (add this boolean column if it doesn't exist yet,
+  // and gate it with an RLS policy on the affiliate_* tables so only
+  // admins can write to them).
+  //
+  // Schema this page expects (shared with affiliate.html):
+  //   affiliate_products(id, name, description, price, commission_percent,
+  //     image_url, category, active, created_at)
+  //   affiliate_sales(id, affiliate_id, product_id, sale_amount,
+  //     commission_amount, status, created_at)
+  //   affiliate_clicks(id, affiliate_id, product_id, created_at)
+  //   profiles(id, full_name, is_admin)
+  // ---------------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let toastTimer;
@@ -237,289 +328,339 @@
     toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
   }
 
-  function escapeHtml(str){
-    const div = document.createElement('div');
-    div.textContent = str || '';
-    return div.innerHTML;
+  function showPageError(msg){
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'none';
+    const errBox = document.getElementById('page-error');
+    document.getElementById('page-error-text').textContent = msg;
+    errBox.style.display = 'block';
   }
 
   function formatNaira(n){
-    return (Number(n) || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+    return Number(n || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+  function formatDate(iso){
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+  function capitalize(s){
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   }
 
-  function formatDate(iso){
-    return iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
-  }
+  // ---- Tabs ----
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
 
   let allProducts = [];
-  let allTiers = [];
-  let allSales = [];
-  let allLinks = [];
+  let profileNameById = {};
 
-  // ---------- Products ----------
-  function renderProducts(products){
-    const wrap = document.getElementById('productsWrap');
-    if (!products || products.length === 0) {
-      wrap.innerHTML = '<p class="empty-note">No products added yet.</p>';
-      return;
-    }
-    wrap.innerHTML = `
-      <table class="data-table">
-        <thead>
-          <tr><th></th><th>Product</th><th>Price</th><th>Commission</th><th>Category</th><th>Status</th><th></th></tr>
-        </thead>
-        <tbody>
-          ${products.map(p => `
-            <tr data-product-id="${p.id}">
-              <td>${p.image_url ? `<img class="product-thumb" src="${escapeHtml(p.image_url)}" alt="">` : ''}</td>
-              <td>${escapeHtml(p.name)}</td>
-              <td>${formatNaira(p.price)}</td>
-              <td>${p.commission_rate}%</td>
-              <td>${escapeHtml(p.category || '—')}</td>
-              <td><span class="job-tag ${p.is_active ? 'active' : 'inactive'}">${p.is_active ? 'Active' : 'Inactive'}</span></td>
-              <td><button type="button" class="btn-danger delete-product-btn">Remove</button></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
-    wrap.querySelectorAll('.delete-product-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.closest('tr').getAttribute('data-product-id');
-        const { error } = await supabaseClient.from('products').delete().eq('id', id);
-        if (error) { showToast("Couldn't remove product."); }
-        else { showToast('Product removed.'); loadProducts(); }
-      });
-    });
-  }
-
+  // ---- Products ----
   async function loadProducts(){
+    const loadingEl = document.getElementById('products-loading');
+    const emptyEl = document.getElementById('products-empty');
+    const tableEl = document.getElementById('products-table');
+
+    loadingEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+    tableEl.style.display = 'none';
+
     const { data, error } = await supabaseClient
-      .from('products')
-      .select('id, name, price, commission_rate, category, image_url, description, is_active, created_at')
+      .from('affiliate_products')
+      .select('id, name, description, price, commission_percent, image_url, category, active, created_at')
       .order('created_at', { ascending: false });
 
-    if (error) { document.getElementById('productsWrap').innerHTML = '<p class="empty-note">Couldn\'t load products.</p>'; return; }
-    allProducts = data || [];
-    renderProducts(allProducts);
-    document.getElementById('statProducts').textContent = allProducts.filter(p => p.is_active).length;
-  }
+    loadingEl.style.display = 'none';
 
-  document.getElementById('productForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const newProduct = {
-      name: document.getElementById('productName').value.trim(),
-      price: Number(document.getElementById('productPrice').value) || 0,
-      commission_rate: Number(document.getElementById('productCommission').value) || 0,
-      category: document.getElementById('productCategory').value.trim() || null,
-      image_url: document.getElementById('productImage').value.trim() || null,
-      description: document.getElementById('productDescription').value.trim() || null,
-      is_active: document.getElementById('productActive').checked,
-    };
-    if (!newProduct.name) { showToast('Give the product a name.'); return; }
-
-    const { error } = await supabaseClient.from('products').insert(newProduct);
-    if (error) { showToast("Couldn't add product."); return; }
-    showToast('Product added.');
-    e.target.reset();
-    document.getElementById('productActive').checked = true;
-    loadProducts();
-  });
-
-  // ---------- Commission tiers ----------
-  function renderTierEditor(tiers){
-    const editor = document.getElementById('tierEditor');
-    if (!tiers || tiers.length === 0) {
-      editor.innerHTML = '<p class="empty-note">No tiers set up yet. Add one to get started.</p>';
+    if (error) {
+      emptyEl.textContent = "Couldn't load products.";
+      emptyEl.style.display = 'block';
       return;
     }
-    editor.innerHTML = tiers.map(tier => `
-      <div class="tier-row" data-tier-id="${tier.id}">
-        <div><label>Tier name</label><input type="text" class="tier-name" value="${escapeHtml(tier.name)}"></div>
-        <div><label>Min sales</label><input type="number" min="0" class="tier-min" value="${tier.min_sales ?? 0}"></div>
-        <div><label>Max sales</label><input type="number" min="0" class="tier-max" placeholder="No limit" value="${tier.max_sales ?? ''}"></div>
-        <div><label>Bonus (%)</label><input type="number" min="0" max="100" step="0.1" class="tier-bonus" value="${tier.bonus_rate ?? 0}"></div>
-        <button type="button" class="btn btn-solid save-tier-btn">Save</button>
-      </div>
+
+    allProducts = data || [];
+    document.getElementById('stat-products').textContent = allProducts.length;
+
+    if (allProducts.length === 0) {
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    tableEl.style.display = 'table';
+    document.getElementById('products-body').innerHTML = allProducts.map(p => `
+      <tr>
+        <td>${p.name}</td>
+        <td>${p.category ? capitalize(p.category) : '—'}</td>
+        <td>${formatNaira(p.price)}</td>
+        <td>${p.commission_percent}%</td>
+        <td><span class="pill ${p.active ? 'pill-active' : 'pill-inactive'}">${p.active ? 'Active' : 'Inactive'}</span></td>
+        <td>
+          <div class="row-actions">
+            <button data-edit="${p.id}">Edit</button>
+            <button class="danger" data-delete="${p.id}">Delete</button>
+          </div>
+        </td>
+      </tr>
     `).join('');
 
-    editor.querySelectorAll('.save-tier-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const row = btn.closest('.tier-row');
-        const tierId = row.getAttribute('data-tier-id');
-        const name = row.querySelector('.tier-name').value.trim();
-        const min = Number(row.querySelector('.tier-min').value) || 0;
-        const maxRaw = row.querySelector('.tier-max').value;
-        const max = maxRaw === '' ? null : Number(maxRaw);
-        const bonus = Number(row.querySelector('.tier-bonus').value) || 0;
-
-        const { error } = await supabaseClient
-          .from('commission_tiers')
-          .update({ name, min_sales: min, max_sales: max, bonus_rate: bonus })
-          .eq('id', tierId);
-
-        if (error) { showToast("Couldn't save tier."); }
-        else { showToast(`${name} tier saved.`); loadTiers(); }
-      });
+    document.querySelectorAll('[data-edit]').forEach(btn => {
+      btn.addEventListener('click', () => startEditProduct(btn.dataset.edit));
+    });
+    document.querySelectorAll('[data-delete]').forEach(btn => {
+      btn.addEventListener('click', () => deleteProduct(btn.dataset.delete));
     });
   }
 
-  document.getElementById('addTierBtn').addEventListener('click', async () => {
-    const { error } = await supabaseClient
-      .from('commission_tiers')
-      .insert({ name: 'New tier', min_sales: 0, max_sales: null, bonus_rate: 0, sort_order: allTiers.length });
-    if (error) { showToast("Couldn't add tier."); }
-    else { showToast('Tier added — edit it below.'); loadTiers(); }
-  });
+  function startEditProduct(id){
+    const p = allProducts.find(x => x.id === id);
+    if (!p) return;
 
-  async function loadTiers(){
-    const { data, error } = await supabaseClient
-      .from('commission_tiers')
-      .select('id, name, min_sales, max_sales, bonus_rate, sort_order')
-      .order('sort_order', { ascending: true });
-    if (error) { document.getElementById('tierEditor').innerHTML = '<p class="empty-note">Couldn\'t load tiers.</p>'; return; }
-    allTiers = data || [];
-    renderTierEditor(allTiers);
+    document.getElementById('product-form-title').textContent = 'Edit product';
+    document.getElementById('product-id').value = p.id;
+    document.getElementById('product-name').value = p.name || '';
+    document.getElementById('product-category').value = p.category || '';
+    document.getElementById('product-price').value = p.price || 0;
+    document.getElementById('product-commission').value = p.commission_percent || 0;
+    document.getElementById('product-image').value = p.image_url || '';
+    document.getElementById('product-description').value = p.description || '';
+    document.getElementById('product-active').checked = !!p.active;
+    document.getElementById('product-submit-btn').textContent = 'Save changes';
+    document.getElementById('product-cancel-btn').style.display = 'inline-block';
+    window.scrollTo({ top: document.getElementById('product-form').offsetTop - 80, behavior: 'smooth' });
   }
 
-  // ---------- Sales ----------
-  function renderSales(sales){
-    const wrap = document.getElementById('salesWrap');
-    if (!sales || sales.length === 0) {
-      wrap.innerHTML = '<p class="empty-note">No sales logged yet.</p>';
-      return;
-    }
-    wrap.innerHTML = `
-      <table class="data-table">
-        <thead>
-          <tr><th>Date</th><th>Link code</th><th>Product</th><th>Sale</th><th>Commission</th><th>Status</th><th></th></tr>
-        </thead>
-        <tbody>
-          ${sales.map(s => {
-            const link = s.affiliate_links || {};
-            const product = link.products || {};
-            return `
-              <tr data-sale-id="${s.id}">
-                <td>${formatDate(s.created_at)}</td>
-                <td>${escapeHtml(link.code || '—')}</td>
-                <td>${escapeHtml(product.name || '—')}</td>
-                <td>${formatNaira(s.sale_amount)}</td>
-                <td>${formatNaira(s.commission_amount)}</td>
-                <td><span class="status-pill ${s.status}">${escapeHtml(s.status)}</span></td>
-                <td>
-                  <div class="row-actions">
-                    ${s.status === 'pending' ? '<button type="button" class="btn-toggle complete-sale-btn">Mark completed</button>' : ''}
-                    <button type="button" class="btn-danger delete-sale-btn">Delete</button>
-                  </div>
-                </td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    `;
-
-    wrap.querySelectorAll('.complete-sale-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.closest('tr').getAttribute('data-sale-id');
-        const { error } = await supabaseClient.from('affiliate_sales').update({ status: 'completed' }).eq('id', id);
-        if (error) { showToast("Couldn't update sale."); }
-        else { showToast('Sale marked completed — commission credited.'); loadSales(); }
-      });
-    });
-    wrap.querySelectorAll('.delete-sale-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.closest('tr').getAttribute('data-sale-id');
-        const { error } = await supabaseClient.from('affiliate_sales').delete().eq('id', id);
-        if (error) { showToast("Couldn't delete sale."); }
-        else { showToast('Sale deleted.'); loadSales(); }
-      });
-    });
+  function resetProductForm(){
+    document.getElementById('product-form-title').textContent = 'Add a product';
+    document.getElementById('product-form').reset();
+    document.getElementById('product-id').value = '';
+    document.getElementById('product-active').checked = true;
+    document.getElementById('product-submit-btn').textContent = 'Add product';
+    document.getElementById('product-cancel-btn').style.display = 'none';
   }
 
-  function applySaleFilters(){
-    const q = document.getElementById('saleSearch').value.trim().toLowerCase();
-    const status = document.getElementById('saleStatusFilter').value;
+  document.getElementById('product-cancel-btn').addEventListener('click', resetProductForm);
 
-    const filtered = allSales.filter(s => {
-      const link = s.affiliate_links || {};
-      const product = link.products || {};
-      const matchesQuery = !q ||
-        (link.code || '').toLowerCase().includes(q) ||
-        (product.name || '').toLowerCase().includes(q);
-      const matchesStatus = !status || s.status === status;
-      return matchesQuery && matchesStatus;
-    });
-    renderSales(filtered);
-  }
+  document.getElementById('product-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
 
-  document.getElementById('saleSearch').addEventListener('input', applySaleFilters);
-  document.getElementById('saleStatusFilter').addEventListener('change', applySaleFilters);
-
-  async function loadSales(){
-    const { data, error } = await supabaseClient
-      .from('affiliate_sales')
-      .select('id, sale_amount, commission_amount, status, buyer_name, buyer_email, created_at, affiliate_links ( code, products ( name ) )')
-      .order('created_at', { ascending: false });
-
-    if (error) { document.getElementById('salesWrap').innerHTML = '<p class="empty-note">Couldn\'t load sales.</p>'; return; }
-    allSales = data || [];
-    applySaleFilters();
-
-    const paid = allSales.filter(s => s.status === 'completed').reduce((sum, s) => sum + (Number(s.commission_amount) || 0), 0);
-    const pending = allSales.filter(s => s.status === 'pending').reduce((sum, s) => sum + (Number(s.commission_amount) || 0), 0);
-    document.getElementById('statPaid').textContent = formatNaira(paid);
-    document.getElementById('statPending').textContent = formatNaira(pending);
-  }
-
-  document.getElementById('saleForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const code = document.getElementById('saleLinkCode').value.trim();
-
-    const { data: link, error: linkError } = await supabaseClient
-      .from('affiliate_links')
-      .select('id')
-      .eq('code', code)
-      .single();
-
-    if (linkError || !link) { showToast("No affiliate link found with that code."); return; }
-
+    const id = document.getElementById('product-id').value;
     const payload = {
-      affiliate_link_id: link.id,
-      sale_amount: Number(document.getElementById('saleAmount').value) || 0,
-      commission_amount: Number(document.getElementById('saleCommission').value) || 0,
-      status: document.getElementById('saleStatus').value,
-      buyer_name: document.getElementById('saleBuyerName').value.trim() || null,
-      buyer_email: document.getElementById('saleBuyerEmail').value.trim() || null,
+      name: document.getElementById('product-name').value.trim(),
+      category: document.getElementById('product-category').value.trim() || null,
+      price: Number(document.getElementById('product-price').value),
+      commission_percent: Number(document.getElementById('product-commission').value),
+      image_url: document.getElementById('product-image').value.trim() || null,
+      description: document.getElementById('product-description').value.trim() || null,
+      active: document.getElementById('product-active').checked
     };
 
-    const { error } = await supabaseClient.from('affiliate_sales').insert(payload);
-    if (error) { showToast("Couldn't log sale."); return; }
+    const submitBtn = document.getElementById('product-submit-btn');
+    submitBtn.disabled = true;
 
-    showToast('Sale logged.');
-    e.target.reset();
-    document.getElementById('saleStatus').value = 'pending';
-    loadSales();
+    let error;
+    if (id) {
+      ({ error } = await supabaseClient.from('affiliate_products').update(payload).eq('id', id));
+    } else {
+      ({ error } = await supabaseClient.from('affiliate_products').insert(payload));
+    }
+
+    submitBtn.disabled = false;
+
+    if (error) {
+      showToast("Couldn't save product");
+      return;
+    }
+
+    showToast(id ? 'Product updated' : 'Product added');
+    resetProductForm();
+    await loadProducts();
   });
 
-  // ---------- Links (for stat count only) ----------
-  async function loadLinks(){
-    const { data, error } = await supabaseClient.from('affiliate_links').select('id');
-    if (!error) {
-      allLinks = data || [];
-      document.getElementById('statLinks').textContent = allLinks.length;
+  async function deleteProduct(id){
+    if (!confirm('Delete this product? This cannot be undone.')) return;
+
+    const { error } = await supabaseClient.from('affiliate_products').delete().eq('id', id);
+    if (error) {
+      showToast("Couldn't delete product");
+      return;
     }
+    showToast('Product deleted');
+    await loadProducts();
   }
 
-  // ---------- Init ----------
-  async function init(){
-    await loadTiers();
-    await loadProducts();
-    await loadLinks();
+  // ---- Sales ----
+  async function loadSales(){
+    const loadingEl = document.getElementById('sales-loading');
+    const emptyEl = document.getElementById('sales-empty');
+    const tableEl = document.getElementById('sales-table');
+
+    loadingEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+    tableEl.style.display = 'none';
+
+    const { data, error } = await supabaseClient
+      .from('affiliate_sales')
+      .select('id, product_id, affiliate_id, sale_amount, commission_amount, status, created_at')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    loadingEl.style.display = 'none';
+
+    if (error) {
+      emptyEl.textContent = "Couldn't load sales.";
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      emptyEl.style.display = 'block';
+      updateSummaryStats([]);
+      updateLeaderboard([]);
+      return;
+    }
+
+    tableEl.style.display = 'table';
+    const productNameById = {};
+    allProducts.forEach(p => { productNameById[p.id] = p.name; });
+
+    document.getElementById('sales-body').innerHTML = data.map(row => `
+      <tr>
+        <td>${formatDate(row.created_at)}</td>
+        <td>${productNameById[row.product_id] || 'Product'}</td>
+        <td>${profileNameById[row.affiliate_id] || row.affiliate_id.slice(0, 8)}</td>
+        <td>${formatNaira(row.sale_amount)}</td>
+        <td>${formatNaira(row.commission_amount)}</td>
+        <td><span class="pill pill-${row.status}">${capitalize(row.status)}</span></td>
+        <td>
+          ${row.status === 'pending' ? `
+            <div class="row-actions">
+              <button data-approve="${row.id}">Approve</button>
+              <button class="danger" data-reject="${row.id}">Reject</button>
+            </div>` : ''}
+        </td>
+      </tr>
+    `).join('');
+
+    document.querySelectorAll('[data-approve]').forEach(btn => {
+      btn.addEventListener('click', () => updateSaleStatus(btn.dataset.approve, 'completed'));
+    });
+    document.querySelectorAll('[data-reject]').forEach(btn => {
+      btn.addEventListener('click', () => updateSaleStatus(btn.dataset.reject, 'rejected'));
+    });
+
+    updateSummaryStats(data);
+    updateLeaderboard(data);
+  }
+
+  async function updateSaleStatus(id, status){
+    const { error } = await supabaseClient.from('affiliate_sales').update({ status }).eq('id', id);
+    if (error) {
+      showToast("Couldn't update sale");
+      return;
+    }
+    showToast(status === 'completed' ? 'Sale approved' : 'Sale rejected');
     await loadSales();
   }
 
-  init();
+  function updateSummaryStats(sales){
+    const totalSalesValue = sales.reduce((s, r) => s + Number(r.sale_amount || 0), 0);
+    const commissionPaid = sales.filter(r => r.status === 'completed')
+      .reduce((s, r) => s + Number(r.commission_amount || 0), 0);
+    const affiliateSet = new Set(sales.map(r => r.affiliate_id));
+
+    document.getElementById('stat-sales-value').textContent = formatNaira(totalSalesValue);
+    document.getElementById('stat-commission-paid').textContent = formatNaira(commissionPaid);
+    document.getElementById('stat-affiliates').textContent = affiliateSet.size;
+  }
+
+  // ---- Leaderboard ----
+  function updateLeaderboard(sales){
+    const loadingEl = document.getElementById('leaderboard-loading');
+    const emptyEl = document.getElementById('leaderboard-empty');
+    const tableEl = document.getElementById('leaderboard-table');
+    loadingEl.style.display = 'none';
+
+    if (sales.length === 0) {
+      emptyEl.style.display = 'block';
+      tableEl.style.display = 'none';
+      return;
+    }
+
+    const byAffiliate = {};
+    sales.forEach(row => {
+      if (!byAffiliate[row.affiliate_id]) {
+        byAffiliate[row.affiliate_id] = { count: 0, commission: 0 };
+      }
+      byAffiliate[row.affiliate_id].count += 1;
+      if (row.status === 'completed') {
+        byAffiliate[row.affiliate_id].commission += Number(row.commission_amount || 0);
+      }
+    });
+
+    const ranked = Object.entries(byAffiliate)
+      .sort((a, b) => b[1].commission - a[1].commission)
+      .slice(0, 20);
+
+    emptyEl.style.display = 'none';
+    tableEl.style.display = 'table';
+    document.getElementById('leaderboard-body').innerHTML = ranked.map(([affiliateId, stats], i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${profileNameById[affiliateId] || affiliateId.slice(0, 8)}</td>
+        <td>${stats.count}</td>
+        <td>${formatNaira(stats.commission)}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadProfileNames(){
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('id, full_name');
+
+    if (!error && data) {
+      data.forEach(p => { profileNameById[p.id] = p.full_name || p.id.slice(0, 8); });
+    }
+  }
+
+  async function loadPage(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profileError || !profile || !profile.is_admin) {
+      showPageError("You don't have access to this page.");
+      return;
+    }
+
+    await loadProfileNames();
+    await loadProducts();
+    await loadSales();
+
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'block';
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  loadPage();
 </script>
 
 </body>

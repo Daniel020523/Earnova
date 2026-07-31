@@ -3,52 +3,155 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Affiliate program — EarnOva</title>
+<title>Affiliate — EarnOva</title>
 <link rel="stylesheet" href="styles.css">
 <style>
-  .stat-row{ display:flex; flex-wrap:wrap; gap:24px; margin-bottom:8px; }
+  .stat-grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:12px;
+    margin-top:12px;
+  }
+  .stat-tile{
+    border:1px solid rgba(0,0,0,0.12);
+    border-radius:8px;
+    padding:16px;
+  }
   .stat-label{ font-size:13px; opacity:0.7; }
-  .stat-value{ font-size:22px; font-weight:600; }
-
-  .product-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:12px; }
-  .product-card{ border:1px solid rgba(0,0,0,0.12); border-radius:8px; padding:14px; }
-  .product-card h4{ margin:0 0 4px 0; font-size:15px; }
-  .product-meta{ font-size:13px; opacity:0.7; margin-bottom:10px; }
-  .product-card .price{ font-weight:700; }
-
-  .link-row{ display:flex; align-items:center; gap:8px; margin-top:10px; }
-  .link-row input{
-    flex:1; padding:9px 10px; border:1px solid rgba(0,0,0,0.15); border-radius:8px;
-    font-size:12px; font-family:inherit; color:inherit; background:rgba(0,0,0,0.02);
+  .stat-value{ font-size:22px; font-weight:600; margin-top:4px; }
+  @media (max-width:700px){
+    .stat-grid{ grid-template-columns:repeat(2, 1fr); }
   }
-  .copy-btn{
-    padding:9px 12px; border-radius:8px; border:1px solid rgba(0,0,0,0.15);
-    background:none; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap;
-  }
-  .copy-btn:hover{ background:rgba(0,0,0,0.04); }
 
-  .tier-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-top:12px; }
-  .tier-card{ border:1px solid rgba(0,0,0,0.12); border-radius:8px; padding:14px; }
-  .tier-card.current{ border-color:#2563eb; background:rgba(37,99,235,0.04); }
-  .tier-card h4{ margin:0 0 4px 0; font-size:14px; }
-  .tier-bonus{ font-size:20px; font-weight:700; color:#2563eb; }
-  .tier-range{ font-size:12px; opacity:0.7; }
-  .job-tag{
-    display:inline-block; font-size:11px; font-weight:600; padding:2px 8px;
-    border-radius:999px; background:#2563eb; color:#fff; margin-left:6px;
+  .link-row{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-wrap:wrap;
+    margin-top:12px;
   }
+  .link-input{
+    flex:1 1 260px;
+    padding:10px 12px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:6px;
+    font-size:14px;
+    background:rgba(0,0,0,0.02);
+  }
+
+  .product-filters{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin:12px 0 4px 0;
+  }
+  .filter-chip{
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:999px;
+    padding:6px 14px;
+    font-size:13px;
+    font-weight:600;
+    background:none;
+    cursor:pointer;
+    opacity:0.75;
+  }
+  .filter-chip.active{
+    background:rgba(0,0,0,0.85);
+    color:#fff;
+    opacity:1;
+  }
+
+  .product-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:16px;
+    margin-top:12px;
+  }
+  @media (max-width:900px){
+    .product-grid{ grid-template-columns:repeat(2, 1fr); }
+  }
+  @media (max-width:560px){
+    .product-grid{ grid-template-columns:1fr; }
+  }
+  .product-card{
+    border:1px solid rgba(0,0,0,0.12);
+    border-radius:10px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+  .product-thumb{
+    width:100%;
+    aspect-ratio:16/9;
+    object-fit:cover;
+    background:rgba(0,0,0,0.06);
+  }
+  .product-body{
+    padding:14px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    flex:1;
+  }
+  .product-category{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    opacity:0.6;
+    font-weight:600;
+  }
+  .product-name{ font-size:15px; font-weight:600; }
+  .product-desc{ font-size:13px; opacity:0.75; line-height:1.4; }
+  .product-meta{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-top:auto;
+    padding-top:10px;
+  }
+  .product-price{ font-size:14px; font-weight:600; }
+  .product-commission{
+    font-size:12px;
+    font-weight:700;
+    padding:3px 8px;
+    border-radius:999px;
+    background:rgba(0,0,0,0.08);
+  }
+  .get-link-btn{
+    margin-top:10px;
+    width:100%;
+    padding:9px 0;
+    border-radius:6px;
+    border:none;
+    background:rgba(0,0,0,0.85);
+    color:#fff;
+    font-weight:600;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .get-link-btn:hover{ opacity:0.9; }
 
   .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
-  table{ width:100%; min-width:420px; border-collapse:collapse; }
-  th{ text-align:left; padding:8px 10px; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7; white-space:nowrap; }
-  td{ padding:10px; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; vertical-align:middle; white-space:nowrap; }
-  .status-pill{ font-size:12px; font-weight:600; padding:2px 8px; border-radius:999px; }
-  .status-pill.completed{ background:rgba(13,148,136,0.12); color:#0d9488; }
-  .status-pill.pending{ background:rgba(217,119,6,0.12); color:#d97706; }
+  #sales-table{ width:100%; min-width:520px; border-collapse:collapse; table-layout:fixed; }
+  #sales-table th, #sales-table td{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #sales-table th:nth-child(1), #sales-table td:nth-child(1){ width:18%; }
+  #sales-table th:nth-child(2), #sales-table td:nth-child(2){ width:32%; }
+  #sales-table th:nth-child(3), #sales-table td:nth-child(3){ width:20%; }
+  #sales-table th:nth-child(4), #sales-table td:nth-child(4){ width:15%; }
+  #sales-table th:nth-child(5), #sales-table td:nth-child(5){ width:15%; }
 
-  .empty-note{ font-size:14px; opacity:0.7; padding:8px 0 4px; }
-  .picker-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
-  .picker-row select{ flex:1; min-width:200px; padding:10px 12px; border:1px solid rgba(0,0,0,0.15); border-radius:8px; font-size:14px; }
+  .see-all-btn{
+    background:none;
+    border:none;
+    padding:8px 0 0 0;
+    font-size:13px;
+    font-weight:600;
+    color:inherit;
+    opacity:0.8;
+    cursor:pointer;
+    text-decoration:underline;
+  }
+  .see-all-btn:hover{ opacity:1; }
 </style>
 </head>
 <body>
@@ -61,6 +164,7 @@
     </a>
     <div class="nav-actions">
       <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="profile.html">Profile</a>
       <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
     </div>
   </div>
@@ -68,82 +172,80 @@
 
 <main class="page">
   <div class="kicker">Affiliate program</div>
-  <h1>Sell products, earn commission</h1>
-  <p class="lead">Pick a product, get your own link, and earn a commission every time someone buys through it.</p>
+  <h1 id="welcome-heading">Promote products, earn commission</h1>
+  <p class="lead">Grab a link for any product below and earn a cut of every sale it brings in.</p>
 
-  <div id="affiliate-loading" class="card">
-    <p>Loading…</p>
+  <div id="page-loading" class="card">
+    <p>Loading affiliate dashboard…</p>
   </div>
 
-  <div id="affiliate-content" style="display:none;">
+  <div id="page-content" style="display:none;">
 
-    <!-- Stats -->
     <div class="card">
-      <div class="stat-row">
-        <div>
-          <div class="stat-label">Total earned</div>
-          <div class="stat-value" id="stat-total-earnings">₦0.00</div>
+      <div class="stat-grid">
+        <div class="stat-tile">
+          <div class="stat-label">Total clicks</div>
+          <div class="stat-value" id="stat-clicks">0</div>
         </div>
-        <div>
-          <div class="stat-label">Pending</div>
-          <div class="stat-value" id="stat-pending-earnings">₦0.00</div>
+        <div class="stat-tile">
+          <div class="stat-label">Total sales</div>
+          <div class="stat-value" id="stat-sales">0</div>
         </div>
-        <div>
-          <div class="stat-label">Completed sales</div>
-          <div class="stat-value" id="stat-sales-count">0</div>
+        <div class="stat-tile">
+          <div class="stat-label">Pending commission</div>
+          <div class="stat-value" id="stat-pending">₦0.00</div>
         </div>
-        <div>
-          <div class="stat-label">Your tier</div>
-          <div class="stat-value" id="stat-current-tier">—</div>
+        <div class="stat-tile">
+          <div class="stat-label">Paid commission</div>
+          <div class="stat-value" id="stat-paid">₦0.00</div>
         </div>
       </div>
     </div>
 
-    <!-- Get a link -->
-    <div class="card" style="margin-top:20px;">
-      <h2 style="margin-top:0;">Get a link for a product</h2>
-      <div class="picker-row">
-        <select id="product-picker"><option value="">Loading products…</option></select>
-        <button class="btn btn-solid" id="get-link-btn">Get my link</button>
+    <div class="card">
+      <h2>Your affiliate ID</h2>
+      <p style="font-size:13px; opacity:0.7; margin-top:4px;">This ID is baked into every link you grab below, so sales are tracked back to you.</p>
+      <div class="link-row">
+        <input class="link-input" id="affiliate-id-display" type="text" readonly>
+        <button class="btn btn-solid" id="copy-id-btn">Copy ID</button>
       </div>
     </div>
 
-    <!-- Your links -->
-    <div class="card" style="margin-top:20px;">
-      <h2 style="margin-top:0;">Your links</h2>
-      <div id="links-empty" class="empty-note" style="display:none;">
-        You haven't picked a product yet — choose one above to get your first link.
+    <div class="card">
+      <h2>Marketplace</h2>
+      <div class="product-filters" id="category-filters">
+        <button class="filter-chip active" data-category="all">All</button>
       </div>
-      <div class="product-grid" id="links-grid"></div>
+      <div id="products-loading" style="font-size:14px; opacity:0.7; margin-top:8px;">Loading products…</div>
+      <div id="products-empty" style="font-size:14px; opacity:0.7; display:none; margin-top:8px;">No products available right now.</div>
+      <div class="product-grid" id="product-grid"></div>
     </div>
 
-    <!-- Commission tiers -->
-    <div class="card" style="margin-top:20px;">
-      <h2 style="margin-top:0;">Commission tiers</h2>
-      <p class="empty-note" style="padding:0; margin:0 0 4px 0;">More completed sales moves you up a tier, adding a bonus % on top of every product's base commission.</p>
-      <div class="tier-grid" id="tier-grid"></div>
-    </div>
-
-    <!-- Sales history -->
-    <div class="card" style="margin-top:20px;">
-      <h2 style="margin-top:0;">Your sales</h2>
-      <div id="sales-empty" class="empty-note" style="display:none;">
-        No sales yet — share your link above to start earning.
-      </div>
+    <div class="card">
+      <h2>Your sales</h2>
+      <div id="sales-loading" style="font-size:14px; opacity:0.7;">Loading your sales…</div>
+      <div id="sales-empty" style="font-size:14px; opacity:0.7; display:none;">No sales yet — share a product link to get started.</div>
       <div class="table-scroll">
         <table id="sales-table" style="display:none;">
           <thead>
-            <tr><th>Date</th><th>Product</th><th>Commission</th><th>Status</th></tr>
+            <tr>
+              <th style="text-align:left; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Date</th>
+              <th style="text-align:left; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Product</th>
+              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Sale amount</th>
+              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Commission</th>
+              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Status</th>
+            </tr>
           </thead>
           <tbody id="sales-body"></tbody>
         </table>
       </div>
+      <button class="see-all-btn" id="see-all-sales-btn" style="display:none;">See all</button>
     </div>
 
   </div>
 
-  <div id="affiliate-error" class="card" style="display:none;">
-    <p id="affiliate-error-text"></p>
+  <div id="page-error" class="card" style="display:none;">
+    <p id="page-error-text"></p>
     <a class="btn btn-solid" href="login.html">Go to log in</a>
   </div>
 
@@ -162,17 +264,30 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-  /*
-    Tables used (see affiliate_schema.sql):
-      products          (id, name, price, commission_rate, category, image_url, is_active)
-      affiliate_links   (id, user_id, product_id, code, clicks)
-      affiliate_sales   (id, affiliate_link_id, sale_amount, commission_amount, status, created_at)
-      commission_tiers  (id, name, min_sales, max_sales, bonus_rate, sort_order)
-      transactions      (existing) — type = 'affiliate_commission', status = 'completed'/'pending'
-  */
-
+  // ---------------------------------------------------------------
+  // Schema this page expects (in addition to profiles/transactions
+  // already used on dashboard.html):
+  //
+  //   affiliate_products
+  //     id, name, description, price, commission_percent,
+  //     image_url, category, active, created_at
+  //
+  //   affiliate_sales
+  //     id, affiliate_id (uuid, -> profiles.id), product_id (-> affiliate_products.id),
+  //     sale_amount, commission_amount, status ('pending' | 'completed' | 'rejected'),
+  //     created_at
+  //
+  //   affiliate_clicks
+  //     id, affiliate_id (uuid, -> profiles.id), product_id (-> affiliate_products.id),
+  //     created_at
+  //
+  // A product link is just product.html?ref=<affiliate_id>&pid=<product_id> —
+  // the product/checkout page is responsible for recording the click and,
+  // on purchase, inserting the affiliate_sales row.
+  // ---------------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let toastTimer;
@@ -184,155 +299,230 @@
     toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
   }
 
-  function showAffiliateError(msg){
-    document.getElementById('affiliate-loading').style.display = 'none';
-    document.getElementById('affiliate-content').style.display = 'none';
-    const errBox = document.getElementById('affiliate-error');
-    document.getElementById('affiliate-error-text').textContent = msg;
+  function showPageError(msg){
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'none';
+    const errBox = document.getElementById('page-error');
+    document.getElementById('page-error-text').textContent = msg;
     errBox.style.display = 'block';
   }
 
   function formatNaira(n){
-    return (Number(n) || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+    return Number(n || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
   }
 
   function formatDate(iso){
-    return iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   }
 
-  function escapeHtml(str){
-    const div = document.createElement('div');
-    div.textContent = str || '';
-    return div.innerHTML;
-  }
-
-  async function copyToClipboard(text, label){
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast(`${label} copied!`);
-    } catch (err) {
-      showToast("Couldn't copy — long-press to select and copy manually.");
-    }
+  function capitalize(s){
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   }
 
   let currentUserId = null;
   let allProducts = [];
+  let allSales = [];
+  let salesExpanded = false;
+  let activeCategory = 'all';
 
-  function renderLinks(links){
-    const grid = document.getElementById('links-grid');
-    const emptyEl = document.getElementById('links-empty');
+  function affiliateLinkFor(productId){
+    return `${window.location.origin}/product.html?ref=${currentUserId}&pid=${productId}`;
+  }
 
-    if (!links || links.length === 0) {
+  function renderCategoryFilters(){
+    const wrap = document.getElementById('category-filters');
+    const categories = Array.from(new Set(allProducts.map(p => p.category).filter(Boolean)));
+    wrap.innerHTML = '';
+
+    const allBtn = document.createElement('button');
+    allBtn.className = 'filter-chip' + (activeCategory === 'all' ? ' active' : '');
+    allBtn.textContent = 'All';
+    allBtn.dataset.category = 'all';
+    wrap.appendChild(allBtn);
+
+    categories.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = 'filter-chip' + (activeCategory === cat ? ' active' : '');
+      btn.textContent = capitalize(cat);
+      btn.dataset.category = cat;
+      wrap.appendChild(btn);
+    });
+
+    wrap.querySelectorAll('.filter-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeCategory = btn.dataset.category;
+        renderCategoryFilters();
+        renderProducts();
+      });
+    });
+  }
+
+  function renderProducts(){
+    const grid = document.getElementById('product-grid');
+    const emptyEl = document.getElementById('products-empty');
+
+    const visible = activeCategory === 'all'
+      ? allProducts
+      : allProducts.filter(p => p.category === activeCategory);
+
+    if (visible.length === 0) {
       grid.innerHTML = '';
       emptyEl.style.display = 'block';
       return;
     }
     emptyEl.style.display = 'none';
 
-    grid.innerHTML = links.map(link => {
-      const product = link.products || {};
-      const shareLink = `${window.location.origin}/product.html?ref=${encodeURIComponent(link.code)}`;
-      return `
-        <div class="product-card">
-          <h4>${escapeHtml(product.name || 'Product')}</h4>
+    grid.innerHTML = visible.map(p => `
+      <div class="product-card">
+        <img class="product-thumb" src="${p.image_url || 'assets/product-placeholder.png'}" alt="${p.name}">
+        <div class="product-body">
+          <div class="product-category">${p.category ? capitalize(p.category) : 'General'}</div>
+          <div class="product-name">${p.name}</div>
+          <div class="product-desc">${p.description || ''}</div>
           <div class="product-meta">
-            <span class="price">${formatNaira(product.price)}</span> ·
-            ${product.commission_rate}% base commission
+            <div class="product-price">${formatNaira(p.price)}</div>
+            <div class="product-commission">${p.commission_percent}% commission</div>
           </div>
-          <div class="link-row">
-            <input type="text" readonly value="${escapeHtml(shareLink)}" data-code="${escapeHtml(link.code)}">
-            <button class="copy-btn copy-link-btn" data-link="${escapeHtml(shareLink)}">Copy</button>
-          </div>
+          <button class="get-link-btn" data-product-id="${p.id}">Get affiliate link</button>
         </div>
-      `;
-    }).join('');
+      </div>
+    `).join('');
 
-    grid.querySelectorAll('.copy-link-btn').forEach(btn => {
-      btn.addEventListener('click', () => copyToClipboard(btn.getAttribute('data-link'), 'Link'));
+    grid.querySelectorAll('.get-link-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const link = affiliateLinkFor(btn.dataset.productId);
+        try {
+          await navigator.clipboard.writeText(link);
+          showToast('Affiliate link copied');
+        } catch (e) {
+          showToast(link);
+        }
+      });
     });
   }
 
-  function renderTiers(tiers, completedSalesCount){
-    const grid = document.getElementById('tier-grid');
-    if (!tiers || tiers.length === 0) {
-      grid.innerHTML = '<p class="empty-note">Tier info isn\'t available right now.</p>';
+  async function loadProducts(){
+    const loadingEl = document.getElementById('products-loading');
+    loadingEl.style.display = 'block';
+
+    const { data, error } = await supabaseClient
+      .from('affiliate_products')
+      .select('id, name, description, price, commission_percent, image_url, category, active')
+      .eq('active', true)
+      .order('created_at', { ascending: false });
+
+    loadingEl.style.display = 'none';
+
+    if (error) {
+      document.getElementById('products-empty').textContent = "Couldn't load products.";
+      document.getElementById('products-empty').style.display = 'block';
       return;
     }
 
-    let currentTierName = '—';
-    grid.innerHTML = tiers.map(tier => {
-      const inRange = completedSalesCount >= tier.min_sales &&
-        (tier.max_sales === null || completedSalesCount <= tier.max_sales);
-      if (inRange) currentTierName = tier.name;
-      const range = tier.max_sales ? `${tier.min_sales}–${tier.max_sales} sales` : `${tier.min_sales}+ sales`;
-      return `
-        <div class="tier-card ${inRange ? 'current' : ''}">
-          <h4>${escapeHtml(tier.name)}${inRange ? '<span class="job-tag">Current</span>' : ''}</h4>
-          <div class="tier-bonus">+${tier.bonus_rate}%</div>
-          <div class="tier-range">${escapeHtml(range)}</div>
-        </div>
-      `;
-    }).join('');
-
-    document.getElementById('stat-current-tier').textContent = currentTierName;
+    allProducts = data || [];
+    renderCategoryFilters();
+    renderProducts();
   }
 
-  function renderSales(sales){
-    const tableEl = document.getElementById('sales-table');
-    const emptyEl = document.getElementById('sales-empty');
+  function renderSalesRows(rows){
+    const bodyEl = document.getElementById('sales-body');
+    const productNameById = {};
+    allProducts.forEach(p => { productNameById[p.id] = p.name; });
 
-    if (!sales || sales.length === 0) {
-      emptyEl.style.display = 'block';
-      tableEl.style.display = 'none';
-      return;
-    }
-    emptyEl.style.display = 'none';
-    tableEl.style.display = 'table';
-
-    document.getElementById('sales-body').innerHTML = sales.map(sale => `
+    bodyEl.innerHTML = rows.map(row => `
       <tr>
-        <td>${formatDate(sale.created_at)}</td>
-        <td>${escapeHtml((sale.affiliate_links && sale.affiliate_links.products && sale.affiliate_links.products.name) || 'Product')}</td>
-        <td>${formatNaira(sale.commission_amount)}</td>
-        <td><span class="status-pill ${sale.status}">${escapeHtml(sale.status)}</span></td>
+        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${formatDate(row.created_at)}</td>
+        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${productNameById[row.product_id] || 'Product'}</td>
+        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right;">${formatNaira(row.sale_amount)}</td>
+        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right;">${formatNaira(row.commission_amount)}</td>
+        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right; opacity:0.75;">${capitalize(row.status)}</td>
       </tr>
     `).join('');
   }
 
-  function populateProductPicker(products, existingLinks){
-    const picker = document.getElementById('product-picker');
-    const linkedProductIds = new Set((existingLinks || []).map(l => l.product_id));
-    const available = products.filter(p => !linkedProductIds.has(p.id));
-
-    if (available.length === 0) {
-      picker.innerHTML = '<option value="">You already have a link for every product</option>';
-      document.getElementById('get-link-btn').disabled = true;
+  function updateSalesView(){
+    const seeAllBtn = document.getElementById('see-all-sales-btn');
+    if (allSales.length === 0) {
+      seeAllBtn.style.display = 'none';
       return;
     }
-    document.getElementById('get-link-btn').disabled = false;
-    picker.innerHTML = '<option value="">Choose a product…</option>' +
-      available.map(p => `<option value="${p.id}">${escapeHtml(p.name)} — ${formatNaira(p.price)}</option>`).join('');
+    const rowsToShow = salesExpanded ? allSales : allSales.slice(0, 5);
+    renderSalesRows(rowsToShow);
+
+    if (allSales.length > 5) {
+      seeAllBtn.style.display = 'inline-block';
+      seeAllBtn.textContent = salesExpanded ? 'Show less' : 'See all';
+    } else {
+      seeAllBtn.style.display = 'none';
+    }
   }
 
-  document.getElementById('get-link-btn').addEventListener('click', async () => {
-    const productId = document.getElementById('product-picker').value;
-    if (!productId) {
-      showToast('Choose a product first.');
-      return;
-    }
-    const { error } = await supabaseClient
-      .from('affiliate_links')
-      .insert({ user_id: currentUserId, product_id: productId });
-
-    if (error) {
-      showToast("Couldn't create your link. Try again.");
-      return;
-    }
-    showToast('Link created!');
-    loadAffiliatePage();
+  document.getElementById('see-all-sales-btn').addEventListener('click', () => {
+    salesExpanded = !salesExpanded;
+    updateSalesView();
   });
 
-  async function loadAffiliatePage(){
+  async function loadSales(userId){
+    const loadingEl = document.getElementById('sales-loading');
+    const emptyEl = document.getElementById('sales-empty');
+    const tableEl = document.getElementById('sales-table');
+
+    loadingEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+    tableEl.style.display = 'none';
+
+    const { data, error } = await supabaseClient
+      .from('affiliate_sales')
+      .select('product_id, sale_amount, commission_amount, status, created_at')
+      .eq('affiliate_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    loadingEl.style.display = 'none';
+
+    if (error) {
+      emptyEl.textContent = "Couldn't load your sales.";
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      allSales = [];
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    allSales = data;
+    salesExpanded = false;
+    tableEl.style.display = 'table';
+    updateSalesView();
+
+    const pending = data.filter(r => r.status === 'pending').reduce((s, r) => s + Number(r.commission_amount || 0), 0);
+    const paid = data.filter(r => r.status === 'completed').reduce((s, r) => s + Number(r.commission_amount || 0), 0);
+    document.getElementById('stat-sales').textContent = data.length;
+    document.getElementById('stat-pending').textContent = formatNaira(pending);
+    document.getElementById('stat-paid').textContent = formatNaira(paid);
+  }
+
+  async function loadClickCount(userId){
+    const { count, error } = await supabaseClient
+      .from('affiliate_clicks')
+      .select('id', { count: 'exact', head: true })
+      .eq('affiliate_id', userId);
+
+    document.getElementById('stat-clicks').textContent = error ? '—' : (count || 0);
+  }
+
+  document.getElementById('copy-id-btn').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(currentUserId);
+      showToast('Affiliate ID copied');
+    } catch (e) {
+      showToast('Could not copy — select the text manually');
+    }
+  });
+
+  async function loadPage(){
     const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
 
     if (sessionError || !session) {
@@ -340,63 +530,17 @@
       return;
     }
 
-    const user = session.user;
-    currentUserId = user.id;
+    currentUserId = session.user.id;
+    document.getElementById('affiliate-id-display').value = currentUserId;
 
-    const [productsResult, linksResult, salesResult, tiersResult, transactionsResult] = await Promise.all([
-      supabaseClient.from('products').select('id, name, price, commission_rate').eq('is_active', true),
-      supabaseClient
-        .from('affiliate_links')
-        .select('id, code, product_id, products ( name, price, commission_rate )')
-        .eq('user_id', user.id),
-      supabaseClient
-        .from('affiliate_sales')
-        .select('id, sale_amount, commission_amount, status, created_at, affiliate_links!inner ( user_id, products ( name ) )')
-        .eq('affiliate_links.user_id', user.id)
-        .order('created_at', { ascending: false }),
-      supabaseClient
-        .from('commission_tiers')
-        .select('id, name, min_sales, max_sales, bonus_rate')
-        .order('sort_order', { ascending: true }),
-      supabaseClient
-        .from('transactions')
-        .select('amount, status')
-        .eq('user_id', user.id)
-        .eq('type', 'affiliate_commission')
+    await loadProducts();
+    await Promise.all([
+      loadSales(currentUserId),
+      loadClickCount(currentUserId)
     ]);
 
-    const { data: products, error: productsError } = productsResult;
-    const { data: links, error: linksError } = linksResult;
-    const { data: sales, error: salesError } = salesResult;
-    const { data: tiers, error: tiersError } = tiersResult;
-    const { data: transactions, error: transactionsError } = transactionsResult;
-
-    if (productsError || linksError || salesError || tiersError || transactionsError) {
-      showAffiliateError("We couldn't load your affiliate details. Please try again.");
-      return;
-    }
-
-    allProducts = products || [];
-    populateProductPicker(allProducts, links);
-    renderLinks(links);
-    renderSales(sales);
-
-    const completedSalesCount = (sales || []).filter(s => s.status === 'completed').length;
-    document.getElementById('stat-sales-count').textContent = completedSalesCount;
-    renderTiers(tiers, completedSalesCount);
-
-    let totalEarnings = 0;
-    let pendingEarnings = 0;
-    (transactions || []).forEach(t => {
-      const amt = Number(t.amount || 0);
-      if (t.status === 'completed') totalEarnings += amt;
-      else pendingEarnings += amt;
-    });
-    document.getElementById('stat-total-earnings').textContent = formatNaira(totalEarnings);
-    document.getElementById('stat-pending-earnings').textContent = formatNaira(pendingEarnings);
-
-    document.getElementById('affiliate-loading').style.display = 'none';
-    document.getElementById('affiliate-content').style.display = 'block';
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'block';
   }
 
   document.getElementById('logout-btn').addEventListener('click', async (event) => {
@@ -405,7 +549,7 @@
     window.location.href = 'login.html';
   });
 
-  loadAffiliatePage();
+  loadPage();
 </script>
 
 </body>
