@@ -141,14 +141,6 @@
           <input id="postDeadline" type="date">
         </div>
         <div class="form-field">
-          <label for="postApplyLink">Apply link</label>
-          <input id="postApplyLink" type="url" placeholder="https://…">
-        </div>
-        <div class="form-field">
-          <label for="postApplyEmail">Apply email (used if no link)</label>
-          <input id="postApplyEmail" type="email" placeholder="brand@example.com">
-        </div>
-        <div class="form-field">
           <label for="postMinLikes">Minimum likes required</label>
           <input id="postMinLikes" type="number" min="0" placeholder="e.g. 1000">
         </div>
@@ -235,8 +227,7 @@
 
     sponsored_posts
       id, title, brand, platform, payout, summary, requirements,
-      content_guidelines, deadline, apply_link, apply_email,
-      is_active, created_at
+      content_guidelines, deadline, is_active, created_at
 
     This page assumes it is only reachable by admins (e.g. gated by your
     own auth/role check before this page loads). No admin-role check is
@@ -365,7 +356,7 @@
   async function loadPosts(){
     const { data, error } = await supabaseClient
       .from('sponsored_posts')
-      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, deadline, apply_link, apply_email, is_active, created_at, min_likes, review_hold_days')
+      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, deadline, is_active, created_at, min_likes, review_hold_days')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -414,8 +405,6 @@
     document.getElementById('postPlatform').value = post.platform || '';
     document.getElementById('postPayout').value = post.payout || '';
     document.getElementById('postDeadline').value = post.deadline ? post.deadline.slice(0, 10) : '';
-    document.getElementById('postApplyLink').value = post.apply_link || '';
-    document.getElementById('postApplyEmail').value = post.apply_email || '';
     document.getElementById('postMinLikes').value = post.min_likes || '';
     document.getElementById('postReviewHoldDays').value = post.review_hold_days || '';
     document.getElementById('postActive').checked = !!post.is_active;
@@ -450,8 +439,6 @@
       platform: document.getElementById('postPlatform').value,
       payout: Number(document.getElementById('postPayout').value) || 0,
       deadline: document.getElementById('postDeadline').value || null,
-      apply_link: document.getElementById('postApplyLink').value.trim() || null,
-      apply_email: document.getElementById('postApplyEmail').value.trim() || null,
       min_likes: document.getElementById('postMinLikes').value ? Number(document.getElementById('postMinLikes').value) : null,
       review_hold_days: document.getElementById('postReviewHoldDays').value ? Number(document.getElementById('postReviewHoldDays').value) : null,
       is_active: document.getElementById('postActive').checked,
