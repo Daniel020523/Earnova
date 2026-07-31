@@ -131,6 +131,82 @@
   }
   .get-link-btn:hover{ opacity:0.9; }
 
+  .product-card{ cursor:pointer; }
+
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.55);
+    z-index:100;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal-box{
+    background:#fff;
+    border-radius:12px;
+    max-width:560px;
+    width:100%;
+    max-height:90vh;
+    overflow-y:auto;
+    position:relative;
+  }
+  .modal-close{
+    position:absolute;
+    top:12px;
+    right:12px;
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    border:none;
+    background:rgba(0,0,0,0.06);
+    font-size:16px;
+    cursor:pointer;
+    z-index:1;
+  }
+  .modal-close:hover{ background:rgba(0,0,0,0.1); }
+  .modal-image{
+    width:100%;
+    aspect-ratio:16/9;
+    object-fit:contain;
+    background:rgba(0,0,0,0.04);
+    border-radius:12px 12px 0 0;
+  }
+  .modal-body{ padding:20px; }
+  .modal-category{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    opacity:0.6;
+    font-weight:600;
+  }
+  .modal-name{ font-size:20px; font-weight:700; margin-top:4px; }
+  .modal-desc{ font-size:14px; opacity:0.8; line-height:1.55; margin-top:10px; white-space:pre-wrap; }
+  .modal-meta{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:16px;
+    padding-top:14px;
+    border-top:1px solid rgba(0,0,0,0.1);
+  }
+  .modal-price{ font-size:20px; font-weight:700; }
+  .modal-get-link-btn{
+    margin-top:16px;
+    width:100%;
+    padding:11px 0;
+    border-radius:6px;
+    border:none;
+    background:rgba(0,0,0,0.85);
+    color:#fff;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .modal-get-link-btn:hover{ opacity:0.92; }
+
   .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
   #sales-table{ width:100%; min-width:520px; border-collapse:collapse; table-layout:fixed; }
   #sales-table th, #sales-table td{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -250,6 +326,23 @@
   </div>
 
 </main>
+
+<div class="modal-overlay" id="product-modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close" id="product-modal-close" aria-label="Close">✕</button>
+    <img class="modal-image" id="modal-image" alt="">
+    <div class="modal-body">
+      <div class="modal-category" id="modal-category"></div>
+      <div class="modal-name" id="modal-name"></div>
+      <div class="modal-desc" id="modal-desc"></div>
+      <div class="modal-meta">
+        <div class="modal-price" id="modal-price"></div>
+        <div class="product-commission" id="modal-commission"></div>
+      </div>
+      <button class="modal-get-link-btn" id="modal-get-link-btn">Get affiliate link</button>
+    </div>
+  </div>
+</div>
 
 <footer>
   <div class="footer-links">
@@ -417,7 +510,7 @@
     emptyEl.style.display = 'none';
 
     grid.innerHTML = visible.map(p => `
-      <div class="product-card">
+      <div class="product-card" data-product-id="${p.id}">
         <img class="product-thumb" src="${p.image_url || 'assets/product-placeholder.png'}" alt="${p.name}">
         <div class="product-body">
           <div class="product-category">${p.category ? capitalize(p.category) : 'General'}</div>
@@ -432,31 +525,72 @@
       </div>
     `).join('');
 
+    grid.querySelectorAll('.product-card').forEach(card => {
+      card.addEventListener('click', () => openProductModal(card.dataset.productId));
+    });
+
     grid.querySelectorAll('.get-link-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        btn.disabled = true;
-        const originalLabel = btn.textContent;
-        btn.textContent = 'Generating…';
-        try {
-          const code = await getOrCreateLinkCode(btn.dataset.productId);
-          if (!code) {
-            showToast("Couldn't generate a link — try again");
-            return;
-          }
-          const link = `${window.location.origin}/product.html?ref=${code}&pid=${btn.dataset.productId}`;
-          try {
-            await navigator.clipboard.writeText(link);
-            showToast('Affiliate link copied');
-          } catch (e) {
-            showToast(link);
-          }
-        } finally {
-          btn.disabled = false;
-          btn.textContent = originalLabel;
-        }
+      btn.addEventListener('click', async (event) => {
+        event.stopPropagation(); // don't also trigger the card's modal-open click
+        await copyAffiliateLink(btn.dataset.productId, btn);
       });
     });
   }
+
+  async function copyAffiliateLink(productId, btn){
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = 'Generating…';
+    try {
+      const code = await getOrCreateLinkCode(productId);
+      if (!code) {
+        showToast("Couldn't generate a link — try again");
+        return;
+      }
+      const link = `${window.location.origin}/product.html?ref=${code}&pid=${productId}`;
+      try {
+        await navigator.clipboard.writeText(link);
+        showToast('Affiliate link copied');
+      } catch (e) {
+        showToast(link);
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
+  function openProductModal(productId){
+    const p = allProducts.find(x => x.id === productId);
+    if (!p) return;
+
+    document.getElementById('modal-image').src = p.image_url || 'assets/product-placeholder.png';
+    document.getElementById('modal-image').alt = p.name;
+    document.getElementById('modal-category').textContent = p.category ? capitalize(p.category) : 'General';
+    document.getElementById('modal-name').textContent = p.name;
+    document.getElementById('modal-desc').textContent = p.description || 'No description provided.';
+    document.getElementById('modal-price').textContent = formatNaira(p.price);
+    document.getElementById('modal-commission').textContent = `${p.commission_rate}% commission`;
+
+    const modalBtn = document.getElementById('modal-get-link-btn');
+    modalBtn.disabled = false;
+    modalBtn.textContent = 'Get affiliate link';
+    modalBtn.onclick = () => copyAffiliateLink(p.id, modalBtn);
+
+    document.getElementById('product-modal-overlay').classList.add('open');
+  }
+
+  function closeProductModal(){
+    document.getElementById('product-modal-overlay').classList.remove('open');
+  }
+
+  document.getElementById('product-modal-close').addEventListener('click', closeProductModal);
+  document.getElementById('product-modal-overlay').addEventListener('click', (event) => {
+    if (event.target.id === 'product-modal-overlay') closeProductModal();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeProductModal();
+  });
 
   async function loadProducts(){
     const loadingEl = document.getElementById('products-loading');
