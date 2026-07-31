@@ -192,18 +192,20 @@ alter table public.sponsored_post_participations
 
 
 -- ============================================================================
--- 6. "Review hold period (days)" replaced by a concrete "campaign ends" date
+-- 6. "Review hold period (days)" replaced by a concrete "campaign ends" date,
+--    and the standalone "Deadline" field is retired
 --
 -- Admins now set the date the campaign itself ends, and submissions are
 -- reviewed after that date — instead of a relative number of hold days from
--- when the user submitted. The old min_likes structured field is also
--- retired: admins now write minimum engagement requirements (likes, views,
--- etc.) directly into the free-text `requirements` field instead.
+-- when the user submitted, or a separate submission deadline. The old
+-- min_likes structured field is also retired: admins now write minimum
+-- engagement requirements (likes, views, etc.) directly into the free-text
+-- `requirements` field instead.
 --
--- Non-destructive: this only adds the new column. The old min_likes and
--- review_hold_days columns are left in place (simply no longer read/written
--- by the app) so no historical data is lost; drop them later once you've
--- confirmed nothing else depends on them.
+-- Non-destructive: this only adds the new column. The old deadline,
+-- min_likes, and review_hold_days columns are left in place (simply no
+-- longer read/written by the app) so no historical data is lost; drop them
+-- later once you've confirmed nothing else depends on them.
 -- ============================================================================
 
 alter table public.sponsored_posts

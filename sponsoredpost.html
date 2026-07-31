@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sponsored posts — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .job-list{ display:flex; flex-direction:column; gap:12px; margin-top:12px; }
+  .job-card{
+    border:1px solid rgba(0,0,0,0.12);
+    border-radius:8px;
+    padding:16px;
+    text-align:left;
+    cursor:pointer;
+    background:none;
+    transition:background 0.15s ease, border-color 0.15s ease;
+  }
+  .job-card:hover{
+    background:rgba(0,0,0,0.03);
+    border-color:rgba(0,0,0,0.25);
+  }
+  .job-card h3{ margin:0 0 4px 0; font-size:16px; }
+  .job-meta{ font-size:13px; opacity:0.7; margin-bottom:8px; }
+  .work-at{ font-weight:700; color:#2563eb; }
+  .job-company{ font-weight:700; color:#0d9488; }
+  .job-tag{
+    display:inline-block;
+    font-size:12px;
+    font-weight:600;
+    padding:2px 8px;
+    border-radius:999px;
+    background:rgba(0,0,0,0.06);
+    margin-right:6px;
+  }
+  .job-summary{ font-size:14px; margin:8px 0 0 0; opacity:0.85; }
+  .search-row{ display:flex; gap:8px; margin:12px 0; flex-wrap:wrap; }
+  .search-row input{ flex:1; min-width:200px; }
+  .campaign-ends-tag{ background:rgba(124,58,237,0.12); color:#7c3aed; }
+
+  /* Modal */
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.45);
+    z-index:100;
+    align-items:flex-start;
+    justify-content:center;
+    padding:24px 12px;
+    overflow-y:auto;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{
+    background:#fff;
+    border-radius:10px;
+    max-width:560px;
+    width:100%;
+    padding:24px;
+    position:relative;
+    margin-top:20px;
+  }
+  .modal-close{
+    position:absolute;
+    top:12px;
+    right:12px;
+    background:none;
+    border:none;
+    font-size:20px;
+    line-height:1;
+    cursor:pointer;
+    opacity:0.6;
+  }
+  .modal-close:hover{ opacity:1; }
+  .modal-section{ margin-top:16px; }
+  .modal-section h4{
+    margin:0 0 6px 0;
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    opacity:0.6;
+  }
+  .modal-section p{ margin:0; font-size:14px; white-space:pre-wrap; }
+
+  /* Participation */
+  .card-actions{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .status-badge{
+    display:inline-block; font-size:12px; font-weight:600;
+    padding:3px 10px; border-radius:999px;
+  }
+  .status-pending_submission{ background:rgba(37,99,235,0.12); color:#2563eb; }
+  .status-submitted{ background:rgba(217,119,6,0.12); color:#d97706; }
+  .status-approved{ background:rgba(13,148,136,0.12); color:#0d9488; }
+  .status-rejected{ background:rgba(220,38,38,0.12); color:#dc2626; }
+  .status-completed{ background:rgba(22,163,74,0.14); color:#16a34a; }
+  .status-disqualified{ background:rgba(75,85,99,0.14); color:#4b5563; }
+  .my-participations-row{ margin:12px 0; }
+  .participation-box{
+    border:1px solid rgba(0,0,0,0.1); border-radius:8px; padding:14px; margin-top:8px; background:rgba(0,0,0,0.02);
+  }
+  .participation-box label{ font-size:12px; font-weight:600; display:block; margin-bottom:4px; }
+  .participation-box input{
+    width:100%; padding:9px 11px; border:1px solid rgba(0,0,0,0.15); border-radius:6px; font-size:14px; margin-bottom:10px;
+  }
+  .field-hint{ font-size:12px; opacity:0.65; margin:-4px 0 10px 0; }
+  .req-tag{ background:rgba(0,0,0,0.05); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="profile.html">Profile</a>
+      <a class="btn btn-ghost" href="settings.html">Settings</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <a href="dashboard.html" class="back-link">&larr; Back to dashboard</a>
+  <div class="kicker">Sponsored posts</div>
+  <h1>Sponsored post opportunities</h1>
+  <p class="lead">Browse paid sponsored post campaigns from verified brands. Click a campaign to see full requirements and apply.</p>
+
+  <div class="my-participations-row">
+    <button type="button" class="btn btn-ghost" id="myParticipationsBtn">My participations</button>
+  </div>
+
+  <div class="search-row">
+    <input id="searchInput" type="text" placeholder="Search by campaign or brand…">
+    <select id="platformFilter">
+      <option value="">All platforms</option>
+      <option value="Instagram">Instagram</option>
+      <option value="TikTok">TikTok</option>
+      <option value="YouTube">YouTube</option>
+      <option value="X">X</option>
+      <option value="Blog">Blog</option>
+    </select>
+  </div>
+
+  <div id="posts-loading" class="card"><p>Loading sponsored post opportunities…</p></div>
+  <div id="posts-empty" class="card" style="display:none;"><p>No sponsored posts match your search right now. Check back soon.</p></div>
+  <div id="post-list" class="job-list"></div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<!-- Sponsored post detail modal -->
+<div class="modal-overlay" id="postModalOverlay">
+  <div class="modal-box">
+    <button class="modal-close" id="modalCloseBtn" aria-label="Close">&times;</button>
+    <div class="kicker" id="modalBrand"></div>
+    <h2 id="modalTitle" style="margin:4px 0 8px 0;"></h2>
+    <div class="job-meta" id="modalMeta"></div>
+    <div id="modalTags"></div>
+
+    <div class="modal-section">
+      <h4>Requirements</h4>
+      <p id="modalRequirements"></p>
+    </div>
+    <div class="modal-section">
+      <h4>Content guidelines</h4>
+      <p id="modalGuidelines"></p>
+    </div>
+    <div class="modal-section" id="modalCampaignEndsSection" style="display:none;">
+      <h4>Campaign ends</h4>
+      <p id="modalCampaignEnds"></p>
+    </div>
+
+    <div class="modal-section">
+      <h4>Your participation</h4>
+      <div id="modalParticipationArea"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Participate modal: join a campaign with a social handle URL -->
+<div class="modal-overlay" id="participateModalOverlay">
+  <div class="modal-box">
+    <button class="modal-close" id="participateCloseBtn" aria-label="Close">&times;</button>
+    <h2 style="margin:4px 0 8px 0;">Join this campaign</h2>
+    <p class="job-summary" style="margin-bottom:14px;">Add the link to the social profile you'll be posting from. Once you're in, post your content, then come back and submit your video link from "My participation".</p>
+    <div class="participation-box">
+      <label for="participateHandleUrl">Your social handle URL</label>
+      <input id="participateHandleUrl" type="url" placeholder="https://instagram.com/yourhandle" required>
+      <button type="button" class="btn btn-solid" id="participateSubmitBtn">Join campaign</button>
+    </div>
+  </div>
+</div>
+
+<!-- My participation modal: view status, submit video url -->
+<div class="modal-overlay" id="participationModalOverlay">
+  <div class="modal-box">
+    <button class="modal-close" id="participationCloseBtn" aria-label="Close">&times;</button>
+    <h2 style="margin:4px 0 8px 0;">My participation</h2>
+    <div id="participationDetailArea"></div>
+  </div>
+</div>
+
+<!-- My participations list modal: shows every campaign the user has joined, in one place -->
+<div class="modal-overlay" id="myParticipationsListOverlay">
+  <div class="modal-box">
+    <button class="modal-close" id="myParticipationsListCloseBtn" aria-label="Close">&times;</button>
+    <h2 style="margin:4px 0 8px 0;">My participations</h2>
+    <div id="myParticipationsListArea"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  /*
+    Assumed Supabase table — rename to match your real schema:
+
+    sponsored_posts
+      id, title, brand, platform, payout, summary, requirements,
+      content_guidelines, campaign_ends_at,
+      is_active, created_at
+  */
+
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function formatDate(iso){
+    if (!iso) return 'Not specified.';
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function formatCurrency(n){
+    const num = Number(n) || 0;
+    return num.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  let allPosts = [];
+  let myParticipations = {}; // keyed by post_id
+  let currentUserId = null;
+  let activePostId = null; // tracks which post the open modal/participation flow refers to
+
+  function renderPosts(posts){
+    const listEl = document.getElementById('post-list');
+    const emptyEl = document.getElementById('posts-empty');
+
+    if (posts.length === 0) {
+      listEl.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    listEl.innerHTML = posts.map(post => `
+      <div class="job-card" data-post-id="${post.id}" role="button" tabindex="0">
+        <h3>${escapeHtml(post.title)}</h3>
+        <div class="job-meta"><span class="work-at">Sponsored by</span> <span class="job-company">${escapeHtml(post.brand)}</span> · ${escapeHtml(post.platform)}</div>
+        <span class="job-tag">Platform: ${escapeHtml(post.platform)}</span>
+        ${post.payout ? `<span class="job-tag">Payout: ${formatCurrency(post.payout)}</span>` : ''}
+        ${post.campaign_ends_at ? `<span class="job-tag campaign-ends-tag">Ends ${formatDate(post.campaign_ends_at)}</span>` : ''}
+        ${post.summary ? `<p class="job-summary">${escapeHtml(post.summary)}</p>` : ''}
+        <div class="card-actions">${participationButtonHtml(post.id)}</div>
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('.job-card').forEach(card => {
+      const open = () => openModal(card.getAttribute('data-post-id'));
+      card.addEventListener('click', open);
+      card.addEventListener('keypress', (e) => { if (e.key === 'Enter') open(); });
+    });
+
+    listEl.querySelectorAll('.participate-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openParticipateModal(btn.getAttribute('data-post-id'));
+      });
+    });
+    listEl.querySelectorAll('.my-participation-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openParticipationModal(btn.getAttribute('data-post-id'));
+      });
+    });
+  }
+
+  function statusLabel(status){
+    return {
+      pending_submission: 'Video not submitted',
+      submitted: 'Under review',
+      approved: 'Approved · awaiting payout',
+      rejected: 'Rejected',
+      completed: 'Completed · paid',
+      disqualified: 'Disqualified'
+    }[status] || status;
+  }
+
+  function participationButtonHtml(postId){
+    const part = myParticipations[postId];
+    if (!part) {
+      return `<button type="button" class="btn btn-solid participate-btn" data-post-id="${postId}">Participate</button>`;
+    }
+    return `<button type="button" class="btn btn-ghost my-participation-btn" data-post-id="${postId}">My participation <span class="status-badge status-${part.status}">${statusLabel(part.status)}</span></button>`;
+  }
+
+  function openModal(postId){
+    const post = allPosts.find(p => String(p.id) === String(postId));
+    if (!post) return;
+    activePostId = postId;
+
+    document.getElementById('modalBrand').innerHTML = `<span class="work-at">Sponsored by</span> <span class="job-company">${escapeHtml(post.brand)}</span>`;
+    document.getElementById('modalTitle').textContent = post.title;
+    document.getElementById('modalMeta').textContent = post.platform;
+
+    const tagsEl = document.getElementById('modalTags');
+    tagsEl.innerHTML =
+      `<span class="job-tag">Platform: ${escapeHtml(post.platform)}</span>` +
+      (post.payout ? `<span class="job-tag">Payout: ${formatCurrency(post.payout)}</span>` : '');
+
+    document.getElementById('modalRequirements').textContent = post.requirements || 'Not specified.';
+    document.getElementById('modalGuidelines').textContent = post.content_guidelines || 'Not specified.';
+
+    const campaignEndsSection = document.getElementById('modalCampaignEndsSection');
+    if (post.campaign_ends_at) {
+      document.getElementById('modalCampaignEnds').textContent = formatDate(post.campaign_ends_at);
+      campaignEndsSection.style.display = '';
+    } else {
+      campaignEndsSection.style.display = 'none';
+    }
+
+    renderParticipationArea(post);
+
+    document.getElementById('postModalOverlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal(){
+    document.getElementById('postModalOverlay').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  function closeParticipateModal(){
+    document.getElementById('participateModalOverlay').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  function closeParticipationModal(){
+    document.getElementById('participationModalOverlay').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+  document.getElementById('postModalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'postModalOverlay') closeModal();
+  });
+  document.getElementById('participateCloseBtn').addEventListener('click', closeParticipateModal);
+  document.getElementById('participateModalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'participateModalOverlay') closeParticipateModal();
+  });
+  document.getElementById('participationCloseBtn').addEventListener('click', closeParticipationModal);
+  document.getElementById('participationModalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'participationModalOverlay') closeParticipationModal();
+  });
+  document.getElementById('myParticipationsListCloseBtn').addEventListener('click', closeMyParticipationsList);
+  document.getElementById('myParticipationsListOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'myParticipationsListOverlay') closeMyParticipationsList();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { closeModal(); closeParticipateModal(); closeParticipationModal(); closeMyParticipationsList(); }
+  });
+
+  // ---- Participation flow -------------------------------------------------
+
+  function renderParticipationArea(post){
+    const area = document.getElementById('modalParticipationArea');
+    const part = myParticipations[post.id];
+
+    if (!part) {
+      area.innerHTML = `<button type="button" class="btn btn-solid" id="modalParticipateBtn">Participate</button>`;
+      document.getElementById('modalParticipateBtn').addEventListener('click', () => {
+        closeModal();
+        openParticipateModal(post.id);
+      });
+      return;
+    }
+
+    area.innerHTML = `
+      <p style="margin:0 0 10px 0;">
+        <span class="status-badge status-${part.status}">${statusLabel(part.status)}</span>
+      </p>
+      <button type="button" class="btn btn-ghost" id="modalViewParticipationBtn">View / manage my participation</button>
+    `;
+    document.getElementById('modalViewParticipationBtn').addEventListener('click', () => {
+      closeModal();
+      openParticipationModal(post.id);
+    });
+  }
+
+  function openParticipateModal(postId){
+    if (!currentUserId) { showToast('Please sign in to participate.'); return; }
+    activePostId = postId;
+    document.getElementById('participateHandleUrl').value = '';
+    document.getElementById('participateModalOverlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  document.getElementById('participateSubmitBtn').addEventListener('click', async () => {
+    const handleUrl = document.getElementById('participateHandleUrl').value.trim();
+    if (!handleUrl) { showToast('Add your social handle URL first.'); return; }
+    if (!activePostId || !currentUserId) return;
+
+    const { data, error } = await supabaseClient
+      .from('sponsored_post_participations')
+      .insert({
+        post_id: activePostId,
+        user_id: currentUserId,
+        social_handle_url: handleUrl,
+        status: 'pending_submission'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      showToast("Couldn't join this campaign. You may have already joined.");
+      return;
+    }
+
+    myParticipations[activePostId] = data;
+    updateMyParticipationsButtonLabel();
+    showToast('You joined the campaign! Post your content, then submit your video link.');
+    closeParticipateModal();
+    applyFilters();
+    openParticipationModal(activePostId);
+  });
+
+  function renderParticipationDetail(post, part){
+    const detailArea = document.getElementById('participationDetailArea');
+    const payoutLine = post ? `<p class="job-meta" style="margin-bottom:12px;">${escapeHtml(post.title)} · <span class="job-company">${escapeHtml(post.brand)}</span></p>` : '';
+
+    let body = '';
+    if (part.status === 'pending_submission') {
+      body = `
+        <p class="job-summary" style="margin:0 0 12px 0;">Posted your content? Paste the link to your video below to submit it for review.</p>
+        <div class="participation-box">
+          <label for="participationVideoUrl">Video URL</label>
+          <input id="participationVideoUrl" type="url" placeholder="https://…">
+          <button type="button" class="btn btn-solid" id="participationSubmitVideoBtn">Submit video for review</button>
+        </div>
+      `;
+    } else if (part.status === 'submitted') {
+      body = `
+        <p class="job-summary" style="margin:0 0 6px 0;"><strong>Video submitted:</strong> <a href="${escapeHtml(part.video_url)}" target="_blank" rel="noopener">${escapeHtml(part.video_url)}</a></p>
+        <p class="job-summary" style="margin:0;">An admin is reviewing your submission${post && post.campaign_ends_at ? ` (submissions for this campaign are typically reviewed after it ends on ${formatDate(post.campaign_ends_at)})` : ''}. You'll be notified once it's approved.</p>
+      `;
+    } else if (part.status === 'approved') {
+      body = `
+        <p class="job-summary" style="margin:0 0 6px 0;"><strong>Video:</strong> <a href="${escapeHtml(part.video_url)}" target="_blank" rel="noopener">${escapeHtml(part.video_url)}</a></p>
+        <p class="job-summary" style="margin:0;">Your submission has been approved. Your payout will be credited once the admin marks it complete.</p>
+      `;
+    } else if (part.status === 'rejected') {
+      body = `
+        <p class="job-summary" style="margin:0 0 6px 0;"><strong>Video:</strong> <a href="${escapeHtml(part.video_url || '#')}" target="_blank" rel="noopener">${escapeHtml(part.video_url || '')}</a></p>
+        <p class="job-summary" style="margin:0 0 12px 0;"><strong>Feedback:</strong> ${escapeHtml(part.admin_notes || 'No reason given.')}</p>
+        <div class="participation-box">
+          <label for="participationVideoUrl">Resubmit a video URL</label>
+          <input id="participationVideoUrl" type="url" placeholder="https://…">
+          <button type="button" class="btn btn-solid" id="participationSubmitVideoBtn">Resubmit for review</button>
+        </div>
+      `;
+    } else if (part.status === 'completed') {
+      body = `
+        <p class="job-summary" style="margin:0 0 6px 0;"><strong>Video:</strong> <a href="${escapeHtml(part.video_url || '#')}" target="_blank" rel="noopener">${escapeHtml(part.video_url || '')}</a></p>
+        <p class="job-summary" style="margin:0;">🎉 Completed — ${post ? formatCurrency(post.payout) : 'your payout'} has been credited to your balance.</p>
+      `;
+    } else if (part.status === 'disqualified') {
+      body = `
+        ${part.video_url ? `<p class="job-summary" style="margin:0 0 6px 0;"><strong>Video:</strong> <a href="${escapeHtml(part.video_url)}" target="_blank" rel="noopener">${escapeHtml(part.video_url)}</a></p>` : ''}
+        <p class="job-summary" style="margin:0;">This participation has been disqualified${part.admin_notes ? `: ${escapeHtml(part.admin_notes)}` : '.'} If you think this is a mistake, please contact support.</p>
+      `;
+    }
+
+    detailArea.innerHTML = `
+      ${payoutLine}
+      <p style="margin:0 0 12px 0;"><span class="status-badge status-${part.status}">${statusLabel(part.status)}</span></p>
+      ${body}
+    `;
+
+    const submitBtn = document.getElementById('participationSubmitVideoBtn');
+    if (submitBtn) {
+      submitBtn.addEventListener('click', () => submitParticipationVideo(part.status === 'rejected'));
+    }
+  }
+
+  function openParticipationModal(postId){
+    const part = myParticipations[postId];
+    if (!part) { showToast("You haven't joined this campaign yet."); return; }
+    activePostId = postId;
+    const post = allPosts.find(p => String(p.id) === String(postId));
+    renderParticipationDetail(post, part);
+    document.getElementById('participationModalOverlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  async function submitParticipationVideo(isResubmit){
+    const videoUrl = document.getElementById('participationVideoUrl').value.trim();
+    if (!videoUrl) { showToast('Add your video URL first.'); return; }
+    if (!activePostId) return;
+
+    const part = myParticipations[activePostId];
+    const { data, error } = await supabaseClient
+      .from('sponsored_post_participations')
+      .update({
+        video_url: videoUrl,
+        status: 'submitted',
+        submitted_at: new Date().toISOString()
+      })
+      .eq('id', part.id)
+      .select()
+      .single();
+
+    if (error) {
+      showToast("Couldn't submit your video.");
+      return;
+    }
+
+    myParticipations[activePostId] = data;
+    showToast(isResubmit ? 'Resubmitted for review.' : 'Video submitted for review.');
+    applyFilters();
+    const post = allPosts.find(p => String(p.id) === String(activePostId));
+    renderParticipationDetail(post, data);
+  }
+
+  async function loadMyParticipations(){
+    if (!currentUserId) { myParticipations = {}; updateMyParticipationsButtonLabel(); return; }
+    const { data, error } = await supabaseClient
+      .from('sponsored_post_participations')
+      .select('*')
+      .eq('user_id', currentUserId);
+
+    if (error) return;
+    myParticipations = {};
+    (data || []).forEach(p => { myParticipations[p.post_id] = p; });
+    updateMyParticipationsButtonLabel();
+  }
+
+  // ---- "My participations" — one place to see every campaign joined ------
+
+  function updateMyParticipationsButtonLabel(){
+    const btn = document.getElementById('myParticipationsBtn');
+    const count = Object.keys(myParticipations).length;
+    btn.textContent = count > 0 ? `My participations (${count})` : 'My participations';
+  }
+
+  function renderMyParticipationsList(){
+    const area = document.getElementById('myParticipationsListArea');
+    const entries = Object.values(myParticipations);
+
+    if (entries.length === 0) {
+      area.innerHTML = '<p class="job-summary">You haven\'t joined any campaigns yet. Browse the list and hit "Participate" on one to get started.</p>';
+      return;
+    }
+
+    area.innerHTML = entries.map(part => {
+      const post = allPosts.find(p => String(p.id) === String(part.post_id)) || {};
+      return `
+        <div class="job-card" style="cursor:default;">
+          <h3>${escapeHtml(post.title || 'Campaign')}</h3>
+          <div class="job-meta"><span class="work-at">Sponsored by</span> <span class="job-company">${escapeHtml(post.brand || '')}</span></div>
+          <p style="margin:0 0 10px 0;"><span class="status-badge status-${part.status}">${statusLabel(part.status)}</span></p>
+          <div class="card-actions">
+            <button type="button" class="btn btn-ghost view-participation-btn" data-post-id="${part.post_id}">View / manage</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    area.querySelectorAll('.view-participation-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        closeMyParticipationsList();
+        openParticipationModal(btn.getAttribute('data-post-id'));
+      });
+    });
+  }
+
+  function openMyParticipationsList(){
+    if (!currentUserId) { showToast('Please sign in to view your participations.'); return; }
+    renderMyParticipationsList();
+    document.getElementById('myParticipationsListOverlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeMyParticipationsList(){
+    document.getElementById('myParticipationsListOverlay').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('myParticipationsBtn').addEventListener('click', openMyParticipationsList);
+
+  function applyFilters(){
+    const query = document.getElementById('searchInput').value.trim().toLowerCase();
+    const platform = document.getElementById('platformFilter').value;
+
+    const filtered = allPosts.filter(post => {
+      const matchesQuery = !query ||
+        post.title.toLowerCase().includes(query) ||
+        post.brand.toLowerCase().includes(query);
+      const matchesPlatform = !platform || post.platform === platform;
+      return matchesQuery && matchesPlatform;
+    });
+
+    renderPosts(filtered);
+  }
+
+  document.getElementById('searchInput').addEventListener('input', applyFilters);
+  document.getElementById('platformFilter').addEventListener('change', applyFilters);
+
+  async function loadPosts(){
+    const loadingEl = document.getElementById('posts-loading');
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    currentUserId = user ? user.id : null;
+
+    const { data, error } = await supabaseClient
+      .from('sponsored_posts')
+      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, is_active, created_at, campaign_ends_at')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    loadingEl.style.display = 'none';
+
+    if (error) {
+      showToast("Couldn't load sponsored posts right now.");
+      return;
+    }
+
+    allPosts = data || [];
+    await loadMyParticipations();
+    applyFilters();
+  }
+
+  loadPosts();
+</script>
+
+</body>
+</html>

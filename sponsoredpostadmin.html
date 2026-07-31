@@ -149,10 +149,6 @@
           <input id="postPayout" type="number" step="0.01" min="0" required>
         </div>
         <div class="form-field">
-          <label for="postDeadline">Deadline</label>
-          <input id="postDeadline" type="date">
-        </div>
-        <div class="form-field">
           <label for="postCampaignEnds">Campaign ends</label>
           <input id="postCampaignEnds" type="date">
           <p class="field-hint">Submissions are typically reviewed after this date, once engagement has had time to settle.</p>
@@ -238,7 +234,7 @@
 
     sponsored_posts
       id, title, brand, platform, payout, summary, requirements,
-      content_guidelines, deadline, campaign_ends_at, is_active, created_at
+      content_guidelines, campaign_ends_at, is_active, created_at
 
     This page assumes it is only reachable by admins (e.g. gated by your
     own auth/role check before this page loads). No admin-role check is
@@ -255,7 +251,8 @@
     toast.textContent = msg;
     toast.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+    const duration = msg.length > 60 ? 6000 : 2400;
+    toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
   }
 
   function escapeHtml(str){
@@ -270,7 +267,7 @@
   }
 
   function formatDate(iso){
-    if (!iso) return 'No deadline';
+    if (!iso) return 'Not specified';
     return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   }
 
@@ -290,7 +287,6 @@
             <th>Brand</th>
             <th>Platform</th>
             <th>Payout</th>
-            <th>Deadline</th>
             <th>Campaign ends</th>
             <th>Status</th>
             <th></th>
@@ -303,7 +299,6 @@
               <td>${escapeHtml(p.brand)}</td>
               <td>${escapeHtml(p.platform)}</td>
               <td>${formatCurrency(p.payout)}</td>
-              <td>${formatDate(p.deadline)}</td>
               <td>${formatDate(p.campaign_ends_at)}</td>
               <td><span class="job-tag ${p.is_active ? 'active' : 'inactive'}">${p.is_active ? 'Active' : 'Inactive'}</span></td>
               <td>
@@ -369,7 +364,7 @@
   async function loadPosts(){
     const { data, error } = await supabaseClient
       .from('sponsored_posts')
-      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, deadline, is_active, created_at, campaign_ends_at')
+      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, is_active, created_at, campaign_ends_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -390,7 +385,8 @@
       .eq('id', id);
 
     if (error) {
-      showToast("Couldn't update campaign.");
+      console.error('toggleActive error:', error);
+      showToast(`Couldn't update campaign: ${error.message || 'unknown error'}`);
     } else {
       showToast(post.is_active ? 'Campaign deactivated.' : 'Campaign activated.');
       loadPosts();
@@ -400,7 +396,8 @@
   async function deletePost(id){
     const { error } = await supabaseClient.from('sponsored_posts').delete().eq('id', id);
     if (error) {
-      showToast("Couldn't delete campaign.");
+      console.error('deletePost error:', error);
+      showToast(`Couldn't delete campaign: ${error.message || 'unknown error'}`);
     } else {
       showToast('Campaign deleted.');
       if (document.getElementById('postId').value === String(id)) resetForm();
@@ -417,7 +414,6 @@
     document.getElementById('postBrand').value = post.brand || '';
     document.getElementById('postPlatform').value = post.platform || '';
     document.getElementById('postPayout').value = post.payout || '';
-    document.getElementById('postDeadline').value = post.deadline ? post.deadline.slice(0, 10) : '';
     document.getElementById('postCampaignEnds').value = post.campaign_ends_at ? post.campaign_ends_at.slice(0, 10) : '';
     document.getElementById('postActive').checked = !!post.is_active;
     document.getElementById('postSummary').value = post.summary || '';
@@ -450,7 +446,6 @@
       brand: document.getElementById('postBrand').value.trim(),
       platform: document.getElementById('postPlatform').value,
       payout: Number(document.getElementById('postPayout').value) || 0,
-      deadline: document.getElementById('postDeadline').value || null,
       campaign_ends_at: document.getElementById('postCampaignEnds').value || null,
       is_active: document.getElementById('postActive').checked,
       summary: document.getElementById('postSummary').value.trim() || null,
@@ -471,7 +466,8 @@
     }
 
     if (error) {
-      showToast("Couldn't save campaign.");
+      console.error('save campaign error:', error);
+      showToast(`Couldn't save campaign: ${error.message || 'unknown error'}`);
       return;
     }
 
@@ -638,7 +634,8 @@
       .eq('id', id);
 
     if (error) {
-      showToast("Couldn't update this submission.");
+      console.error('reviewSubmission error:', error);
+      showToast(`Couldn't update this submission: ${error.message || 'unknown error'}`);
       return;
     }
     showToast(newStatus === 'approved' ? 'Submission approved.' : 'Submission updated.');
@@ -654,7 +651,8 @@
       .eq('id', id);
 
     if (error) {
-      showToast("Couldn't reject this submission.");
+      console.error('rejectSubmission error:', error);
+      showToast(`Couldn't reject this submission: ${error.message || 'unknown error'}`);
       return;
     }
     showToast('Submission rejected.');
@@ -683,7 +681,8 @@
       .eq('id', id);
 
     if (error) {
-      showToast("Couldn't disqualify this participant.");
+      console.error('disqualifySubmission error:', error);
+      showToast(`Couldn't disqualify this participant: ${error.message || 'unknown error'}`);
       return;
     }
     showToast('Participant disqualified.');
@@ -698,7 +697,8 @@
       .eq('id', id);
 
     if (error) {
-      showToast("Couldn't complete this submission.");
+      console.error('completeSubmission error:', error);
+      showToast(`Couldn't complete this submission: ${error.message || 'unknown error'}`);
       return;
     }
     showToast('Marked complete — payout credited.');
