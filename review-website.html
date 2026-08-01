@@ -157,21 +157,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
   // ---------------------------------------------------------------
-  // Flow: user clicks "Start review" -> the target site opens in a
-  // normal new tab (a real user-initiated window.open, not a hidden
-  // popunder — any popunder behavior comes from the ad network script
-  // pasted into #popunder-ad-slot, which fires off its own gesture).
-  // A visible dwell timer counts down locally; once it hits zero the
-  // "Claim reward" button appears. Like daily-task.html, the actual
-  // credit is issued by a Postgres function (claim_review_task), not
-  // a client-side insert — the daily cap and reward amount are
-  // enforced server-side, not trusted from the browser.
-  //
   // Flow: click "Start review" -> TARGET_URL opens in a new tab and
-  // "Claim reward" becomes available right away. The popunder script
-  // only fires when the user actually clicks "Claim reward" (i.e.
-  // once they're back on this tab) — not on page load, and not the
-  // moment "Start review" is clicked.
+  // "Claim reward" becomes available right away. Clicking "Claim
+  // reward" hands off to claim.html, which asks a couple of
+  // verification questions, credits the reward, and is where the
+  // popunder actually fires — nothing ad-related happens on this page.
   // ---------------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
@@ -179,15 +169,8 @@
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   const TARGET_URL = "https://omg10.com/4/11475054";
-  const REWARD_DISPLAY = 50;      // must match v_reward in the SQL function
-  const DAILY_LIMIT_DISPLAY = 5;  // must match v_daily_limit in the SQL function
-
-  function firePopunder(){
-    const s = document.createElement('script');
-    s.dataset.zone = '11474995';
-    s.src = 'https://al5sm.com/tag.min.js';
-    document.body.appendChild(s);
-  }
+  const REWARD_DISPLAY = 50;      // must match v_reward in claim_review_task's SQL
+  const DAILY_LIMIT_DISPLAY = 5;  // must match v_daily_limit in claim_review_task's SQL
 
   let toastTimer;
   function showToast(msg){
@@ -264,41 +247,9 @@
     claimBtn.textContent = 'Claim reward';
   });
 
-  document.getElementById('claim-btn').addEventListener('click', async () => {
-    const claimBtn = document.getElementById('claim-btn');
-    const statusEl = document.getElementById('claim-status');
-    claimBtn.disabled = true;
-    claimBtn.textContent = 'Claiming…';
-
-    firePopunder(); // only fires once the user is back and actually claiming
-
-    const { data, error } = await supabaseClient.rpc('claim_review_task');
-
-    if (error) {
-      showToast("Couldn't claim right now — try again");
-      claimBtn.disabled = false;
-      claimBtn.textContent = 'Claim reward';
-      return;
-    }
-
-    const result = Array.isArray(data) ? data[0] : data;
-
-    if (!result || !result.claimed) {
-      statusEl.textContent = result?.reason === 'daily_limit_reached'
-        ? "You've hit today's review limit."
-        : "Couldn't claim this review.";
-      claimBtn.style.display = 'none';
-      document.getElementById('review-btn').style.display = 'inline-block';
-      reviewOpen = false;
-      await loadClaims();
-      return;
-    }
-
-    showToast(`Reward claimed: ${formatNaira(result.amount)}`);
-    claimBtn.style.display = 'none';
-    document.getElementById('review-btn').style.display = 'inline-block';
-    reviewOpen = false;
-    await loadClaims();
+  document.getElementById('claim-btn').addEventListener('click', () => {
+    if (claimsToday() >= DAILY_LIMIT_DISPLAY) return;
+    window.location.href = `claim.html?url=${encodeURIComponent(TARGET_URL)}`;
   });
 
   function renderClaimsTable(){

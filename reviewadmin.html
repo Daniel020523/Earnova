@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review moderation — EarnOva Admin</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .filter-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:16px;
+    flex-wrap:wrap;
+  }
+  .filter-chip{
+    padding:7px 14px;
+    border-radius:999px;
+    border:1px solid rgba(0,0,0,0.15);
+    background:none;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .filter-chip.active{
+    background:rgba(0,0,0,0.85);
+    color:#fff;
+    border-color:transparent;
+  }
+
+  .submission-card{
+    border:1px solid rgba(0,0,0,0.1);
+    border-radius:10px;
+    padding:16px;
+    margin-top:12px;
+  }
+  .submission-meta{
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+    font-size:13px;
+    opacity:0.7;
+  }
+  .submission-url{
+    font-size:13px;
+    word-break:break-all;
+    margin-top:6px;
+  }
+  .submission-qa{ margin-top:12px; }
+  .submission-qa .q{ font-size:12px; font-weight:600; opacity:0.6; margin-top:8px; }
+  .submission-qa .a{ font-size:14px; margin-top:2px; white-space:pre-wrap; }
+  .submission-actions{
+    display:flex;
+    gap:8px;
+    margin-top:14px;
+  }
+  .submission-actions button{
+    flex:1;
+    padding:9px 0;
+    border-radius:6px;
+    border:1px solid rgba(0,0,0,0.15);
+    background:none;
+    font-weight:600;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .submission-actions button.approve:hover{ background:rgba(0,140,0,0.08); border-color:rgba(0,140,0,0.3); }
+  .submission-actions button.reject:hover{ background:rgba(164,0,0,0.08); border-color:rgba(164,0,0,0.3); }
+  .pill{
+    display:inline-block;
+    padding:2px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:600;
+  }
+  .pill-pending{ background:rgba(200,140,0,0.15); color:#8a5a00; }
+  .pill-approved{ background:rgba(0,140,0,0.12); color:#0a6b00; }
+  .pill-rejected{ background:rgba(164,0,0,0.1); color:#a40000; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Admin</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="affiliateadmin.html">Affiliate admin</a>
+      <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Admin</div>
+  <h1>Review moderation</h1>
+  <p class="lead">Check submitted answers against the site they claim to have reviewed.</p>
+
+  <div id="page-loading" class="card"><p>Loading…</p></div>
+  <div id="page-error" class="card" style="display:none;"><p id="page-error-text"></p></div>
+
+  <div id="page-content" style="display:none;">
+    <div class="card">
+      <div class="filter-row">
+        <button class="filter-chip active" data-status="pending">Pending</button>
+        <button class="filter-chip" data-status="approved">Approved</button>
+        <button class="filter-chip" data-status="rejected">Rejected</button>
+        <button class="filter-chip" data-status="all">All</button>
+      </div>
+
+      <div id="submissions-loading" style="font-size:14px; opacity:0.7;">Loading submissions…</div>
+      <div id="submissions-empty" style="font-size:14px; opacity:0.7; display:none;">Nothing here.</div>
+      <div id="submissions-list"></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ---------------------------------------------------------------
+  // Schema this page expects:
+  //   review_submissions(id, user_id, target_url, answer_activity,
+  //     answer_about, transaction_id, reward_amount, status
+  //     ('pending'|'approved'|'rejected'), admin_note, created_at,
+  //     reviewed_at, reviewed_by)
+  //
+  // Approve/reject (and reversing either one later) go through
+  // admin_decide_review() — a Postgres function — rather than a
+  // direct client update, because changing the decision has to also
+  // insert the right offsetting transaction: rejecting deducts,
+  // un-rejecting (back to approved) restores the credit. Doing that
+  // atomically and only for real admins belongs server-side.
+  // ---------------------------------------------------------------
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function showPageError(msg){
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'none';
+    const errBox = document.getElementById('page-error');
+    document.getElementById('page-error-text').textContent = msg;
+    errBox.style.display = 'block';
+  }
+
+  function formatNaira(n){
+    return Number(n || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+  function formatDate(iso){
+    return new Date(iso).toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+  function escapeHtml(s){
+    const div = document.createElement('div');
+    div.textContent = s || '';
+    return div.innerHTML;
+  }
+
+  let currentFilter = 'pending';
+  let profileNameById = {};
+
+  async function loadProfileNames(userIds){
+    const uniqueIds = [...new Set(userIds)];
+    if (uniqueIds.length === 0) return;
+    const { data } = await supabaseClient
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', uniqueIds);
+    (data || []).forEach(p => { profileNameById[p.id] = p.full_name || p.email || p.id.slice(0, 8); });
+  }
+
+  async function loadSubmissions(){
+    const loadingEl = document.getElementById('submissions-loading');
+    const emptyEl = document.getElementById('submissions-empty');
+    const listEl = document.getElementById('submissions-list');
+
+    loadingEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+    listEl.innerHTML = '';
+
+    let query = supabaseClient
+      .from('review_submissions')
+      .select('id, user_id, target_url, answer_activity, answer_about, reward_amount, status, created_at')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (currentFilter !== 'all') {
+      query = query.eq('status', currentFilter);
+    }
+
+    const { data, error } = await query;
+    loadingEl.style.display = 'none';
+
+    if (error) {
+      emptyEl.textContent = "Couldn't load submissions.";
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    await loadProfileNames(data.map(row => row.user_id));
+
+    listEl.innerHTML = data.map(row => `
+      <div class="submission-card" data-id="${row.id}">
+        <div class="submission-meta">
+          <span>${escapeHtml(profileNameById[row.user_id] || row.user_id.slice(0, 8))} — ${formatDate(row.created_at)}</span>
+          <span><span class="pill pill-${row.status}">${row.status}</span> · ${formatNaira(row.reward_amount)}</span>
+        </div>
+        <div class="submission-url">${escapeHtml(row.target_url)}</div>
+        <div class="submission-qa">
+          <div class="q">What did you do on the site?</div>
+          <div class="a">${escapeHtml(row.answer_activity)}</div>
+          <div class="q">What is the website about?</div>
+          <div class="a">${escapeHtml(row.answer_about)}</div>
+        </div>
+        ${row.status === 'pending' ? `
+          <div class="submission-actions">
+            <button class="approve" data-decide="approved" data-id="${row.id}">Approve</button>
+            <button class="reject" data-decide="rejected" data-id="${row.id}">Reject &amp; deduct</button>
+          </div>
+        ` : ''}
+        ${row.status === 'approved' ? `
+          <div class="submission-actions">
+            <button class="reject" data-decide="rejected" data-id="${row.id}">Revoke &amp; deduct</button>
+          </div>
+        ` : ''}
+        ${row.status === 'rejected' ? `
+          <div class="submission-actions">
+            <button class="approve" data-decide="approved" data-id="${row.id}">Restore &amp; re-credit</button>
+          </div>
+        ` : ''}
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('[data-decide]').forEach(btn => {
+      btn.addEventListener('click', () => decideSubmission(btn.dataset.id, btn.dataset.decide, btn));
+    });
+  }
+
+  async function decideSubmission(id, decision, btn){
+    const card = btn.closest('.submission-card');
+    const originalLabel = btn.textContent;
+    card.querySelectorAll('button').forEach(b => b.disabled = true);
+    btn.textContent = decision === 'approved' ? 'Updating…' : 'Updating…';
+
+    const { error } = await supabaseClient.rpc('admin_decide_review', {
+      p_submission_id: id,
+      p_decision: decision
+    });
+
+    if (error) {
+      showToast("Couldn't record that decision — try again");
+      card.querySelectorAll('button').forEach(b => b.disabled = false);
+      btn.textContent = originalLabel;
+      return;
+    }
+
+    showToast(decision === 'approved' ? 'Credit applied' : 'Deducted from balance');
+    await loadSubmissions();
+  }
+
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentFilter = chip.dataset.status;
+      loadSubmissions();
+    });
+  });
+
+  async function loadPage(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profileError || !profile || !profile.is_admin) {
+      showPageError("You don't have access to this page.");
+      return;
+    }
+
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'block';
+    await loadSubmissions();
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  loadPage();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claim your reward — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .field{ margin-top:16px; }
+  .field label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .field textarea{
+    width:100%;
+    min-height:80px;
+    padding:10px 12px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:6px;
+    font-size:14px;
+    font-family:inherit;
+    resize:vertical;
+  }
+  .notice{
+    font-size:13px;
+    line-height:1.5;
+    opacity:0.75;
+    background:rgba(0,0,0,0.04);
+    border-radius:8px;
+    padding:12px 14px;
+    margin-top:16px;
+  }
+  .continue-btn{
+    margin-top:20px;
+    width:100%;
+    padding:13px 0;
+    border-radius:8px;
+    border:none;
+    background:rgba(0,0,0,0.85);
+    color:#fff;
+    font-weight:600;
+    font-size:15px;
+    cursor:pointer;
+  }
+  .continue-btn:hover{ opacity:0.92; }
+  .continue-btn:disabled{ opacity:0.45; cursor:not-allowed; }
+  .field-error{ font-size:13px; color:#a40000; margin-top:8px; display:none; }
+
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.55);
+    z-index:100;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal-box{
+    background:#fff;
+    border-radius:12px;
+    max-width:420px;
+    width:100%;
+    padding:28px 24px;
+    text-align:center;
+  }
+  .modal-icon{ font-size:36px; }
+  .modal-title{ font-size:19px; font-weight:700; margin-top:10px; }
+  .modal-body{ font-size:14px; opacity:0.75; line-height:1.5; margin-top:8px; }
+  .modal-done-btn{
+    margin-top:18px;
+    width:100%;
+    padding:12px 0;
+    border-radius:8px;
+    border:none;
+    background:rgba(0,0,0,0.85);
+    color:#fff;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .modal-done-btn:hover{ opacity:0.92; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="profile.html">Profile</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Review website</div>
+  <h1>Quick check before you claim</h1>
+  <p class="lead">Answer these two questions about the site you just visited.</p>
+
+  <div id="page-loading" class="card">
+    <p>Loading…</p>
+  </div>
+
+  <div id="page-error" class="card" style="display:none;">
+    <p id="page-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
+
+  <div id="page-content" class="card" style="display:none;">
+
+    <div class="field">
+      <label for="answer-activity">What did you do on the site?</label>
+      <textarea id="answer-activity" placeholder="e.g. I browsed the homepage and looked at the pricing page"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="answer-about">What is the website about?</label>
+      <textarea id="answer-about" placeholder="e.g. It's a tool for..."></textarea>
+    </div>
+
+    <div class="field-error" id="form-error">Please answer both questions before continuing.</div>
+
+    <div class="notice">
+      Your reward is credited instantly once you continue. Our admin team may review your answers afterward — if they don't match what's on the site, the reward will be deducted from your balance.
+    </div>
+
+    <button class="continue-btn" id="continue-btn">Continue</button>
+  </div>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="modal-overlay" id="reward-modal-overlay">
+  <div class="modal-box">
+    <div class="modal-icon">✅</div>
+    <div class="modal-title">Reward credited</div>
+    <div class="modal-body" id="reward-modal-body"></div>
+    <button class="modal-done-btn" id="modal-done-btn">Back to dashboard</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ---------------------------------------------------------------
+  // The reward amount and daily cap are enforced server-side by the
+  // submit_review_and_claim() Postgres function — this page just
+  // collects the answers and asks for the credit. The answers and the
+  // resulting transaction id are stored together in
+  // review_submissions so reviewadmin.html can check them later and
+  // reverse the credit (a negative 'review' transaction) if they
+  // don't hold up.
+  //
+  // The popunder only fires here, inside the "Continue" click handler
+  // — a single, real user gesture — never on page load.
+  // ---------------------------------------------------------------
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function firePopunder(){
+    const s = document.createElement('script');
+    s.dataset.zone = '11474995';
+    s.src = 'https://al5sm.com/tag.min.js';
+    document.body.appendChild(s);
+  }
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function showPageError(msg){
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'none';
+    const errBox = document.getElementById('page-error');
+    document.getElementById('page-error-text').textContent = msg;
+    errBox.style.display = 'block';
+  }
+
+  function formatNaira(n){
+    return Number(n || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const targetUrl = params.get('url') || '';
+
+  document.getElementById('continue-btn').addEventListener('click', async () => {
+    const activityEl = document.getElementById('answer-activity');
+    const aboutEl = document.getElementById('answer-about');
+    const errorEl = document.getElementById('form-error');
+    const btn = document.getElementById('continue-btn');
+
+    const activity = activityEl.value.trim();
+    const about = aboutEl.value.trim();
+
+    if (!activity || !about) {
+      errorEl.style.display = 'block';
+      return;
+    }
+    errorEl.style.display = 'none';
+
+    // Fire immediately, synchronously, inside this click — this is
+    // the one real user gesture, so it's the only place this happens.
+    firePopunder();
+
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    const { data, error } = await supabaseClient.rpc('submit_review_and_claim', {
+      p_target_url: targetUrl,
+      p_answer_activity: activity,
+      p_answer_about: about
+    });
+
+    if (error) {
+      showToast("Couldn't submit right now — try again");
+      btn.disabled = false;
+      btn.textContent = 'Continue';
+      return;
+    }
+
+    const result = Array.isArray(data) ? data[0] : data;
+
+    if (!result || !result.claimed) {
+      showToast(
+        result?.reason === 'daily_limit_reached'
+          ? "You've hit today's review limit."
+          : "Couldn't submit this review."
+      );
+      btn.disabled = false;
+      btn.textContent = 'Continue';
+      return;
+    }
+
+    document.getElementById('reward-modal-body').textContent =
+      `${formatNaira(result.amount)} has been added to your balance. Your answers may still be reviewed.`;
+    document.getElementById('reward-modal-overlay').classList.add('open');
+  });
+
+  document.getElementById('modal-done-btn').addEventListener('click', () => {
+    window.location.href = 'dashboard.html';
+  });
+
+  async function loadPage(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    if (!targetUrl) {
+      showPageError('Missing review link — start a review from the Review website page first.');
+      return;
+    }
+
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'block';
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  loadPage();
+</script>
+
+</body>
+</html>
