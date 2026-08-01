@@ -101,7 +101,15 @@
     font-weight:600;
   }
   .product-name{ font-size:15px; font-weight:600; }
-  .product-desc{ font-size:13px; opacity:0.75; line-height:1.4; }
+  .product-desc{
+    font-size:13px;
+    opacity:0.75;
+    line-height:1.4;
+    display:-webkit-box;
+    -webkit-line-clamp:2;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
   .product-meta{
     display:flex;
     justify-content:space-between;
@@ -275,15 +283,6 @@
           <div class="stat-label">Paid commission</div>
           <div class="stat-value" id="stat-paid">₦0.00</div>
         </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Your affiliate ID</h2>
-      <p style="font-size:13px; opacity:0.7; margin-top:4px;">This is your internal EarnOva ID. Each product below gets its own tracking link when you tap "Get affiliate link" — you don't need to share this ID directly.</p>
-      <div class="link-row">
-        <input class="link-input" id="affiliate-id-display" type="text" readonly>
-        <button class="btn btn-solid" id="copy-id-btn">Copy ID</button>
       </div>
     </div>
 
@@ -710,15 +709,6 @@
     document.getElementById('stat-clicks').textContent = total;
   }
 
-  document.getElementById('copy-id-btn').addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(currentUserId);
-      showToast('Affiliate ID copied');
-    } catch (e) {
-      showToast('Could not copy — select the text manually');
-    }
-  });
-
   async function loadPage(){
     const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
 
@@ -728,7 +718,6 @@
     }
 
     currentUserId = session.user.id;
-    document.getElementById('affiliate-id-display').value = currentUserId;
 
     await loadProducts();
     await Promise.all([
