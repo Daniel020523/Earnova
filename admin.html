@@ -525,7 +525,7 @@
       .from('transactions')
       .select(`
         id, user_id, amount, status, created_at,
-        profiles ( full_name )
+        profiles!transactions_user_id_fkey ( full_name )
       `)
       .eq('type', 'earning')
       .order('created_at', { ascending: false })
