@@ -263,7 +263,19 @@
       .eq('type', 'review_deduction')
       .eq('status', 'completed');
 
-    if (earningError || payoutError || refundError || referralError || reviewError || reviewDeductionError) {
+    // Sum completed review restores — admin reversed an earlier
+    // deduction. This only restores available balance, the same way
+    // 'refund' restores what 'payout' subtracted — it must NOT also
+    // add to totalEarned, since the original 'review' credit that
+    // this is un-deducting is still counted there.
+    const { data: reviewRestoreRows, error: reviewRestoreError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'review_restore')
+      .eq('status', 'completed');
+
+    if (earningError || payoutError || refundError || referralError || reviewError || reviewDeductionError || reviewRestoreError) {
       document.getElementById('payout-note').textContent =
         "We couldn't load your earnings right now.";
       return;
@@ -275,7 +287,8 @@
     const totalReferral = (referralRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalReview = (reviewRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalReviewDeducted = (reviewDeductionRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const available = totalEarned - totalPaidOut + totalRefunded + totalReferral + totalReview - totalReviewDeducted;
+    const totalReviewRestored = (reviewRestoreRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const available = totalEarned - totalPaidOut + totalRefunded + totalReferral + totalReview - totalReviewDeducted + totalReviewRestored;
 
     currentAvailableBalance = available;
 

@@ -145,9 +145,11 @@
   // 'review_deduction' (positive amount, subtracted from balance —
   // transactions.amount has a >= 0 check constraint, so deductions
   // use their own type rather than a negative number, the same way
-  // payout/refund already work). Un-rejecting inserts a fresh
-  // 'review' credit to restore it. Doing that atomically and only
-  // for real admins belongs server-side.
+  // payout/refund already work). Un-rejecting inserts a
+  // 'review_restore' — NOT a fresh 'review' credit, which would
+  // double-count against "Total earned" since the original credit
+  // is still on the books. Doing this atomically and only for real
+  // admins belongs server-side.
   // ---------------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
