@@ -141,9 +141,13 @@
   // Approve/reject (and reversing either one later) go through
   // admin_decide_review() — a Postgres function — rather than a
   // direct client update, because changing the decision has to also
-  // insert the right offsetting transaction: rejecting deducts,
-  // un-rejecting (back to approved) restores the credit. Doing that
-  // atomically and only for real admins belongs server-side.
+  // insert the right offsetting transaction: rejecting inserts a
+  // 'review_deduction' (positive amount, subtracted from balance —
+  // transactions.amount has a >= 0 check constraint, so deductions
+  // use their own type rather than a negative number, the same way
+  // payout/refund already work). Un-rejecting inserts a fresh
+  // 'review' credit to restore it. Doing that atomically and only
+  // for real admins belongs server-side.
   // ---------------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";

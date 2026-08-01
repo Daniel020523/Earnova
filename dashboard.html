@@ -253,7 +253,17 @@
       .eq('type', 'review')
       .eq('status', 'completed');
 
-    if (earningError || payoutError || refundError || referralError || reviewError) {
+    // Sum completed review deductions — admin revoked a review claim
+    // after crediting it (see reviewadmin.html). Positive amounts,
+    // subtracted here the same way payout is.
+    const { data: reviewDeductionRows, error: reviewDeductionError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'review_deduction')
+      .eq('status', 'completed');
+
+    if (earningError || payoutError || refundError || referralError || reviewError || reviewDeductionError) {
       document.getElementById('payout-note').textContent =
         "We couldn't load your earnings right now.";
       return;
@@ -264,7 +274,8 @@
     const totalRefunded = (refundRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalReferral = (referralRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalReview = (reviewRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const available = totalEarned - totalPaidOut + totalRefunded + totalReferral + totalReview;
+    const totalReviewDeducted = (reviewDeductionRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const available = totalEarned - totalPaidOut + totalRefunded + totalReferral + totalReview - totalReviewDeducted;
 
     currentAvailableBalance = available;
 
@@ -284,7 +295,7 @@
   function renderTransactionRows(rows){
     const bodyEl = document.getElementById('history-body');
     bodyEl.innerHTML = rows.map(row => {
-      const sign = row.type === 'payout' ? '-' : '+';
+      const sign = (row.type === 'payout' || row.type === 'review_deduction') ? '-' : '+';
       return `
         <tr>
           <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${formatDate(row.created_at)}</td>

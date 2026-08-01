@@ -166,8 +166,9 @@
   // collects the answers and asks for the credit. The answers and the
   // resulting transaction id are stored together in
   // review_submissions so reviewadmin.html can check them later and
-  // reverse the credit (a negative 'review' transaction) if they
-  // don't hold up.
+  // reverse the credit with a 'review_deduction' transaction (a
+  // positive amount that's subtracted from the balance, the same
+  // pattern as payout/refund already use) if they don't hold up.
   //
   // The popunder only fires here, inside the "Continue" click handler
   // — a single, real user gesture — never on page load.
