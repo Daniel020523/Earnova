@@ -33,6 +33,34 @@
   @media (max-width:600px){
     .task-grid{ grid-template-columns:repeat(2, 1fr); }
   }
+  .balance-card{
+    position:relative;
+  }
+  .balance-toggle{
+    position:absolute;
+    top:16px;
+    right:16px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:34px;
+    height:34px;
+    border-radius:50%;
+    border:1px solid rgba(0,0,0,0.12);
+    background:none;
+    cursor:pointer;
+    color:inherit;
+    opacity:0.7;
+    transition:background 0.15s ease, opacity 0.15s ease;
+  }
+  .balance-toggle:hover{
+    background:rgba(0,0,0,0.04);
+    opacity:1;
+  }
+  .balance-toggle svg{
+    width:18px;
+    height:18px;
+  }
   .see-all-btn{
     background:none;
     border:none;
@@ -99,7 +127,17 @@
 
   <div id="dashboard-content" style="display:none;">
 
-    <div class="card">
+    <div class="card balance-card">
+      <button type="button" class="balance-toggle" id="balance-toggle" aria-label="Hide balances" aria-pressed="false" title="Hide balances">
+        <svg id="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+        <svg id="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+          <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a20.6 20.6 0 0 1 5.06-6.06M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 8 11 8a20.5 20.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+          <line x1="1" y1="1" x2="23" y2="23"></line>
+        </svg>
+      </button>
       <div style="display:flex; flex-wrap:wrap; gap:24px; margin-bottom:16px;">
         <div>
           <div style="font-size:13px; opacity:0.7;">Available balance</div>
@@ -203,11 +241,43 @@
 
   let currentUserId = null;
   let currentAvailableBalance = 0;
+  let currentTotalEarned = 0;
 
   // Holds the full set of transactions fetched from the server, and
   // whether the user has expanded the list to see everything.
   let allTransactions = [];
   let historyExpanded = false;
+
+  // Whether balances/amounts are shown or masked. Persisted so the
+  // choice survives a page reload.
+  let balancesVisible = localStorage.getItem('balancesVisible') !== 'false';
+  const MASK = '••••••';
+
+  function applyBalanceVisibility(){
+    const eyeOpen = document.getElementById('eye-open');
+    const eyeClosed = document.getElementById('eye-closed');
+    const toggleBtn = document.getElementById('balance-toggle');
+
+    document.getElementById('available-balance').textContent =
+      balancesVisible ? formatNaira(currentAvailableBalance) : MASK;
+    document.getElementById('total-earned').textContent =
+      balancesVisible ? formatNaira(currentTotalEarned) : MASK;
+
+    eyeOpen.style.display = balancesVisible ? 'block' : 'none';
+    eyeClosed.style.display = balancesVisible ? 'none' : 'block';
+    toggleBtn.setAttribute('aria-pressed', String(!balancesVisible));
+    toggleBtn.setAttribute('aria-label', balancesVisible ? 'Hide balances' : 'Show balances');
+    toggleBtn.title = balancesVisible ? 'Hide balances' : 'Show balances';
+
+    // Amount column in the transaction history mirrors the same state.
+    updateHistoryView();
+  }
+
+  document.getElementById('balance-toggle').addEventListener('click', () => {
+    balancesVisible = !balancesVisible;
+    localStorage.setItem('balancesVisible', String(balancesVisible));
+    applyBalanceVisibility();
+  });
 
   async function loadBalances(userId){
     // Sum completed earning transactions.
@@ -291,9 +361,9 @@
     const available = totalEarned - totalPaidOut + totalRefunded + totalReferral + totalReview - totalReviewDeducted + totalReviewRestored;
 
     currentAvailableBalance = available;
+    currentTotalEarned = totalEarned + totalReferral + totalReview;
 
-    document.getElementById('total-earned').textContent = formatNaira(totalEarned + totalReferral + totalReview);
-    document.getElementById('available-balance').textContent = formatNaira(available);
+    applyBalanceVisibility();
     document.getElementById('payout-note').textContent = '';
   }
 
@@ -309,11 +379,13 @@
     const bodyEl = document.getElementById('history-body');
     bodyEl.innerHTML = rows.map(row => {
       const sign = (row.type === 'payout' || row.type === 'review_deduction') ? '-' : '+';
+      const amountText = `${sign}${formatNaira(Math.abs(Number(row.amount || 0)))}`;
+      const displayAmount = balancesVisible ? amountText : MASK;
       return `
         <tr>
           <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${formatDate(row.created_at)}</td>
           <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${capitalize(row.type)}</td>
-          <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right;" title="${sign}${formatNaira(Math.abs(Number(row.amount || 0)))}">${sign}${formatNaira(Math.abs(Number(row.amount || 0)))}</td>
+          <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right;" title="${balancesVisible ? amountText : 'Hidden'}">${displayAmount}</td>
           <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right; opacity:0.75;">${capitalize(row.status)}</td>
         </tr>`;
     }).join('');
