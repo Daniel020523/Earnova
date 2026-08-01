@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review website — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .task-hero{
+    display:flex;
+    flex-wrap:wrap;
+    gap:24px;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .task-reward{ font-size:32px; font-weight:700; }
+  .task-reward-label{ font-size:13px; opacity:0.7; }
+  .task-remaining{ font-size:13px; opacity:0.7; margin-top:4px; }
+
+  .review-btn, .claim-btn{
+    padding:14px 28px;
+    border-radius:8px;
+    border:none;
+    background:rgba(0,0,0,0.85);
+    color:#fff;
+    font-weight:600;
+    font-size:15px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .review-btn:hover, .claim-btn:hover{ opacity:0.92; }
+  .review-btn:disabled, .claim-btn:disabled{
+    opacity:0.45;
+    cursor:not-allowed;
+  }
+  .claim-status{ font-size:13px; opacity:0.7; margin-top:10px; }
+
+  .progress-track{
+    width:100%;
+    height:8px;
+    border-radius:999px;
+    background:rgba(0,0,0,0.08);
+    margin-top:16px;
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    width:0%;
+    background:rgba(0,0,0,0.85);
+    transition:width 0.2s linear;
+  }
+  .progress-label{ font-size:12px; opacity:0.6; margin-top:6px; }
+
+  .ad-slot{
+    border:1px dashed rgba(0,0,0,0.2);
+    border-radius:8px;
+    padding:16px;
+    font-size:12px;
+    opacity:0.6;
+    text-align:center;
+    margin-top:16px;
+  }
+
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  #claims-table{ width:100%; min-width:360px; border-collapse:collapse; table-layout:fixed; }
+  #claims-table th, #claims-table td{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #claims-table th:nth-child(1), #claims-table td:nth-child(1){ width:50%; }
+  #claims-table th:nth-child(2), #claims-table td:nth-child(2){ width:25%; }
+  #claims-table th:nth-child(3), #claims-table td:nth-child(3){ width:25%; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="profile.html">Profile</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Earn more</div>
+  <h1>Review website</h1>
+  <p class="lead">Visit the site below, spend a little time on it, then come back here to claim your reward.</p>
+
+  <div id="page-loading" class="card">
+    <p>Loading task…</p>
+  </div>
+
+  <div id="page-error" class="card" style="display:none;">
+    <p id="page-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
+
+  <div id="page-content" style="display:none;">
+
+    <div class="card">
+      <div class="task-hero">
+        <div>
+          <div class="task-reward-label">Reward per review</div>
+          <div class="task-reward" id="reward-amount">₦0.00</div>
+          <div class="task-remaining" id="remaining-label"></div>
+        </div>
+        <div style="text-align:right;">
+          <button class="review-btn" id="review-btn">Start review</button>
+          <button class="claim-btn" id="claim-btn" style="display:none;">Claim reward</button>
+          <div class="claim-status" id="claim-status"></div>
+        </div>
+      </div>
+
+      <!--
+        Banner ad slot — paste your ad network's display/banner embed
+        code here (e.g. an Adsterra, PropellerAds, or AdSense unit).
+      -->
+      <div class="ad-slot" id="banner-ad-slot">Banner ad slot — paste your ad network's embed code here</div>
+    </div>
+
+    <div class="card">
+      <h2>Recent claims</h2>
+      <div id="claims-loading" style="font-size:14px; opacity:0.7;">Loading history…</div>
+      <div id="claims-empty" style="font-size:14px; opacity:0.7; display:none;">No claims yet — start a review above.</div>
+      <div class="table-scroll">
+        <table id="claims-table" style="display:none;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Date</th>
+              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Amount</th>
+              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="claims-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ---------------------------------------------------------------
+  // Flow: user clicks "Start review" -> the target site opens in a
+  // normal new tab (a real user-initiated window.open, not a hidden
+  // popunder — any popunder behavior comes from the ad network script
+  // pasted into #popunder-ad-slot, which fires off its own gesture).
+  // A visible dwell timer counts down locally; once it hits zero the
+  // "Claim reward" button appears. Like daily-task.html, the actual
+  // credit is issued by a Postgres function (claim_review_task), not
+  // a client-side insert — the daily cap and reward amount are
+  // enforced server-side, not trusted from the browser.
+  //
+  // Flow: click "Start review" -> TARGET_URL opens in a new tab and
+  // "Claim reward" becomes available right away. The popunder script
+  // only fires when the user actually clicks "Claim reward" (i.e.
+  // once they're back on this tab) — not on page load, and not the
+  // moment "Start review" is clicked.
+  // ---------------------------------------------------------------
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const TARGET_URL = "https://omg10.com/4/11475054";
+  const REWARD_DISPLAY = 50;      // must match v_reward in the SQL function
+  const DAILY_LIMIT_DISPLAY = 5;  // must match v_daily_limit in the SQL function
+
+  function firePopunder(){
+    const s = document.createElement('script');
+    s.dataset.zone = '11474995';
+    s.src = 'https://al5sm.com/tag.min.js';
+    document.body.appendChild(s);
+  }
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function showPageError(msg){
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'none';
+    const errBox = document.getElementById('page-error');
+    document.getElementById('page-error-text').textContent = msg;
+    errBox.style.display = 'block';
+  }
+
+  function formatNaira(n){
+    return Number(n || 0).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+  function formatDate(iso){
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+  function capitalize(s){
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  }
+
+  document.getElementById('reward-amount').textContent = formatNaira(REWARD_DISPLAY);
+
+  let currentUserId = null;
+  let claims = [];
+  let reviewOpen = false;
+
+  function claimsToday(){
+    const today = new Date();
+    return claims.filter(row => {
+      const d = new Date(row.created_at);
+      return d.getUTCFullYear() === today.getUTCFullYear()
+        && d.getUTCMonth() === today.getUTCMonth()
+        && d.getUTCDate() === today.getUTCDate();
+    }).length;
+  }
+
+  function updateReviewUI(){
+    const used = claimsToday();
+    const remaining = Math.max(0, DAILY_LIMIT_DISPLAY - used);
+    document.getElementById('remaining-label').textContent =
+      remaining > 0 ? `${remaining} of ${DAILY_LIMIT_DISPLAY} reviews left today` : "You've hit today's review limit.";
+
+    const reviewBtn = document.getElementById('review-btn');
+    if (remaining <= 0) {
+      reviewBtn.disabled = true;
+      reviewBtn.textContent = 'Limit reached for today';
+    } else if (!reviewOpen) {
+      reviewBtn.disabled = false;
+      reviewBtn.textContent = 'Start review';
+    }
+  }
+
+  document.getElementById('review-btn').addEventListener('click', () => {
+    if (claimsToday() >= DAILY_LIMIT_DISPLAY) return;
+
+    window.open(TARGET_URL, '_blank', 'noopener');
+    reviewOpen = true;
+
+    const reviewBtn = document.getElementById('review-btn');
+    const claimBtn = document.getElementById('claim-btn');
+
+    reviewBtn.disabled = true;
+    reviewBtn.textContent = 'Review in progress…';
+    claimBtn.style.display = 'inline-block';
+    claimBtn.disabled = false;
+    claimBtn.textContent = 'Claim reward';
+  });
+
+  document.getElementById('claim-btn').addEventListener('click', async () => {
+    const claimBtn = document.getElementById('claim-btn');
+    const statusEl = document.getElementById('claim-status');
+    claimBtn.disabled = true;
+    claimBtn.textContent = 'Claiming…';
+
+    firePopunder(); // only fires once the user is back and actually claiming
+
+    const { data, error } = await supabaseClient.rpc('claim_review_task');
+
+    if (error) {
+      showToast("Couldn't claim right now — try again");
+      claimBtn.disabled = false;
+      claimBtn.textContent = 'Claim reward';
+      return;
+    }
+
+    const result = Array.isArray(data) ? data[0] : data;
+
+    if (!result || !result.claimed) {
+      statusEl.textContent = result?.reason === 'daily_limit_reached'
+        ? "You've hit today's review limit."
+        : "Couldn't claim this review.";
+      claimBtn.style.display = 'none';
+      document.getElementById('review-btn').style.display = 'inline-block';
+      reviewOpen = false;
+      await loadClaims();
+      return;
+    }
+
+    showToast(`Reward claimed: ${formatNaira(result.amount)}`);
+    claimBtn.style.display = 'none';
+    document.getElementById('review-btn').style.display = 'inline-block';
+    reviewOpen = false;
+    await loadClaims();
+  });
+
+  function renderClaimsTable(){
+    const loadingEl = document.getElementById('claims-loading');
+    const emptyEl = document.getElementById('claims-empty');
+    const tableEl = document.getElementById('claims-table');
+    loadingEl.style.display = 'none';
+
+    if (claims.length === 0) {
+      emptyEl.style.display = 'block';
+      tableEl.style.display = 'none';
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+    tableEl.style.display = 'table';
+    document.getElementById('claims-body').innerHTML = claims.slice(0, 20).map(row => `
+      <tr>
+        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${formatDate(row.created_at)}</td>
+        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right;">+${formatNaira(row.amount)}</td>
+        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right; opacity:0.75;">${capitalize(row.status)}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadClaims(){
+    const { data, error } = await supabaseClient
+      .from('transactions')
+      .select('amount, status, created_at')
+      .eq('user_id', currentUserId)
+      .eq('type', 'review')
+      .order('created_at', { ascending: false })
+      .limit(60);
+
+    if (error) {
+      document.getElementById('claims-loading').style.display = 'none';
+      document.getElementById('claims-empty').textContent = "Couldn't load your claim history.";
+      document.getElementById('claims-empty').style.display = 'block';
+      claims = [];
+    } else {
+      claims = data || [];
+    }
+
+    renderClaimsTable();
+    updateReviewUI();
+  }
+
+  async function loadPage(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    currentUserId = session.user.id;
+
+    await loadClaims();
+
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'block';
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  loadPage();
+</script>
+
+</body>
+</html>

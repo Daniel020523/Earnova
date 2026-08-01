@@ -245,7 +245,15 @@
       .eq('type', 'referral')
       .eq('status', 'completed');
 
-    if (earningError || payoutError || refundError || referralError) {
+    // Sum completed review-website task rewards.
+    const { data: reviewRows, error: reviewError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'review')
+      .eq('status', 'completed');
+
+    if (earningError || payoutError || refundError || referralError || reviewError) {
       document.getElementById('payout-note').textContent =
         "We couldn't load your earnings right now.";
       return;
@@ -255,11 +263,12 @@
     const totalPaidOut = (payoutRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalRefunded = (refundRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalReferral = (referralRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const available = totalEarned - totalPaidOut + totalRefunded + totalReferral;
+    const totalReview = (reviewRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const available = totalEarned - totalPaidOut + totalRefunded + totalReferral + totalReview;
 
     currentAvailableBalance = available;
 
-    document.getElementById('total-earned').textContent = formatNaira(totalEarned + totalReferral);
+    document.getElementById('total-earned').textContent = formatNaira(totalEarned + totalReferral + totalReview);
     document.getElementById('available-balance').textContent = formatNaira(available);
     document.getElementById('payout-note').textContent = '';
   }
