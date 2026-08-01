@@ -147,10 +147,6 @@
           <div class="stat-label">Pending earnings</div>
           <div class="stat-value" id="stat-earning-pending-count">0</div>
         </div>
-        <div>
-          <div class="stat-label">Total earned (all users)</div>
-          <div class="stat-value" id="stat-total-earned-all">₦0.00</div>
-        </div>
       </div>
     </div>
 
@@ -534,8 +530,7 @@
     loadingEl.style.display = 'none';
 
     if (error) {
-      console.error('loadEarnings error:', error);
-      emptyEl.textContent = "Couldn't load earnings: " + error.message;
+      emptyEl.textContent = "Couldn't load earnings.";
       emptyEl.style.display = 'block';
       return;
     }
@@ -605,38 +600,6 @@
     await loadEarnings();
   }
 
-  // ---------------- Total earned (all users) ----------------
-
-  async function loadTotalEarnedAllUsers(){
-    const statEl = document.getElementById('stat-total-earned-all');
-
-    // Mirrors dashboard.html's "Total earned" formula (earning + review +
-    // referral, completed only) but summed across every user instead of
-    // filtering to one — gives you the platform-wide total.
-    const [earningResult, reviewResult, referralResult] = await Promise.all([
-      supabaseClient.from('transactions').select('amount').eq('type', 'earning').eq('status', 'completed'),
-      supabaseClient.from('transactions').select('amount').eq('type', 'review').eq('status', 'completed'),
-      supabaseClient.from('transactions').select('amount').eq('type', 'referral').eq('status', 'completed')
-    ]);
-
-    const { data: earningRows, error: earningError } = earningResult;
-    const { data: reviewRows, error: reviewError } = reviewResult;
-    const { data: referralRows, error: referralError } = referralResult;
-
-    if (earningError || reviewError || referralError) {
-      console.error('loadTotalEarnedAllUsers error:', earningError || reviewError || referralError);
-      statEl.textContent = '—';
-      return;
-    }
-
-    const total =
-      (earningRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0) +
-      (reviewRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0) +
-      (referralRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-
-    statEl.textContent = formatNaira(total);
-  }
-
   // ---------------- Refresh buttons ----------------
 
   document.querySelectorAll('[data-refresh]').forEach(btn => {
@@ -669,8 +632,7 @@
       loadPendingPayouts(),
       loadPaidPayouts(),
       loadFailedPayouts(),
-      loadEarnings(),
-      loadTotalEarnedAllUsers()
+      loadEarnings()
     ]);
 
     document.getElementById('admin-loading').style.display = 'none';
