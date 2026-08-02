@@ -148,9 +148,20 @@
       }, 800);
 
     } catch (err) {
-  alert('ERROR: ' + JSON.stringify(err, null, 2));
-  showToast(err.message || err.error_description || err.msg || 'Something went wrong.');
-} finally {
+      // Full error details go to the console for debugging —
+      // never shown directly to the user.
+      console.error('Signup error:', err);
+
+      const msg = err.message || err.error_description || err.msg || '';
+
+      if (err.name === 'AuthRetryableFetchError' || msg.toLowerCase().includes('fetch')) {
+        showToast("Couldn't reach the server. Please check your connection and try again.");
+      } else if (msg) {
+        showToast(msg);
+      } else {
+        showToast('Something went wrong. Please try again.');
+      }
+    } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Sign up';
     }
