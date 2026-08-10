@@ -90,6 +90,7 @@
       <p class="task-desc" id="task-desc-text">Tap start, stay on this page for a few seconds, then claim your reward. One task per day.</p>
       <a class="btn btn-solid" id="task-link-btn" href="#" target="_blank" rel="noopener" style="display:none; margin-bottom:16px;">Go to task</a>
       <p class="task-desc" id="task-rules-text" style="display:none;"></p>
+      <p class="task-desc" style="opacity:0.6; font-size:12px;">By claiming this reward you confirm you completed the task above. Admin may verify your submission — if you didn't actually complete it, the reward will be revoked from your balance.</p>
       <div class="progress-track" id="progress-track">
         <div class="progress-fill" id="progress-fill"></div>
       </div>
@@ -122,6 +123,8 @@
     <p id="task-error-text"></p>
     <a class="btn btn-solid" href="login.html">Go to log in</a>
   </div>
+
+  <p id="debug-line" style="font-size:11px; opacity:0.5; margin-top:16px; word-break:break-word;"></p>
 </main>
 
 <footer>
@@ -257,13 +260,19 @@
   let currentTask = null;
 
   async function checkTaskStatus(){
+    const queryDate = todayISODate();
+
     // Find today's published, active task.
     const { data: taskRows, error: taskError } = await supabaseClient
       .from('daily_tasks')
       .select('id, title, description, reward_amount, task_date, link_url, rules')
-      .eq('task_date', todayISODate())
+      .eq('task_date', queryDate)
       .eq('is_active', true)
       .limit(1);
+
+    document.getElementById('debug-line').textContent =
+      `debug: queried task_date=${queryDate}, found=${taskRows ? taskRows.length : 'error'}` +
+      (taskError ? `, error=${taskError.message}` : '');
 
     if (taskError){
       showTaskError("We couldn't load today's task right now.");
