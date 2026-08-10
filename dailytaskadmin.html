@@ -142,6 +142,14 @@
             <label class="form-label" for="desc-input">Description</label>
             <textarea class="form-textarea" id="desc-input" maxlength="500" placeholder="What the user needs to do"></textarea>
           </div>
+          <div class="full">
+            <label class="form-label" for="link-input">Task link (e.g. TikTok profile or post to follow)</label>
+            <input class="form-input" id="link-input" type="url" placeholder="https://tiktok.com/@yourbrand">
+          </div>
+          <div class="full">
+            <label class="form-label" for="rules-input">Rules</label>
+            <textarea class="form-textarea" id="rules-input" maxlength="500" placeholder="e.g. Follow the account and comment on the pinned video. Screenshots may be requested."></textarea>
+          </div>
           <div>
             <label class="form-label" for="reward-input">Reward amount (₦)</label>
             <input class="form-input" id="reward-input" type="number" min="0" step="0.01" required placeholder="200">
@@ -178,6 +186,28 @@
             </tr>
           </thead>
           <tbody id="tasks-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Submissions to verify</h2>
+      <p style="font-size:13px; opacity:0.7; margin-top:-4px;">Rewards are paid instantly on claim. Revoking here deducts the reward back from the user's balance; restoring pays it back out.</p>
+      <div id="subs-loading" style="font-size:14px; opacity:0.7;">Loading submissions…</div>
+      <div id="subs-empty" style="font-size:14px; opacity:0.7; display:none;">No submissions yet.</div>
+      <div class="table-scroll">
+        <table id="subs-table" style="display:none;">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>User</th>
+              <th>Task</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="subs-body"></tbody>
         </table>
       </div>
     </div>
@@ -318,6 +348,119 @@
     });
   }
 
+  async function loadSubmissions(){
+    const loadingEl = document.getElementById('subs-loading');
+    const emptyEl = document.getElementById('subs-empty');
+    const tableEl = document.getElementById('subs-table');
+
+    loadingEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+    tableEl.style.display = 'none';
+
+    const { data: rows, error } = await supabaseClient
+      .from('transactions')
+      .select('id, user_id, amount, created_at, verification_status, task_id, daily_tasks(title), profiles(full_name)')
+      .eq('type', 'earning')
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    loadingEl.style.display = 'none';
+
+    if (error){
+      emptyEl.textContent = "Couldn't load submissions.";
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    if (!rows || rows.length === 0){
+      emptyEl.textContent = 'No submissions yet.';
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    const bodyEl = document.getElementById('subs-body');
+    bodyEl.innerHTML = rows.map(row => {
+      const status = row.verification_status || 'pending_review';
+      const statusLabel = status === 'revoked' ? 'Revoked' : status === 'verified' ? 'Verified' : 'Pending review';
+      const pillClass = status === 'revoked' ? 'pill-inactive' : status === 'verified' ? 'pill-active' : '';
+      const userName = (row.profiles && row.profiles.full_name) || row.user_id;
+      const taskTitle = (row.daily_tasks && row.daily_tasks.title) || '—';
+
+      const actions = status === 'revoked'
+        ? `<button class="link-btn restore-btn" data-id="${row.id}" data-user="${row.user_id}" data-amount="${row.amount}">Restore</button>`
+        : `<button class="link-btn danger revoke-btn" data-id="${row.id}" data-user="${row.user_id}" data-amount="${row.amount}">Revoke</button>`;
+
+      return `
+      <tr>
+        <td>${formatDate(row.created_at.slice(0, 10))}</td>
+        <td>${escapeHtml(userName)}</td>
+        <td>${escapeHtml(taskTitle)}</td>
+        <td>${formatNaira(row.amount)}</td>
+        <td><span class="pill ${pillClass}">${statusLabel}</span></td>
+        <td><div class="row-actions">${actions}</div></td>
+      </tr>`;
+    }).join('');
+
+    tableEl.style.display = 'table';
+
+    bodyEl.querySelectorAll('.revoke-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm("Revoke this reward? It will be deducted from the user's balance.")) return;
+        const txId = btn.getAttribute('data-id');
+        const userId = btn.getAttribute('data-user');
+        const amount = btn.getAttribute('data-amount');
+        btn.disabled = true;
+
+        const { error: markError } = await supabaseClient
+          .from('transactions')
+          .update({ verification_status: 'revoked' })
+          .eq('id', txId);
+
+        const { error: deductError } = await supabaseClient
+          .from('transactions')
+          .insert({ user_id: userId, type: 'earning_deduction', status: 'completed', amount: amount });
+
+        btn.disabled = false;
+
+        if (markError || deductError){
+          showToast("Couldn't revoke this reward.");
+          return;
+        }
+        showToast('Reward revoked.');
+        loadSubmissions();
+      });
+    });
+
+    bodyEl.querySelectorAll('.restore-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Restore this reward to the user?')) return;
+        const txId = btn.getAttribute('data-id');
+        const userId = btn.getAttribute('data-user');
+        const amount = btn.getAttribute('data-amount');
+        btn.disabled = true;
+
+        const { error: markError } = await supabaseClient
+          .from('transactions')
+          .update({ verification_status: 'verified' })
+          .eq('id', txId);
+
+        const { error: restoreError } = await supabaseClient
+          .from('transactions')
+          .insert({ user_id: userId, type: 'earning_restore', status: 'completed', amount: amount });
+
+        btn.disabled = false;
+
+        if (markError || restoreError){
+          showToast("Couldn't restore this reward.");
+          return;
+        }
+        showToast('Reward restored.');
+        loadSubmissions();
+      });
+    });
+  }
+
   document.getElementById('task-form').addEventListener('submit', async (event) => {
     event.preventDefault();
 
@@ -326,6 +469,8 @@
 
     const title = document.getElementById('title-input').value.trim();
     const description = document.getElementById('desc-input').value.trim();
+    const linkUrl = document.getElementById('link-input').value.trim();
+    const rules = document.getElementById('rules-input').value.trim();
     const reward = parseFloat(document.getElementById('reward-input').value);
     const taskDate = document.getElementById('date-input').value;
     const isActive = document.getElementById('active-input').checked;
@@ -344,6 +489,8 @@
       .insert({
         title,
         description,
+        link_url: linkUrl || null,
+        rules: rules || null,
         reward_amount: reward,
         task_date: taskDate,
         is_active: isActive
@@ -395,6 +542,7 @@
 
     document.getElementById('admin-content').style.display = 'block';
     loadTasks();
+    loadSubmissions();
   }
 
   init();

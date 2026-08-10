@@ -88,6 +88,8 @@
       <h2 id="task-title" style="margin:0 0 4px;"></h2>
       <div class="task-reward" id="reward-amount">₦0.00</div>
       <p class="task-desc" id="task-desc-text">Tap start, stay on this page for a few seconds, then claim your reward. One task per day.</p>
+      <a class="btn btn-solid" id="task-link-btn" href="#" target="_blank" rel="noopener" style="display:none; margin-bottom:16px;">Go to task</a>
+      <p class="task-desc" id="task-rules-text" style="display:none;"></p>
       <div class="progress-track" id="progress-track">
         <div class="progress-fill" id="progress-fill"></div>
       </div>
@@ -103,7 +105,7 @@
         <path d="M8 12l3 3 5-6"></path>
       </svg>
       <p>You've already claimed today's task.</p>
-      <p class="task-desc">Come back tomorrow for another reward.</p>
+      <p class="task-desc">Come back tomorrow for another reward. Admin may still verify this submission — if the task wasn't completed, the reward can be reversed.</p>
       <div class="countdown" id="countdown-text">--:--:--</div>
       <p class="task-status">Next task unlocks in</p>
     </div>
@@ -227,6 +229,23 @@
     document.getElementById('reward-amount').textContent = formatNaira(currentTask.reward_amount);
     document.getElementById('task-desc-text').textContent =
       currentTask.description || 'Stay on this page for a few seconds, then claim your reward.';
+
+    const linkBtn = document.getElementById('task-link-btn');
+    if (currentTask.link_url){
+      linkBtn.href = currentTask.link_url;
+      linkBtn.style.display = 'inline-block';
+    } else {
+      linkBtn.style.display = 'none';
+    }
+
+    const rulesEl = document.getElementById('task-rules-text');
+    if (currentTask.rules){
+      rulesEl.textContent = currentTask.rules;
+      rulesEl.style.display = 'block';
+    } else {
+      rulesEl.style.display = 'none';
+    }
+
     document.getElementById('start-btn').style.display = 'inline-block';
     document.getElementById('claim-btn').style.display = 'none';
     document.getElementById('progress-track').style.display = 'none';
@@ -241,7 +260,7 @@
     // Find today's published, active task.
     const { data: taskRows, error: taskError } = await supabaseClient
       .from('daily_tasks')
-      .select('id, title, description, reward_amount, task_date')
+      .select('id, title, description, reward_amount, task_date, link_url, rules')
       .eq('task_date', todayISODate())
       .eq('is_active', true)
       .limit(1);
@@ -322,7 +341,9 @@
         user_id: currentUserId,
         type: 'earning',
         status: 'completed',
-        amount: currentTask.reward_amount
+        amount: currentTask.reward_amount,
+        task_id: currentTask.id,
+        verification_status: 'pending_review'
       });
 
     claimBtn.disabled = false;
@@ -333,7 +354,7 @@
       return;
     }
 
-    showToast(`You earned ${formatNaira(currentTask.reward_amount)}!`);
+    showToast(`You earned ${formatNaira(currentTask.reward_amount)}! Reward is subject to admin verification.`);
     showDoneState();
   });
 

@@ -280,7 +280,7 @@
   });
 
   async function loadBalances(userId){
-    // Sum completed earning transactions.
+    // Sum completed earning transactions (daily task rewards).
     const { data: earningRows, error: earningError } = await supabaseClient
       .from('transactions')
       .select('amount')
@@ -345,7 +345,28 @@
       .eq('type', 'review_restore')
       .eq('status', 'completed');
 
-    if (earningError || payoutError || refundError || referralError || reviewError || reviewDeductionError || reviewRestoreError) {
+    // Sum completed earning deductions — admin revoked a daily task
+    // claim after it was auto-credited (see dailytaskadmin.html).
+    // Same shape as review_deduction: positive amounts, subtracted.
+    const { data: earningDeductionRows, error: earningDeductionError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'earning_deduction')
+      .eq('status', 'completed');
+
+    // Sum completed earning restores — admin reversed an earlier daily
+    // task deduction. Only restores available balance, same as
+    // review_restore — the original 'earning' credit it un-deducts is
+    // still counted in totalEarned, so it must NOT be added again here.
+    const { data: earningRestoreRows, error: earningRestoreError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'earning_restore')
+      .eq('status', 'completed');
+
+    if (earningError || payoutError || refundError || referralError || reviewError || reviewDeductionError || reviewRestoreError || earningDeductionError || earningRestoreError) {
       document.getElementById('payout-note').textContent =
         "We couldn't load your earnings right now.";
       return;
@@ -358,7 +379,10 @@
     const totalReview = (reviewRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalReviewDeducted = (reviewDeductionRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalReviewRestored = (reviewRestoreRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const available = totalEarned - totalPaidOut + totalRefunded + totalReferral + totalReview - totalReviewDeducted + totalReviewRestored;
+    const totalEarningDeducted = (earningDeductionRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const totalEarningRestored = (earningRestoreRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const available = totalEarned - totalPaidOut + totalRefunded + totalReferral + totalReview
+      - totalReviewDeducted + totalReviewRestored - totalEarningDeducted + totalEarningRestored;
 
     currentAvailableBalance = available;
     currentTotalEarned = totalEarned + totalReferral + totalReview;
@@ -378,7 +402,7 @@
   function renderTransactionRows(rows){
     const bodyEl = document.getElementById('history-body');
     bodyEl.innerHTML = rows.map(row => {
-      const sign = (row.type === 'payout' || row.type === 'review_deduction') ? '-' : '+';
+      const sign = (row.type === 'payout' || row.type === 'review_deduction' || row.type === 'earning_deduction') ? '-' : '+';
       const amountText = `${sign}${formatNaira(Math.abs(Number(row.amount || 0)))}`;
       const displayAmount = balancesVisible ? amountText : MASK;
       return `
