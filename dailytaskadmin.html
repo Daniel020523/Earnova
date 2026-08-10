@@ -238,7 +238,7 @@
     toast.textContent = msg;
     toast.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 4500);
   }
 
   function formatNaira(n){
@@ -449,7 +449,7 @@
         btn.disabled = false;
 
         if (markError || deductError){
-          showToast("Couldn't revoke this reward.");
+          showToast("Couldn't revoke: " + ((markError || deductError).message));
           return;
         }
         showToast('Reward revoked.');
@@ -477,7 +477,7 @@
         btn.disabled = false;
 
         if (markError || restoreError){
-          showToast("Couldn't restore this reward.");
+          showToast("Couldn't restore: " + ((markError || restoreError).message));
           return;
         }
         showToast('Reward restored.');
