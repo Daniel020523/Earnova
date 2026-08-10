@@ -362,6 +362,7 @@
       .select('id, user_id, amount, created_at, verification_status, task_id')
       .eq('type', 'earning')
       .eq('status', 'completed')
+      .not('task_id', 'is', null)
       .order('created_at', { ascending: false })
       .limit(50);
 
