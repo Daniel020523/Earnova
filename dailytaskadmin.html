@@ -282,7 +282,7 @@
     loadingEl.style.display = 'none';
 
     if (error){
-      emptyEl.textContent = "Couldn't load tasks.";
+      emptyEl.textContent = "Couldn't load tasks: " + error.message;
       emptyEl.style.display = 'block';
       return;
     }
@@ -359,7 +359,7 @@
 
     const { data: rows, error } = await supabaseClient
       .from('transactions')
-      .select('id, user_id, amount, created_at, verification_status, task_id, daily_tasks(title), profiles(full_name)')
+      .select('id, user_id, amount, created_at, verification_status, task_id')
       .eq('type', 'earning')
       .eq('status', 'completed')
       .order('created_at', { ascending: false })
@@ -368,7 +368,7 @@
     loadingEl.style.display = 'none';
 
     if (error){
-      emptyEl.textContent = "Couldn't load submissions.";
+      emptyEl.textContent = "Couldn't load submissions: " + error.message;
       emptyEl.style.display = 'block';
       return;
     }
@@ -379,13 +379,37 @@
       return;
     }
 
+    // Look up task titles and user names separately instead of relying on
+    // PostgREST's embedded-join syntax, which needs FK relationships that
+    // may not exist between transactions.user_id and profiles.id.
+    const taskIds = [...new Set(rows.map(r => r.task_id).filter(Boolean))];
+    const userIds = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+
+    const taskTitleById = {};
+    if (taskIds.length){
+      const { data: taskRows } = await supabaseClient
+        .from('daily_tasks')
+        .select('id, title')
+        .in('id', taskIds);
+      (taskRows || []).forEach(t => { taskTitleById[t.id] = t.title; });
+    }
+
+    const userNameById = {};
+    if (userIds.length){
+      const { data: profileRows } = await supabaseClient
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+      (profileRows || []).forEach(p => { userNameById[p.id] = p.full_name; });
+    }
+
     const bodyEl = document.getElementById('subs-body');
     bodyEl.innerHTML = rows.map(row => {
       const status = row.verification_status || 'pending_review';
       const statusLabel = status === 'revoked' ? 'Revoked' : status === 'verified' ? 'Verified' : 'Pending review';
       const pillClass = status === 'revoked' ? 'pill-inactive' : status === 'verified' ? 'pill-active' : '';
-      const userName = (row.profiles && row.profiles.full_name) || row.user_id;
-      const taskTitle = (row.daily_tasks && row.daily_tasks.title) || '—';
+      const userName = userNameById[row.user_id] || row.user_id;
+      const taskTitle = taskTitleById[row.task_id] || '—';
 
       const actions = status === 'revoked'
         ? `<button class="link-btn restore-btn" data-id="${row.id}" data-user="${row.user_id}" data-amount="${row.amount}">Restore</button>`
@@ -500,7 +524,7 @@
     submitBtn.textContent = 'Add task';
 
     if (error){
-      statusEl.textContent = "Couldn't add task. Try again.";
+      statusEl.textContent = "Couldn't add task: " + error.message;
       return;
     }
 
