@@ -107,8 +107,6 @@
     <p id="task-error-text"></p>
     <a class="btn btn-solid" href="login.html">Go to log in</a>
   </div>
-
-  <p id="debug-line" style="font-size:11px; opacity:0.5; margin-top:16px; word-break:break-word;"></p>
 </main>
 
 <footer>
@@ -250,10 +248,6 @@
       .eq('task_date', queryDate)
       .eq('is_active', true)
       .limit(1);
-
-    document.getElementById('debug-line').textContent =
-      `debug: queried task_date=${queryDate}, found=${taskRows ? taskRows.length : 'error'}` +
-      (taskError ? `, error=${taskError.message}` : '');
 
     if (taskError){
       showTaskError("We couldn't load today's task right now.");
