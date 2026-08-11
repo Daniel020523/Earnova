@@ -6,32 +6,17 @@
 <title>Surveys — EarnOva</title>
 <link rel="stylesheet" href="styles.css">
 <style>
-  .item-card{
-    border:1px solid rgba(0,0,0,0.12);
+  .offerwall-frame{
+    width:100%;
+    height:80vh;
+    min-height:600px;
+    border:none;
     border-radius:8px;
-    padding:16px;
-    margin-top:12px;
   }
-  .item-title{ font-weight:700; margin:0 0 4px; }
-  .item-reward{ font-size:20px; font-weight:700; margin:4px 0; }
-  .item-desc{ font-size:14px; opacity:0.75; margin:4px 0 12px; }
-  .item-rules{ font-size:12px; opacity:0.65; margin:0 0 12px; }
-  .item-note{ font-size:11px; opacity:0.55; margin:12px 0 0; }
-  .item-actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-  #claim-btn-template{ display:none; }
-  .claim-btn:disabled, .go-btn.done{
-    opacity:0.4;
-    cursor:not-allowed;
-    filter:grayscale(60%);
-  }
-  .claimed-pill{
-    display:inline-block;
-    padding:2px 10px;
-    border-radius:999px;
+  .offerwall-note{
     font-size:12px;
-    font-weight:600;
-    background:rgba(0,150,80,0.12);
-    color:#0a8a52;
+    opacity:0.6;
+    margin-top:12px;
   }
 </style>
 </head>
@@ -53,22 +38,21 @@
 <main class="page">
   <div class="kicker">Earn more</div>
   <h1>Surveys</h1>
-  <p class="lead">Complete a survey, then claim your reward. Each survey can be claimed once.</p>
+  <p class="lead">Complete a survey below. Your reward is credited automatically once it's verified.</p>
 
-  <div id="surveys-loading" class="card">
+  <div id="offerwall-loading" class="card">
     <p>Loading surveys…</p>
   </div>
 
-  <div id="surveys-empty" class="card" style="display:none;">
-    <p>No surveys available right now. Check back soon.</p>
+  <div id="offerwall-error" class="card" style="display:none;">
+    <p id="offerwall-error-text"></p>
   </div>
 
-  <div id="surveys-list"></div>
-
-  <div id="surveys-error" class="card" style="display:none;">
-    <p id="surveys-error-text"></p>
-    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  <div id="offerwall-content" class="card" style="display:none; padding:0; overflow:hidden;">
+    <iframe id="offerwall-frame" class="offerwall-frame" allow="clipboard-write"></iframe>
   </div>
+
+  <p class="offerwall-note">Rewards are verified directly by our survey partner and credited to your balance automatically — there's nothing to claim manually here.</p>
 </main>
 
 <footer>
@@ -88,136 +72,45 @@
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  let toastTimer;
-  function showToast(msg){
-    const toast = document.getElementById('toast');
-    toast.textContent = msg;
-    toast.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
-  }
-
-  function formatNaira(n){
-    return Number(n).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
-  }
-
-  function escapeHtml(str){
-    const div = document.createElement('div');
-    div.textContent = str || '';
-    return div.innerHTML;
-  }
+  // Points at your deployed cpx-entry Edge Function.
+  // Replace <project-ref> with your actual Supabase project ref.
+  const CPX_ENTRY_FUNCTION_URL = "https://<project-ref>.supabase.co/functions/v1/cpx-entry";
 
   function showError(msg){
-    document.getElementById('surveys-loading').style.display = 'none';
-    document.getElementById('surveys-error-text').textContent = msg;
-    document.getElementById('surveys-error').style.display = 'block';
+    document.getElementById('offerwall-loading').style.display = 'none';
+    document.getElementById('offerwall-error-text').textContent = msg;
+    document.getElementById('offerwall-error').style.display = 'block';
   }
 
-  let currentUserId = null;
-
-  function renderSurveys(surveys, claimedIds){
-    const listEl = document.getElementById('surveys-list');
-    const emptyEl = document.getElementById('surveys-empty');
-
-    if (surveys.length === 0){
-      emptyEl.style.display = 'block';
-      listEl.innerHTML = '';
+  async function loadOfferwall(session){
+    let res;
+    try {
+      res = await fetch(CPX_ENTRY_FUNCTION_URL, {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+    } catch (e){
+      showError("We couldn't reach the survey provider right now.");
       return;
     }
-    emptyEl.style.display = 'none';
 
-    listEl.innerHTML = surveys.map(s => {
-      const claimed = claimedIds.has(s.id);
-      return `
-      <div class="card item-card" data-id="${s.id}" data-amount="${s.reward_amount}">
-        <h2 class="item-title">${escapeHtml(s.title)}</h2>
-        <div class="item-reward">${formatNaira(s.reward_amount)}</div>
-        ${s.description ? `<p class="item-desc">${escapeHtml(s.description)}</p>` : ''}
-        ${s.rules ? `<p class="item-rules">${escapeHtml(s.rules)}</p>` : ''}
-        <div class="item-actions">
-          ${claimed
-            ? `<span class="claimed-pill">Claimed</span>`
-            : `
-              ${s.link_url ? `<a class="btn btn-solid go-btn" href="${s.link_url}" target="_blank" rel="noopener">Go to survey</a>` : ''}
-              <button class="btn btn-solid claim-btn" ${s.link_url ? 'disabled' : ''}>Claim reward</button>
-            `}
-        </div>
-        ${claimed ? '' : `<p class="item-note">By claiming this reward you confirm you completed the survey. Admin may verify your submission — if you didn't, the reward will be revoked.</p>`}
-      </div>`;
-    }).join('');
-
-    listEl.querySelectorAll('.item-card').forEach(card => {
-      const goBtn = card.querySelector('.go-btn');
-      const claimBtn = card.querySelector('.claim-btn');
-
-      if (goBtn){
-        goBtn.addEventListener('click', () => {
-          claimBtn.disabled = false;
-        });
-      }
-
-      if (claimBtn){
-        claimBtn.addEventListener('click', async () => {
-          const id = card.getAttribute('data-id');
-          const amount = card.getAttribute('data-amount');
-          claimBtn.disabled = true;
-          claimBtn.textContent = 'Claiming…';
-
-          const { error } = await supabaseClient
-            .from('transactions')
-            .insert({
-              user_id: currentUserId,
-              type: 'survey',
-              status: 'completed',
-              amount: amount,
-              task_id: id,
-              verification_status: 'pending_review'
-            });
-
-          if (error){
-            claimBtn.disabled = false;
-            claimBtn.textContent = 'Claim reward';
-            showToast("Couldn't claim reward: " + error.message);
-            return;
-          }
-
-          showToast(`You earned ${formatNaira(amount)}!`);
-          loadSurveys();
-        });
-      }
-    });
-  }
-
-  async function loadSurveys(){
-    document.getElementById('surveys-loading').style.display = 'block';
-
-    const { data: surveys, error: surveyError } = await supabaseClient
-      .from('surveys')
-      .select('id, title, description, reward_amount, link_url, rules')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
-
-    if (surveyError){
+    if (!res.ok){
       showError("We couldn't load surveys right now.");
       return;
     }
 
-    const { data: claimedRows, error: claimError } = await supabaseClient
-      .from('transactions')
-      .select('task_id')
-      .eq('user_id', currentUserId)
-      .eq('type', 'survey')
-      .eq('status', 'completed')
-      .not('task_id', 'is', null);
+    const { app_id, ext_user_id, secure_hash } = await res.json();
 
-    if (claimError){
-      showError("We couldn't check your survey history right now.");
-      return;
-    }
+    const params = new URLSearchParams({
+      app_id,
+      ext_user_id,
+      secure_hash
+    });
 
-    document.getElementById('surveys-loading').style.display = 'none';
-    const claimedIds = new Set((claimedRows || []).map(r => r.task_id));
-    renderSurveys(surveys || [], claimedIds);
+    document.getElementById('offerwall-frame').src =
+      `https://offers.cpx-research.com/index.php?${params.toString()}`;
+
+    document.getElementById('offerwall-loading').style.display = 'none';
+    document.getElementById('offerwall-content').style.display = 'block';
   }
 
   document.getElementById('logout-btn').addEventListener('click', async (event) => {
@@ -232,8 +125,7 @@
       window.location.href = 'login.html';
       return;
     }
-    currentUserId = session.user.id;
-    await loadSurveys();
+    await loadOfferwall(session);
   }
 
   init();
