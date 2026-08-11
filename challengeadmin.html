@@ -164,15 +164,24 @@
       <label class="form-label" for="challenge-select">Choose a challenge to review</label>
       <select class="form-input" id="challenge-select"></select>
 
-      <label class="form-label" for="tier-filter" style="margin-top:14px;">Filter by tier</label>
+      <label class="form-label" for="tier-filter" style="margin-top:14px;">Tier to review</label>
       <select class="form-input" id="tier-filter">
-        <option value="">All tiers</option>
+        <option value="">Select a tier…</option>
         <option value="1">Tier 1 (0–1,000)</option>
         <option value="2">Tier 2 (1,000–5,000)</option>
         <option value="3">Tier 3 (5,000–10,000)</option>
         <option value="4">Tier 4 (10,000–20,000)</option>
         <option value="5">Tier 5 (20,000–50,000)</option>
       </select>
+
+      <div id="publish-bar" style="display:none; margin-top:14px; padding:12px 14px; background:rgba(0,0,0,0.03); border-radius:8px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+        <span id="publish-status" style="font-size:13px;"></span>
+        <div>
+          <button class="btn btn-solid" id="save-all-stats-btn" type="button">Save all stats</button>
+          <button class="btn btn-solid" id="publish-btn" type="button">Publish results</button>
+          <button class="btn btn-ghost" id="unpublish-btn" type="button" style="display:none;">Unpublish</button>
+        </div>
+      </div>
 
       <div id="submissions-loading" style="font-size:14px; opacity:0.7; margin-top:14px;">Select a challenge above.</div>
       <div id="submissions-empty" style="font-size:14px; opacity:0.7; display:none; margin-top:14px;">No submissions for this challenge yet.</div>
@@ -371,23 +380,30 @@
 
   // ---------- Submissions ----------
 
-  let allSubmissionRows = [];
   let currentChallengeId = null;
   let currentRewardAmount = null;
+  let currentTier = null;
 
-  async function loadSubmissions(challengeId, rewardAmount){
+  async function refreshSubmissions(){
     const loadingEl = document.getElementById('submissions-loading');
     const emptyEl = document.getElementById('submissions-empty');
     const tableEl = document.getElementById('submissions-table');
+    const publishBar = document.getElementById('publish-bar');
 
-    currentChallengeId = challengeId;
-    currentRewardAmount = rewardAmount;
-
-    if (!challengeId){
+    if (!currentChallengeId){
       loadingEl.textContent = 'Select a challenge above.';
       loadingEl.style.display = 'block';
       emptyEl.style.display = 'none';
       tableEl.style.display = 'none';
+      publishBar.style.display = 'none';
+      return;
+    }
+    if (!currentTier){
+      loadingEl.textContent = 'Select a tier to review.';
+      loadingEl.style.display = 'block';
+      emptyEl.style.display = 'none';
+      tableEl.style.display = 'none';
+      publishBar.style.display = 'none';
       return;
     }
 
@@ -395,13 +411,22 @@
     loadingEl.style.display = 'block';
     emptyEl.style.display = 'none';
     tableEl.style.display = 'none';
+    publishBar.style.display = 'none';
 
-    const { data: rows, error } = await supabaseClient
-      .from('challenge_submissions')
-      .select('id, user_id, tier, tiktok_url, views, likes, shares, comments, is_winner, reward_credited, is_removed')
-      .eq('challenge_id', challengeId)
-      .order('tier', { ascending: true })
-      .order('created_at', { ascending: true });
+    const [{ data: rows, error }, { data: tierResult }] = await Promise.all([
+      supabaseClient
+        .from('challenge_submissions')
+        .select('id, user_id, tier, tiktok_url, views, likes, shares, comments, is_winner, reward_credited, is_removed')
+        .eq('challenge_id', currentChallengeId)
+        .eq('tier', currentTier)
+        .order('created_at', { ascending: true }),
+      supabaseClient
+        .from('challenge_tier_results')
+        .select('is_published')
+        .eq('challenge_id', currentChallengeId)
+        .eq('tier', currentTier)
+        .maybeSingle()
+    ]);
 
     loadingEl.style.display = 'none';
 
@@ -410,35 +435,75 @@
       emptyEl.style.display = 'block';
       return;
     }
+
+    updatePublishBar(!!(tierResult && tierResult.is_published));
+
     if (!rows || rows.length === 0){
-      emptyEl.textContent = 'No submissions for this challenge yet.';
+      emptyEl.textContent = 'No submissions for this tier yet.';
       emptyEl.style.display = 'block';
-      return;
-    }
-
-    allSubmissionRows = rows;
-    await renderSubmissions();
-  }
-
-  document.getElementById('tier-filter').addEventListener('change', renderSubmissions);
-
-  async function renderSubmissions(){
-    const emptyEl = document.getElementById('submissions-empty');
-    const tableEl = document.getElementById('submissions-table');
-    const tierFilter = document.getElementById('tier-filter').value;
-
-    const rows = tierFilter
-      ? allSubmissionRows.filter(r => String(r.tier) === tierFilter)
-      : allSubmissionRows;
-
-    if (rows.length === 0){
-      emptyEl.textContent = 'No submissions match this filter.';
-      emptyEl.style.display = 'block';
-      tableEl.style.display = 'none';
       return;
     }
     emptyEl.style.display = 'none';
 
+    await renderSubmissions(rows);
+  }
+
+  function updatePublishBar(isPublished){
+    document.getElementById('publish-bar').style.display = 'flex';
+    document.getElementById('publish-status').textContent = isPublished
+      ? '✅ Results are published — this tier can see them.'
+      : '🔒 Not published yet — only admins can see this.';
+    document.getElementById('publish-btn').style.display = isPublished ? 'none' : 'inline-block';
+    document.getElementById('unpublish-btn').style.display = isPublished ? 'inline-block' : 'none';
+  }
+
+  document.getElementById('publish-btn').addEventListener('click', async () => {
+    if (!currentChallengeId || !currentTier) return;
+    if (!confirm('Publish results for this tier? Everyone who competed in it will be able to see all stats.')) return;
+
+    const btn = document.getElementById('publish-btn');
+    btn.disabled = true;
+
+    const { error } = await supabaseClient
+      .from('challenge_tier_results')
+      .upsert({
+        challenge_id: currentChallengeId,
+        tier: currentTier,
+        is_published: true,
+        published_at: new Date().toISOString()
+      }, { onConflict: 'challenge_id,tier' });
+
+    btn.disabled = false;
+
+    if (error){ showToast("Couldn't publish: " + error.message); return; }
+    showToast('Results published for this tier.');
+    updatePublishBar(true);
+  });
+
+  document.getElementById('unpublish-btn').addEventListener('click', async () => {
+    if (!currentChallengeId || !currentTier) return;
+    if (!confirm('Unpublish results for this tier? Participants will no longer be able to see them.')) return;
+
+    const btn = document.getElementById('unpublish-btn');
+    btn.disabled = true;
+
+    const { error } = await supabaseClient
+      .from('challenge_tier_results')
+      .upsert({
+        challenge_id: currentChallengeId,
+        tier: currentTier,
+        is_published: false
+      }, { onConflict: 'challenge_id,tier' });
+
+    btn.disabled = false;
+
+    if (error){ showToast("Couldn't unpublish: " + error.message); return; }
+    showToast('Results unpublished.');
+    updatePublishBar(false);
+  });
+
+  async function renderSubmissions(rows){
+    const tableEl = document.getElementById('submissions-table');
     const userIds = [...new Set(rows.map(r => r.user_id))];
     const nameById = {};
     const { data: profileRows } = await supabaseClient
@@ -466,33 +531,45 @@
         <td><input class="stat-input" type="number" min="0" data-field="shares" value="${row.shares ?? ''}"></td>
         <td><input class="stat-input" type="number" min="0" data-field="comments" value="${row.comments ?? ''}"></td>
         <td>
-          <button class="link-btn save-stats-btn" data-id="${row.id}">Save</button>
-          &nbsp;${winnerAction}
+          ${winnerAction}
           &nbsp;${removeAction}
         </td>
       </tr>`;
     }).join('');
     tableEl.style.display = 'table';
 
-    bodyEl.querySelectorAll('.save-stats-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.getAttribute('data-id');
-        const row = bodyEl.querySelector(`tr[data-row-id="${id}"]`);
+    document.getElementById('save-all-stats-btn').onclick = async () => {
+      const btn = document.getElementById('save-all-stats-btn');
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+
+      const updates = [];
+      bodyEl.querySelectorAll('tr[data-row-id]').forEach(tr => {
+        const id = tr.getAttribute('data-row-id');
         const stats = {};
-        row.querySelectorAll('.stat-input').forEach(input => {
+        tr.querySelectorAll('.stat-input').forEach(input => {
           const val = input.value === '' ? null : parseInt(input.value, 10);
           stats[input.getAttribute('data-field')] = val;
         });
-
-        btn.disabled = true;
-        const { error: statError } = await supabaseClient
-          .from('challenge_submissions').update(stats).eq('id', id);
-        btn.disabled = false;
-
-        if (statError){ showToast("Couldn't save stats: " + statError.message); return; }
-        showToast('Stats saved.');
+        updates.push({ id, stats });
       });
-    });
+
+      let failed = 0;
+      for (const u of updates) {
+        const { error: statError } = await supabaseClient
+          .from('challenge_submissions').update(u.stats).eq('id', u.id);
+        if (statError) failed++;
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Save all stats';
+
+      if (failed > 0){
+        showToast(`Saved with ${failed} error(s) — check your connection and try again.`);
+      } else {
+        showToast('All stats saved.');
+      }
+    };
 
     bodyEl.querySelectorAll('.win-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
@@ -536,7 +613,7 @@
         }
 
         showToast(`Tier ${tier} winner marked and reward credited.`);
-        loadSubmissions(currentChallengeId, currentRewardAmount);
+        refreshSubmissions();
       });
     });
 
@@ -571,7 +648,7 @@
         }
 
         showToast('Winner unmarked and reward deducted.');
-        loadSubmissions(currentChallengeId, currentRewardAmount);
+        refreshSubmissions();
       });
     });
 
@@ -589,7 +666,7 @@
         btn.disabled = false;
         if (removeError){ showToast("Couldn't remove: " + removeError.message); return; }
         showToast('Video removed.');
-        loadSubmissions(currentChallengeId, currentRewardAmount);
+        refreshSubmissions();
       });
     });
 
@@ -606,15 +683,21 @@
         btn.disabled = false;
         if (restoreError){ showToast("Couldn't restore: " + restoreError.message); return; }
         showToast('Video restored.');
-        loadSubmissions(currentChallengeId, currentRewardAmount);
+        refreshSubmissions();
       });
     });
   }
 
   document.getElementById('challenge-select').addEventListener('change', (e) => {
     const selected = e.target.selectedOptions[0];
-    const reward = selected ? selected.getAttribute('data-reward') : null;
-    loadSubmissions(e.target.value || null, reward);
+    currentChallengeId = e.target.value || null;
+    currentRewardAmount = selected ? selected.getAttribute('data-reward') : null;
+    refreshSubmissions();
+  });
+
+  document.getElementById('tier-filter').addEventListener('change', (e) => {
+    currentTier = e.target.value || null;
+    refreshSubmissions();
   });
 
   document.getElementById('logout-btn').addEventListener('click', async (event) => {
