@@ -15,10 +15,10 @@
 // In your CPX Research dashboard, set the postback URL to:
 //   https://<your-project-ref>.supabase.co/functions/v1/cpx-postback
 //     ?status={status}&trans_id={trans_id}&user_id={user_id}
+//     &sub_id={subid}&sub_id_2={subid_2}
 //     &amount_local={amount_local}&amount_usd={amount_usd}
-//     &secure_hash={secure_hash}
-// Confirm the exact placeholder syntax CPX expects for these params in
-// your dashboard — some networks use {token} braces, others use $token.
+//     &offer_id={offer_ID}&hash={secure_hash}&ip_click={ip_click}
+// (this matches the exact placeholder syntax shown in your CPX dashboard)
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { crypto } from "https://deno.land/std@0.224.0/crypto/mod.ts";
@@ -43,7 +43,8 @@ serve(async (req) => {
   const transId = url.searchParams.get("trans_id");
   const userId = url.searchParams.get("user_id");
   const amountLocal = url.searchParams.get("amount_local");
-  const secureHash = url.searchParams.get("secure_hash");
+  const offerId = url.searchParams.get("offer_id");
+  const secureHash = url.searchParams.get("hash");
 
   if (!transId || !userId || !secureHash) {
     return new Response("missing params", { status: 400 });
@@ -72,6 +73,7 @@ serve(async (req) => {
     trans_id: transId,
     user_id: userId,
     status: status || "unknown",
+    offer_id: offerId,
   });
 
   // status 1 = completed, 2 = canceled (per CPX convention) — only credit on completion.

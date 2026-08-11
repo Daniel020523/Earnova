@@ -73,8 +73,16 @@
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // Points at your deployed cpx-entry Edge Function.
-  // Replace <project-ref> with your actual Supabase project ref.
-  const CPX_ENTRY_FUNCTION_URL = "https://<project-ref>.supabase.co/functions/v1/cpx-entry";
+  const CPX_ENTRY_FUNCTION_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co/functions/v1/cpx-entry";
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+  }
 
   function showError(msg){
     document.getElementById('offerwall-loading').style.display = 'none';
@@ -125,6 +133,16 @@
       window.location.href = 'login.html';
       return;
     }
+
+    // User was redirected back here after finishing a survey on CPX.
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('message_id')){
+      showToast('Survey completed! Your reward will appear once verified.');
+      params.delete('message_id');
+      const cleanUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+      window.history.replaceState({}, '', cleanUrl);
+    }
+
     await loadOfferwall(session);
   }
 
