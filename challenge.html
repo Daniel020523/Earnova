@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly challenge — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .challenge-card{
+    text-align:center;
+  }
+  .challenge-reward{
+    font-size:28px;
+    font-weight:700;
+    margin:8px 0 4px;
+  }
+  .challenge-desc{
+    font-size:14px;
+    opacity:0.75;
+    max-width:460px;
+    margin:0 auto 16px;
+  }
+  .challenge-rules{
+    font-size:13px;
+    opacity:0.65;
+    max-width:460px;
+    margin:0 auto 20px;
+    text-align:left;
+    background:rgba(0,0,0,0.03);
+    border-radius:8px;
+    padding:12px 14px;
+  }
+  .submit-row{
+    display:flex;
+    gap:8px;
+    max-width:460px;
+    margin:0 auto;
+  }
+  .submit-row input{
+    flex:1;
+    padding:10px 12px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+  }
+  .submit-row input:focus{
+    outline:none;
+    border-color:#3b5bdb;
+  }
+  .submitted-box{
+    max-width:460px;
+    margin:0 auto;
+    background:rgba(0,150,80,0.08);
+    border:1px solid rgba(0,150,80,0.2);
+    border-radius:8px;
+    padding:16px;
+  }
+  .submitted-link{
+    word-break:break-all;
+    font-size:13px;
+    display:block;
+    margin:8px 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Earn more</div>
+  <h1>Weekly TikTok challenge</h1>
+  <p class="lead">Post a new video, submit your link, and you could win.</p>
+
+  <div id="challenge-loading" class="card">
+    <p>Loading this week's challenge…</p>
+  </div>
+
+  <div id="challenge-content" class="card challenge-card" style="display:none;">
+
+    <h2 id="challenge-title" style="margin:0 0 4px;"></h2>
+    <div class="challenge-reward" id="challenge-reward"></div>
+    <p class="challenge-desc" id="challenge-desc"></p>
+    <p class="challenge-rules" id="challenge-rules" style="display:none;"></p>
+
+    <div id="submit-section">
+      <div class="submit-row">
+        <input type="url" id="tiktok-url-input" placeholder="Paste your TikTok video link">
+        <button class="btn btn-solid" id="submit-btn">Submit</button>
+      </div>
+      <p class="task-status" id="submit-status" style="font-size:13px; opacity:0.7; margin-top:10px;"></p>
+    </div>
+
+    <div id="submitted-section" class="submitted-box" style="display:none;">
+      <p style="margin:0 0 4px; font-weight:600;">You're in this week's challenge!</p>
+      <a class="submitted-link" id="submitted-link" href="#" target="_blank" rel="noopener"></a>
+      <div class="submit-row">
+        <input type="url" id="edit-url-input" placeholder="Update your video link">
+        <button class="btn btn-solid" id="update-btn">Update</button>
+      </div>
+      <p style="font-size:12px; opacity:0.6; margin-top:10px;">Winners are chosen manually after the challenge ends and announced separately.</p>
+    </div>
+
+  </div>
+
+  <div id="challenge-none" class="card" style="display:none;">
+    <p>No challenge is running this week.</p>
+    <p style="font-size:14px; opacity:0.7;">Check back soon — new challenges are added regularly.</p>
+  </div>
+
+  <div id="challenge-error" class="card" style="display:none;">
+    <p id="challenge-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  function formatNaira(n){
+    return Number(n).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+
+  function showError(msg){
+    document.getElementById('challenge-loading').style.display = 'none';
+    document.getElementById('challenge-error-text').textContent = msg;
+    document.getElementById('challenge-error').style.display = 'block';
+  }
+
+  function isTikTokUrl(url){
+    try {
+      const u = new URL(url);
+      return u.hostname.includes('tiktok.com');
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function startOfThisWeek(){
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    const diffToMonday = (day === 0) ? -6 : 1 - day;
+    d.setDate(d.getDate() + diffToMonday);
+    return d;
+  }
+
+  function isoDate(d){
+    const off = d.getTimezoneOffset();
+    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
+  }
+
+  let currentUserId = null;
+  let currentChallenge = null;
+
+  function showSubmittedState(url){
+    document.getElementById('submit-section').style.display = 'none';
+    const box = document.getElementById('submitted-section');
+    box.style.display = 'block';
+    const link = document.getElementById('submitted-link');
+    link.href = url;
+    link.textContent = url;
+    document.getElementById('edit-url-input').value = '';
+  }
+
+  function showSubmitState(){
+    document.getElementById('submitted-section').style.display = 'none';
+    document.getElementById('submit-section').style.display = 'block';
+  }
+
+  async function loadChallenge(){
+    const weekStart = isoDate(startOfThisWeek());
+
+    const { data: challengeRows, error: challengeError } = await supabaseClient
+      .from('weekly_challenges')
+      .select('id, title, description, rules, reward_amount, week_start')
+      .eq('week_start', weekStart)
+      .eq('is_active', true)
+      .limit(1);
+
+    if (challengeError){
+      showError("We couldn't load this week's challenge right now.");
+      return;
+    }
+
+    document.getElementById('challenge-loading').style.display = 'none';
+
+    if (!challengeRows || challengeRows.length === 0){
+      document.getElementById('challenge-none').style.display = 'block';
+      return;
+    }
+
+    currentChallenge = challengeRows[0];
+    document.getElementById('challenge-title').textContent = currentChallenge.title;
+    document.getElementById('challenge-reward').textContent =
+      `Prize: ${formatNaira(currentChallenge.reward_amount)}`;
+    document.getElementById('challenge-desc').textContent =
+      currentChallenge.description || 'Post a new TikTok video for this week\'s challenge.';
+
+    const rulesEl = document.getElementById('challenge-rules');
+    if (currentChallenge.rules){
+      rulesEl.textContent = currentChallenge.rules;
+      rulesEl.style.display = 'block';
+    }
+
+    document.getElementById('challenge-content').style.display = 'block';
+
+    const { data: submissionRows, error: submissionError } = await supabaseClient
+      .from('challenge_submissions')
+      .select('tiktok_url')
+      .eq('challenge_id', currentChallenge.id)
+      .eq('user_id', currentUserId)
+      .maybeSingle();
+
+    if (!submissionError && submissionRows){
+      showSubmittedState(submissionRows.tiktok_url);
+    } else {
+      showSubmitState();
+    }
+  }
+
+  document.getElementById('submit-btn').addEventListener('click', async () => {
+    const input = document.getElementById('tiktok-url-input');
+    const statusEl = document.getElementById('submit-status');
+    const url = input.value.trim();
+
+    if (!isTikTokUrl(url)){
+      statusEl.textContent = 'Please paste a valid TikTok video link.';
+      return;
+    }
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+    statusEl.textContent = '';
+
+    const { error } = await supabaseClient
+      .from('challenge_submissions')
+      .insert({
+        challenge_id: currentChallenge.id,
+        user_id: currentUserId,
+        tiktok_url: url
+      });
+
+    btn.disabled = false;
+    btn.textContent = 'Submit';
+
+    if (error){
+      statusEl.textContent = "Couldn't submit: " + error.message;
+      return;
+    }
+
+    showToast("You're entered in this week's challenge!");
+    showSubmittedState(url);
+  });
+
+  document.getElementById('update-btn').addEventListener('click', async () => {
+    const input = document.getElementById('edit-url-input');
+    const url = input.value.trim();
+
+    if (!url) return;
+    if (!isTikTokUrl(url)){
+      showToast('Please paste a valid TikTok video link.');
+      return;
+    }
+
+    const btn = document.getElementById('update-btn');
+    btn.disabled = true;
+    btn.textContent = 'Updating…';
+
+    const { error } = await supabaseClient
+      .from('challenge_submissions')
+      .update({ tiktok_url: url })
+      .eq('challenge_id', currentChallenge.id)
+      .eq('user_id', currentUserId);
+
+    btn.disabled = false;
+    btn.textContent = 'Update';
+
+    if (error){
+      showToast("Couldn't update: " + error.message);
+      return;
+    }
+
+    showToast('Your submission was updated.');
+    showSubmittedState(url);
+  });
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  async function init(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError || !session){
+      window.location.href = 'login.html';
+      return;
+    }
+    currentUserId = session.user.id;
+    await loadChallenge();
+  }
+
+  init();
+</script>
+
+</body>
+</html>

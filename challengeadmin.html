@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Challenge admin — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .form-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    margin-top:12px;
+  }
+  .form-grid .full{ grid-column:1 / -1; }
+  @media (max-width:600px){ .form-grid{ grid-template-columns:1fr; } }
+  .form-label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    opacity:0.75;
+    margin-bottom:6px;
+  }
+  .form-input, .form-textarea{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+    color:inherit;
+    background:transparent;
+    box-sizing:border-box;
+  }
+  .form-textarea{ min-height:80px; resize:vertical; }
+  .checkbox-row{ display:flex; align-items:center; gap:8px; }
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table.admin-table{
+    width:100%;
+    min-width:560px;
+    border-collapse:collapse;
+  }
+  table.admin-table th, table.admin-table td{
+    text-align:left;
+    padding:8px 10px;
+    border-bottom:1px solid rgba(0,0,0,0.08);
+    font-size:14px;
+  }
+  table.admin-table th{ font-size:13px; opacity:0.7; }
+  .pill{
+    display:inline-block;
+    padding:2px 10px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:600;
+  }
+  .pill-active{ background:rgba(0,150,80,0.12); color:#0a8a52; }
+  .pill-inactive{ background:rgba(0,0,0,0.08); opacity:0.7; }
+  .pill-winner{ background:rgba(230,180,0,0.15); color:#8a6d00; }
+  .link-btn{
+    background:none;
+    border:none;
+    padding:0;
+    font-size:13px;
+    font-weight:600;
+    text-decoration:underline;
+    cursor:pointer;
+    color:inherit;
+    opacity:0.8;
+  }
+  .link-btn:hover{ opacity:1; }
+  .link-btn.danger{ color:#c0392b; }
+  .stat-input{
+    width:56px;
+    padding:4px 6px;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:6px;
+    font-size:13px;
+    text-align:center;
+  }
+  select.form-input{ height:40px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Admin</div>
+  <h1>Challenge admin</h1>
+  <p class="lead">Create weekly TikTok challenges, review submissions, and announce winners.</p>
+
+  <div id="admin-loading" class="card"><p>Checking access…</p></div>
+  <div id="admin-denied" class="card" style="display:none;">
+    <p>You don't have access to this page.</p>
+    <a class="btn btn-solid" href="dashboard.html">Back to dashboard</a>
+  </div>
+
+  <div id="admin-content" style="display:none;">
+
+    <div class="card">
+      <h2>Add a challenge</h2>
+      <form id="challenge-form">
+        <div class="form-grid">
+          <div class="full">
+            <label class="form-label" for="title-input">Title</label>
+            <input class="form-input" id="title-input" type="text" required maxlength="120" placeholder="e.g. Best dance transition wins ₦10,000">
+          </div>
+          <div class="full">
+            <label class="form-label" for="desc-input">Description</label>
+            <textarea class="form-textarea" id="desc-input" maxlength="500" placeholder="What users need to post"></textarea>
+          </div>
+          <div class="full">
+            <label class="form-label" for="rules-input">Rules</label>
+            <textarea class="form-textarea" id="rules-input" maxlength="500" placeholder="e.g. Use #EarnOvaChallenge and tag @EarnOva. One entry per person. Winner chosen by views + engagement."></textarea>
+          </div>
+          <div>
+            <label class="form-label" for="reward-input">Prize amount (₦)</label>
+            <input class="form-input" id="reward-input" type="number" min="0" step="0.01" required placeholder="10000">
+          </div>
+          <div>
+            <label class="form-label" for="week-input">Week starting (Monday)</label>
+            <input class="form-input" id="week-input" type="date" required>
+          </div>
+          <div class="full checkbox-row">
+            <input type="checkbox" id="active-input" checked>
+            <label for="active-input" style="font-size:14px;">Active</label>
+          </div>
+          <div class="full">
+            <button class="btn btn-solid" type="submit" id="submit-btn">Add challenge</button>
+            <span id="form-status" style="font-size:13px; opacity:0.7; margin-left:10px;"></span>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Existing challenges</h2>
+      <div id="challenges-loading" style="font-size:14px; opacity:0.7;">Loading challenges…</div>
+      <div id="challenges-empty" style="font-size:14px; opacity:0.7; display:none;">No challenges added yet.</div>
+      <div class="table-scroll">
+        <table class="admin-table" id="challenges-table" style="display:none;">
+          <thead>
+            <tr><th>Week</th><th>Title</th><th>Prize</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="challenges-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Submissions</h2>
+      <label class="form-label" for="challenge-select">Choose a challenge to review</label>
+      <select class="form-input" id="challenge-select"></select>
+
+      <div id="submissions-loading" style="font-size:14px; opacity:0.7; margin-top:14px;">Select a challenge above.</div>
+      <div id="submissions-empty" style="font-size:14px; opacity:0.7; display:none; margin-top:14px;">No submissions for this challenge yet.</div>
+      <div class="table-scroll">
+        <table class="admin-table" id="submissions-table" style="display:none; margin-top:14px;">
+          <thead>
+            <tr>
+              <th>User</th><th>Video</th><th>Views</th><th>Likes</th><th>Shares</th><th>Comments</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="submissions-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 4500);
+  }
+
+  function formatNaira(n){
+    return Number(n).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function mondayOfCurrentWeek(){
+    const d = new Date();
+    d.setHours(0,0,0,0);
+    const day = d.getDay();
+    const diffToMonday = (day === 0) ? -6 : 1 - day;
+    d.setDate(d.getDate() + diffToMonday);
+    const off = d.getTimezoneOffset();
+    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
+  }
+
+  function formatDate(dateStr){
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  document.getElementById('week-input').value = mondayOfCurrentWeek();
+
+  // ---------- Challenges ----------
+
+  async function loadChallenges(){
+    const loadingEl = document.getElementById('challenges-loading');
+    const emptyEl = document.getElementById('challenges-empty');
+    const tableEl = document.getElementById('challenges-table');
+
+    loadingEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+    tableEl.style.display = 'none';
+
+    const { data: rows, error } = await supabaseClient
+      .from('weekly_challenges')
+      .select('id, title, reward_amount, week_start, is_active')
+      .order('week_start', { ascending: false })
+      .limit(50);
+
+    loadingEl.style.display = 'none';
+
+    if (error){
+      emptyEl.textContent = "Couldn't load challenges: " + error.message;
+      emptyEl.style.display = 'block';
+      return;
+    }
+    if (!rows || rows.length === 0){
+      emptyEl.textContent = 'No challenges added yet.';
+      emptyEl.style.display = 'block';
+      populateChallengeSelect([]);
+      return;
+    }
+
+    const bodyEl = document.getElementById('challenges-body');
+    bodyEl.innerHTML = rows.map(row => `
+      <tr>
+        <td>${formatDate(row.week_start)}</td>
+        <td>${escapeHtml(row.title)}</td>
+        <td>${formatNaira(row.reward_amount)}</td>
+        <td><span class="pill ${row.is_active ? 'pill-active' : 'pill-inactive'}">${row.is_active ? 'Active' : 'Inactive'}</span></td>
+        <td>
+          <button class="link-btn toggle-btn" data-id="${row.id}" data-active="${row.is_active}">${row.is_active ? 'Deactivate' : 'Activate'}</button>
+          &nbsp;
+          <button class="link-btn danger delete-btn" data-id="${row.id}">Delete</button>
+        </td>
+      </tr>`).join('');
+    tableEl.style.display = 'table';
+
+    bodyEl.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const isActive = btn.getAttribute('data-active') === 'true';
+        btn.disabled = true;
+        const { error: toggleError } = await supabaseClient
+          .from('weekly_challenges').update({ is_active: !isActive }).eq('id', id);
+        btn.disabled = false;
+        if (toggleError){ showToast("Couldn't update: " + toggleError.message); return; }
+        loadChallenges();
+      });
+    });
+
+    bodyEl.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (!confirm('Delete this challenge? This cannot be undone.')) return;
+        btn.disabled = true;
+        const { error: deleteError } = await supabaseClient
+          .from('weekly_challenges').delete().eq('id', id);
+        btn.disabled = false;
+        if (deleteError){ showToast("Couldn't delete: " + deleteError.message); return; }
+        showToast('Challenge deleted.');
+        loadChallenges();
+      });
+    });
+
+    populateChallengeSelect(rows);
+  }
+
+  function populateChallengeSelect(rows){
+    const select = document.getElementById('challenge-select');
+    const previousValue = select.value;
+    select.innerHTML = '<option value="">Select a challenge…</option>' +
+      rows.map(r => `<option value="${r.id}" data-reward="${r.reward_amount}">${formatDate(r.week_start)} — ${escapeHtml(r.title)}</option>`).join('');
+    if (previousValue && rows.some(r => r.id === previousValue)){
+      select.value = previousValue;
+    }
+  }
+
+  document.getElementById('challenge-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const submitBtn = document.getElementById('submit-btn');
+    const statusEl = document.getElementById('form-status');
+
+    const title = document.getElementById('title-input').value.trim();
+    const description = document.getElementById('desc-input').value.trim();
+    const rules = document.getElementById('rules-input').value.trim();
+    const reward = parseFloat(document.getElementById('reward-input').value);
+    const weekStart = document.getElementById('week-input').value;
+    const isActive = document.getElementById('active-input').checked;
+
+    if (!title || !weekStart || isNaN(reward) || reward < 0){
+      statusEl.textContent = 'Please fill in all required fields.';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Adding…';
+    statusEl.textContent = '';
+
+    const { error } = await supabaseClient
+      .from('weekly_challenges')
+      .insert({ title, description, rules: rules || null, reward_amount: reward, week_start: weekStart, is_active: isActive });
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Add challenge';
+
+    if (error){
+      statusEl.textContent = "Couldn't add challenge: " + error.message;
+      return;
+    }
+
+    document.getElementById('challenge-form').reset();
+    document.getElementById('week-input').value = mondayOfCurrentWeek();
+    document.getElementById('active-input').checked = true;
+    showToast('Challenge added.');
+    loadChallenges();
+  });
+
+  // ---------- Submissions ----------
+
+  async function loadSubmissions(challengeId, rewardAmount){
+    const loadingEl = document.getElementById('submissions-loading');
+    const emptyEl = document.getElementById('submissions-empty');
+    const tableEl = document.getElementById('submissions-table');
+
+    if (!challengeId){
+      loadingEl.textContent = 'Select a challenge above.';
+      loadingEl.style.display = 'block';
+      emptyEl.style.display = 'none';
+      tableEl.style.display = 'none';
+      return;
+    }
+
+    loadingEl.textContent = 'Loading submissions…';
+    loadingEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+    tableEl.style.display = 'none';
+
+    const { data: rows, error } = await supabaseClient
+      .from('challenge_submissions')
+      .select('id, user_id, tiktok_url, views, likes, shares, comments, is_winner, reward_credited')
+      .eq('challenge_id', challengeId)
+      .order('created_at', { ascending: true });
+
+    loadingEl.style.display = 'none';
+
+    if (error){
+      emptyEl.textContent = "Couldn't load submissions: " + error.message;
+      emptyEl.style.display = 'block';
+      return;
+    }
+    if (!rows || rows.length === 0){
+      emptyEl.textContent = 'No submissions for this challenge yet.';
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    const userIds = [...new Set(rows.map(r => r.user_id))];
+    const nameById = {};
+    const { data: profileRows } = await supabaseClient
+      .from('profiles').select('id, full_name').in('id', userIds);
+    (profileRows || []).forEach(p => { nameById[p.id] = p.full_name; });
+
+    const bodyEl = document.getElementById('submissions-body');
+    bodyEl.innerHTML = rows.map(row => {
+      const winnerBadge = row.is_winner ? `<span class="pill pill-winner">Winner</span>` : '';
+      const winnerAction = row.is_winner
+        ? `<button class="link-btn danger unwin-btn" data-id="${row.id}" data-user="${row.user_id}" data-reward="${rewardAmount}">Unmark</button>`
+        : `<button class="link-btn win-btn" data-id="${row.id}" data-user="${row.user_id}" data-reward="${rewardAmount}">Mark winner</button>`;
+
+      return `
+      <tr data-row-id="${row.id}">
+        <td>${escapeHtml(nameById[row.user_id] || row.user_id)} ${winnerBadge}</td>
+        <td><a href="${row.tiktok_url}" target="_blank" rel="noopener">Open</a></td>
+        <td><input class="stat-input" type="number" min="0" data-field="views" value="${row.views ?? ''}"></td>
+        <td><input class="stat-input" type="number" min="0" data-field="likes" value="${row.likes ?? ''}"></td>
+        <td><input class="stat-input" type="number" min="0" data-field="shares" value="${row.shares ?? ''}"></td>
+        <td><input class="stat-input" type="number" min="0" data-field="comments" value="${row.comments ?? ''}"></td>
+        <td>
+          <button class="link-btn save-stats-btn" data-id="${row.id}">Save</button>
+          &nbsp;${winnerAction}
+        </td>
+      </tr>`;
+    }).join('');
+    tableEl.style.display = 'table';
+
+    bodyEl.querySelectorAll('.save-stats-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const row = bodyEl.querySelector(`tr[data-row-id="${id}"]`);
+        const stats = {};
+        row.querySelectorAll('.stat-input').forEach(input => {
+          const val = input.value === '' ? null : parseInt(input.value, 10);
+          stats[input.getAttribute('data-field')] = val;
+        });
+
+        btn.disabled = true;
+        const { error: statError } = await supabaseClient
+          .from('challenge_submissions').update(stats).eq('id', id);
+        btn.disabled = false;
+
+        if (statError){ showToast("Couldn't save stats: " + statError.message); return; }
+        showToast('Stats saved.');
+      });
+    });
+
+    bodyEl.querySelectorAll('.win-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const userId = btn.getAttribute('data-user');
+        const reward = btn.getAttribute('data-reward');
+
+        if (!confirm(`Mark this submission as the winner and credit ${formatNaira(reward)} to the user?`)) return;
+        btn.disabled = true;
+
+        // Only one winner per challenge — clear any existing winner flag first.
+        await supabaseClient
+          .from('challenge_submissions')
+          .update({ is_winner: false })
+          .eq('challenge_id', challengeId);
+
+        const { error: winError } = await supabaseClient
+          .from('challenge_submissions')
+          .update({ is_winner: true, reward_credited: true })
+          .eq('id', id);
+
+        const { error: creditError } = await supabaseClient
+          .from('transactions')
+          .insert({
+            user_id: userId,
+            type: 'challenge',
+            status: 'completed',
+            amount: reward,
+            task_id: challengeId,
+            verification_status: 'verified'
+          });
+
+        btn.disabled = false;
+
+        if (winError || creditError){
+          showToast("Couldn't mark winner: " + ((winError || creditError).message));
+          return;
+        }
+
+        showToast('Winner marked and reward credited.');
+        loadSubmissions(challengeId, reward);
+      });
+    });
+
+    bodyEl.querySelectorAll('.unwin-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const userId = btn.getAttribute('data-user');
+        const reward = btn.getAttribute('data-reward');
+
+        if (!confirm(`Unmark this winner and deduct ${formatNaira(reward)} back from their balance?`)) return;
+        btn.disabled = true;
+
+        const { error: unwinError } = await supabaseClient
+          .from('challenge_submissions')
+          .update({ is_winner: false, reward_credited: false })
+          .eq('id', id);
+
+        const { error: deductError } = await supabaseClient
+          .from('transactions')
+          .insert({
+            user_id: userId,
+            type: 'challenge_deduction',
+            status: 'completed',
+            amount: reward
+          });
+
+        btn.disabled = false;
+
+        if (unwinError || deductError){
+          showToast("Couldn't unmark winner: " + ((unwinError || deductError).message));
+          return;
+        }
+
+        showToast('Winner unmarked and reward deducted.');
+        loadSubmissions(challengeId, reward);
+      });
+    });
+  }
+
+  document.getElementById('challenge-select').addEventListener('change', (e) => {
+    const selected = e.target.selectedOptions[0];
+    const reward = selected ? selected.getAttribute('data-reward') : null;
+    loadSubmissions(e.target.value || null, reward);
+  });
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  async function init(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError || !session){
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles').select('is_admin').eq('id', session.user.id).single();
+
+    document.getElementById('admin-loading').style.display = 'none';
+
+    if (profileError || !profile || !profile.is_admin){
+      document.getElementById('admin-denied').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('admin-content').style.display = 'block';
+    loadChallenges();
+  }
+
+  init();
+</script>
+
+</body>
+</html>
