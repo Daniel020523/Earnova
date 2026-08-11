@@ -31,7 +31,8 @@
     border-color:rgba(0,0,0,0.25);
   }
   @media (max-width:600px){
-    .task-grid{ grid-template-columns:repeat(2, 1fr); }
+    .task-grid{ grid-template-columns:repeat(3, 1fr); gap:8px; }
+    .task-tile{ padding:14px 6px; font-size:12px; }
   }
   .balance-card{
     position:relative;
@@ -163,6 +164,9 @@
         <a class="task-tile" href="sponsored-post.html">Sponsored post</a>
         <a class="task-tile" href="job-offer.html">Job offer</a>
         <a class="task-tile" href="review-website.html">Review website</a>
+        <a class="task-tile" href="survey.html">Survey</a>
+        <a class="task-tile" href="weekly-challenge.html">Weekly challenge</a>
+        <a class="task-tile" href="share-earn.html">Share & earn</a>
       </div>
     </div>
 
@@ -366,11 +370,86 @@
       .eq('type', 'earning_restore')
       .eq('status', 'completed');
 
-    if (earningError || payoutError || refundError || referralError || reviewError || reviewDeductionError || reviewRestoreError || earningDeductionError || earningRestoreError) {
+    // Survey, weekly challenge, and share & earn rewards — same shape
+    // as 'earning': credited instantly, revocable by admin via
+    // <type>_deduction / <type>_restore pairs.
+    const { data: surveyRows, error: surveyError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'survey')
+      .eq('status', 'completed');
+    const { data: surveyDeductionRows, error: surveyDeductionError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'survey_deduction')
+      .eq('status', 'completed');
+    const { data: surveyRestoreRows, error: surveyRestoreError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'survey_restore')
+      .eq('status', 'completed');
+
+    const { data: challengeRows, error: challengeError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'challenge')
+      .eq('status', 'completed');
+    const { data: challengeDeductionRows, error: challengeDeductionError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'challenge_deduction')
+      .eq('status', 'completed');
+    const { data: challengeRestoreRows, error: challengeRestoreError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'challenge_restore')
+      .eq('status', 'completed');
+
+    const { data: shareRows, error: shareError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'share')
+      .eq('status', 'completed');
+    const { data: shareDeductionRows, error: shareDeductionError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'share_deduction')
+      .eq('status', 'completed');
+    const { data: shareRestoreRows, error: shareRestoreError } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', 'share_restore')
+      .eq('status', 'completed');
+
+    if (earningError || payoutError || refundError || referralError || reviewError || reviewDeductionError || reviewRestoreError || earningDeductionError || earningRestoreError
+        || surveyError || surveyDeductionError || surveyRestoreError
+        || challengeError || challengeDeductionError || challengeRestoreError
+        || shareError || shareDeductionError || shareRestoreError) {
       document.getElementById('payout-note').textContent =
         "We couldn't load your earnings right now.";
       return;
     }
+
+    const totalSurvey = (surveyRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const totalSurveyDeducted = (surveyDeductionRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const totalSurveyRestored = (surveyRestoreRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+
+    const totalChallenge = (challengeRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const totalChallengeDeducted = (challengeDeductionRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const totalChallengeRestored = (challengeRestoreRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+
+    const totalShare = (shareRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const totalShareDeducted = (shareDeductionRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const totalShareRestored = (shareRestoreRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
 
     const totalEarned = (earningRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalPaidOut = (payoutRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
@@ -382,10 +461,13 @@
     const totalEarningDeducted = (earningDeductionRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalEarningRestored = (earningRestoreRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const available = totalEarned - totalPaidOut + totalRefunded + totalReferral + totalReview
-      - totalReviewDeducted + totalReviewRestored - totalEarningDeducted + totalEarningRestored;
+      - totalReviewDeducted + totalReviewRestored - totalEarningDeducted + totalEarningRestored
+      + totalSurvey - totalSurveyDeducted + totalSurveyRestored
+      + totalChallenge - totalChallengeDeducted + totalChallengeRestored
+      + totalShare - totalShareDeducted + totalShareRestored;
 
     currentAvailableBalance = available;
-    currentTotalEarned = totalEarned + totalReferral + totalReview;
+    currentTotalEarned = totalEarned + totalReferral + totalReview + totalSurvey + totalChallenge + totalShare;
 
     applyBalanceVisibility();
     document.getElementById('payout-note').textContent = '';
@@ -402,7 +484,8 @@
   function renderTransactionRows(rows){
     const bodyEl = document.getElementById('history-body');
     bodyEl.innerHTML = rows.map(row => {
-      const sign = (row.type === 'payout' || row.type === 'review_deduction' || row.type === 'earning_deduction') ? '-' : '+';
+      const sign = (row.type === 'payout' || row.type === 'review_deduction' || row.type === 'earning_deduction'
+        || row.type === 'survey_deduction' || row.type === 'challenge_deduction' || row.type === 'share_deduction') ? '-' : '+';
       const amountText = `${sign}${formatNaira(Math.abs(Number(row.amount || 0)))}`;
       const displayAmount = balancesVisible ? amountText : MASK;
       return `

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly challenge — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .task-card{
+    text-align:center;
+  }
+  .task-reward{
+    font-size:32px;
+    font-weight:700;
+    margin:8px 0 4px;
+  }
+  .task-desc{
+    font-size:14px;
+    opacity:0.75;
+    max-width:420px;
+    margin:0 auto 20px;
+  }
+  .task-status{
+    font-size:14px;
+    opacity:0.7;
+    margin-top:16px;
+  }
+  .countdown{
+    font-size:22px;
+    font-weight:600;
+    letter-spacing:0.02em;
+    margin:8px 0;
+  }
+  .check-icon{
+    width:48px;
+    height:48px;
+    margin:0 auto 12px;
+    opacity:0.85;
+  }
+  #claim-btn:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+    filter:grayscale(60%);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="profile.html">Profile</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Earn more</div>
+  <h1>Weekly challenge</h1>
+  <p class="lead">One challenge per week — complete it for a bigger reward.</p>
+
+  <div id="task-loading" class="card">
+    <p>Loading this week's challenge…</p>
+  </div>
+
+  <div id="task-content" class="card task-card" style="display:none;">
+
+    <!-- Not yet claimed this week -->
+    <div id="task-available">
+      <h2 id="task-title" style="margin:0 0 4px;"></h2>
+      <div class="task-reward" id="reward-amount">₦0.00</div>
+      <p class="task-desc" id="task-desc-text">Tap "Go to challenge" to complete it, then claim your reward. One challenge per week.</p>
+      <a class="btn btn-solid" id="task-link-btn" href="#" target="_blank" rel="noopener" style="display:none; margin-bottom:16px;">Go to challenge</a>
+      <p class="task-desc" id="task-rules-text" style="display:none;"></p>
+      <p class="task-desc" style="opacity:0.6; font-size:12px;">By claiming this reward you confirm you completed the challenge above. Admin may verify your submission — if you didn't actually complete it, the reward will be revoked from your balance.</p>
+      <button class="btn btn-solid" id="claim-btn" disabled>Claim reward</button>
+      <p class="task-status" id="task-status-text"></p>
+    </div>
+
+    <!-- Already claimed this week -->
+    <div id="task-done" style="display:none;">
+      <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M8 12l3 3 5-6"></path>
+      </svg>
+      <p>You've already claimed this week's challenge.</p>
+      <p class="task-desc">A new challenge unlocks next week. Admin may still verify this submission — if the challenge wasn't completed, the reward can be reversed.</p>
+      <div class="countdown" id="countdown-text">--:--:--</div>
+      <p class="task-status">Next challenge unlocks in</p>
+    </div>
+
+    <!-- No challenge published for this week -->
+    <div id="task-none" style="display:none;">
+      <p>No challenge is available this week.</p>
+      <p class="task-desc">Check back soon — new challenges are added regularly.</p>
+    </div>
+
+  </div>
+
+  <div id="task-error" class="card" style="display:none;">
+    <p id="task-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function formatNaira(n){
+    return n.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+
+  function showTaskError(msg){
+    document.getElementById('task-loading').style.display = 'none';
+    document.getElementById('task-content').style.display = 'none';
+    const errBox = document.getElementById('task-error');
+    document.getElementById('task-error-text').textContent = msg;
+    errBox.style.display = 'block';
+  }
+
+  // Monday-start week. Returns a Date at local midnight for this week's Monday.
+  function startOfThisWeek(){
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay(); // 0 = Sunday, 1 = Monday, ...
+    const diffToMonday = (day === 0) ? -6 : 1 - day;
+    d.setDate(d.getDate() + diffToMonday);
+    return d;
+  }
+
+  function startOfNextWeek(){
+    const d = startOfThisWeek();
+    d.setDate(d.getDate() + 7);
+    return d;
+  }
+
+  function isoDate(d){
+    const off = d.getTimezoneOffset();
+    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
+  }
+
+  let countdownTimer;
+  function startCountdown(){
+    const target = startOfNextWeek();
+    const el = document.getElementById('countdown-text');
+
+    function tick(){
+      const diffMs = target - new Date();
+      if (diffMs <= 0){
+        clearInterval(countdownTimer);
+        // A new week has started locally — re-check challenge status.
+        checkTaskStatus();
+        return;
+      }
+      const totalSeconds = Math.floor(diffMs / 1000);
+      const days = Math.floor(totalSeconds / 86400);
+      const h = String(Math.floor((totalSeconds % 86400) / 3600)).padStart(2, '0');
+      const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+      const s = String(totalSeconds % 60).padStart(2, '0');
+      el.textContent = days > 0 ? `${days}d ${h}:${m}:${s}` : `${h}:${m}:${s}`;
+    }
+
+    tick();
+    clearInterval(countdownTimer);
+    countdownTimer = setInterval(tick, 1000);
+  }
+
+  function showDoneState(){
+    document.getElementById('task-none').style.display = 'none';
+    document.getElementById('task-available').style.display = 'none';
+    document.getElementById('task-done').style.display = 'block';
+    startCountdown();
+  }
+
+  function showNoTaskState(){
+    document.getElementById('task-available').style.display = 'none';
+    document.getElementById('task-done').style.display = 'none';
+    document.getElementById('task-none').style.display = 'block';
+  }
+
+  function showAvailableState(){
+    document.getElementById('task-none').style.display = 'none';
+    document.getElementById('task-done').style.display = 'none';
+    document.getElementById('task-available').style.display = 'block';
+    document.getElementById('task-title').textContent = currentTask.title;
+    document.getElementById('reward-amount').textContent = formatNaira(currentTask.reward_amount);
+    document.getElementById('task-desc-text').textContent =
+      currentTask.description || 'Complete the challenge, then claim your reward.';
+
+    const linkBtn = document.getElementById('task-link-btn');
+    const claimBtn = document.getElementById('claim-btn');
+    if (currentTask.link_url){
+      linkBtn.href = currentTask.link_url;
+      linkBtn.style.display = 'inline-block';
+      claimBtn.disabled = true;
+    } else {
+      linkBtn.style.display = 'none';
+      claimBtn.disabled = false;
+    }
+
+    const rulesEl = document.getElementById('task-rules-text');
+    if (currentTask.rules){
+      rulesEl.textContent = currentTask.rules;
+      rulesEl.style.display = 'block';
+    } else {
+      rulesEl.style.display = 'none';
+    }
+
+    claimBtn.textContent = 'Claim reward';
+    document.getElementById('task-status-text').textContent = '';
+  }
+
+  let currentUserId = null;
+  let currentTask = null;
+
+  async function checkTaskStatus(){
+    const weekStart = isoDate(startOfThisWeek());
+
+    // Find this week's published, active challenge.
+    const { data: taskRows, error: taskError } = await supabaseClient
+      .from('weekly_challenges')
+      .select('id, title, description, reward_amount, week_start, link_url, rules')
+      .eq('week_start', weekStart)
+      .eq('is_active', true)
+      .limit(1);
+
+    if (taskError){
+      showTaskError("We couldn't load this week's challenge right now.");
+      return;
+    }
+
+    document.getElementById('task-loading').style.display = 'none';
+    document.getElementById('task-content').style.display = 'block';
+
+    if (!taskRows || taskRows.length === 0){
+      currentTask = null;
+      showNoTaskState();
+      return;
+    }
+
+    currentTask = taskRows[0];
+
+    // Check whether the user already claimed a reward this week.
+    const { data: claimRows, error: claimError } = await supabaseClient
+      .from('transactions')
+      .select('amount, created_at')
+      .eq('user_id', currentUserId)
+      .eq('type', 'challenge')
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (claimError){
+      showTaskError("We couldn't check your challenge status right now.");
+      return;
+    }
+
+    const weekStartDate = startOfThisWeek();
+    const lastClaim = claimRows && claimRows.length ? new Date(claimRows[0].created_at) : null;
+
+    if (lastClaim && lastClaim >= weekStartDate){
+      showDoneState();
+    } else {
+      showAvailableState();
+    }
+  }
+
+  document.getElementById('task-link-btn').addEventListener('click', () => {
+    // User has opened the challenge link — unlock the claim button.
+    document.getElementById('claim-btn').disabled = false;
+    document.getElementById('task-status-text').textContent = 'You can now claim your reward.';
+  });
+
+  document.getElementById('claim-btn').addEventListener('click', async () => {
+    const claimBtn = document.getElementById('claim-btn');
+    claimBtn.disabled = true;
+    claimBtn.textContent = 'Claiming…';
+
+    const { error } = await supabaseClient
+      .from('transactions')
+      .insert({
+        user_id: currentUserId,
+        type: 'challenge',
+        status: 'completed',
+        amount: currentTask.reward_amount,
+        task_id: currentTask.id,
+        verification_status: 'pending_review'
+      });
+
+    claimBtn.disabled = false;
+    claimBtn.textContent = 'Claim reward';
+
+    if (error){
+      showToast("Couldn't claim your reward. Try again.");
+      return;
+    }
+
+    showToast(`You earned ${formatNaira(currentTask.reward_amount)}! Reward is subject to admin verification.`);
+    showDoneState();
+  });
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  async function init(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session){
+      window.location.href = 'login.html';
+      return;
+    }
+
+    currentUserId = session.user.id;
+    await checkTaskStatus();
+  }
+
+  init();
+</script>
+
+</body>
+</html>
