@@ -20,23 +20,6 @@
     max-width:420px;
     margin:0 auto 20px;
   }
-  .progress-track{
-    width:100%;
-    max-width:420px;
-    height:8px;
-    border-radius:999px;
-    background:rgba(0,0,0,0.08);
-    margin:0 auto 20px;
-    overflow:hidden;
-    display:none;
-  }
-  .progress-fill{
-    height:100%;
-    width:0%;
-    border-radius:999px;
-    background:currentColor;
-    transition:width 0.2s linear;
-  }
   .task-status{
     font-size:14px;
     opacity:0.7;
@@ -87,15 +70,11 @@
     <div id="task-available">
       <h2 id="task-title" style="margin:0 0 4px;"></h2>
       <div class="task-reward" id="reward-amount">₦0.00</div>
-      <p class="task-desc" id="task-desc-text">Tap start, stay on this page for a few seconds, then claim your reward. One task per day.</p>
+      <p class="task-desc" id="task-desc-text">Tap "Go to task" to complete it, then claim your reward. One task per day.</p>
       <a class="btn btn-solid" id="task-link-btn" href="#" target="_blank" rel="noopener" style="display:none; margin-bottom:16px;">Go to task</a>
       <p class="task-desc" id="task-rules-text" style="display:none;"></p>
       <p class="task-desc" style="opacity:0.6; font-size:12px;">By claiming this reward you confirm you completed the task above. Admin may verify your submission — if you didn't actually complete it, the reward will be revoked from your balance.</p>
-      <div class="progress-track" id="progress-track">
-        <div class="progress-fill" id="progress-fill"></div>
-      </div>
-      <button class="btn btn-solid" id="start-btn">Start task</button>
-      <button class="btn btn-solid" id="claim-btn" style="display:none;">Claim reward</button>
+      <button class="btn btn-solid" id="claim-btn" disabled>Claim reward</button>
       <p class="task-status" id="task-status-text"></p>
     </div>
 
@@ -143,9 +122,6 @@
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  // How long the "engagement" timer runs before the claim button unlocks.
-  const TASK_DURATION_MS = 10000;
 
   let toastTimer;
   function showToast(msg){
@@ -234,11 +210,14 @@
       currentTask.description || 'Stay on this page for a few seconds, then claim your reward.';
 
     const linkBtn = document.getElementById('task-link-btn');
+    const claimBtn = document.getElementById('claim-btn');
     if (currentTask.link_url){
       linkBtn.href = currentTask.link_url;
       linkBtn.style.display = 'inline-block';
+      claimBtn.disabled = true;
     } else {
       linkBtn.style.display = 'none';
+      claimBtn.disabled = false;
     }
 
     const rulesEl = document.getElementById('task-rules-text');
@@ -249,10 +228,7 @@
       rulesEl.style.display = 'none';
     }
 
-    document.getElementById('start-btn').style.display = 'inline-block';
-    document.getElementById('claim-btn').style.display = 'none';
-    document.getElementById('progress-track').style.display = 'none';
-    document.getElementById('progress-fill').style.width = '0%';
+    claimBtn.textContent = 'Claim reward';
     document.getElementById('task-status-text').textContent = '';
   }
 
@@ -315,28 +291,10 @@
     }
   }
 
-  document.getElementById('start-btn').addEventListener('click', () => {
-    const startBtn = document.getElementById('start-btn');
-    const claimBtn = document.getElementById('claim-btn');
-    const track = document.getElementById('progress-track');
-    const fill = document.getElementById('progress-fill');
-    const statusText = document.getElementById('task-status-text');
-
-    startBtn.style.display = 'none';
-    track.style.display = 'block';
-    statusText.textContent = 'Stay on this page…';
-
-    const startTime = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const pct = Math.min(100, (elapsed / TASK_DURATION_MS) * 100);
-      fill.style.width = pct + '%';
-      if (elapsed >= TASK_DURATION_MS){
-        clearInterval(interval);
-        statusText.textContent = 'Task complete — claim your reward.';
-        claimBtn.style.display = 'inline-block';
-      }
-    }, 100);
+  document.getElementById('task-link-btn').addEventListener('click', () => {
+    // User has opened the task link — unlock the claim button.
+    document.getElementById('claim-btn').disabled = false;
+    document.getElementById('task-status-text').textContent = 'You can now claim your reward.';
   });
 
   document.getElementById('claim-btn').addEventListener('click', async () => {
