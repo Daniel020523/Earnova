@@ -203,6 +203,24 @@
     el.style.display = 'block';
   }
 
+  // Every completed transaction type that adds to or subtracts from the
+  // available balance. Kept as one list so this page and dashboard.html
+  // can't silently drift apart again.
+  const CREDIT_TYPES = ['earning', 'referral', 'review', 'survey', 'challenge', 'share'];
+  const DEDUCTION_TYPES = ['review_deduction', 'earning_deduction', 'survey_deduction', 'challenge_deduction', 'share_deduction'];
+  const RESTORE_TYPES = ['review_restore', 'earning_restore', 'survey_restore', 'challenge_restore', 'share_restore'];
+
+  async function sumType(userId, type){
+    const { data, error } = await supabaseClient
+      .from('transactions')
+      .select('amount')
+      .eq('user_id', userId)
+      .eq('type', type)
+      .eq('status', 'completed');
+    if (error) throw error;
+    return (data || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  }
+
   async function loadPayoutPage(){
     const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
 
@@ -214,57 +232,42 @@
     const user = session.user;
     currentUserId = user.id;
 
-    // This mirrors dashboard.html's loadBalances() exactly, so the
-    // "available balance" here always matches what's shown there —
-    // not the total-earned figure.
-    const [balanceResult, linkedAccountResult, profileResult] = await Promise.all([
-      Promise.all([
-        supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'earning').eq('status', 'completed'),
-        // Every payout ever requested is deducted immediately, regardless
-        // of status — pending, completed, or failed. A failed one is
-        // separately restored via a 'refund' row rather than un-deducting
-        // this one.
+    let balanceData;
+    try {
+      const [creditSums, deductionSums, restoreSums, payoutRowsResult, refundRowsResult] = await Promise.all([
+        Promise.all(CREDIT_TYPES.map(t => sumType(user.id, t))),
+        Promise.all(DEDUCTION_TYPES.map(t => sumType(user.id, t))),
+        Promise.all(RESTORE_TYPES.map(t => sumType(user.id, t))),
         supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'payout'),
-        supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'refund').eq('status', 'completed'),
-        supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'referral').eq('status', 'completed'),
-        supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'review').eq('status', 'completed'),
-        // Admin revoked a review claim after crediting it — subtracted
-        // the same way 'payout' is.
-        supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'review_deduction').eq('status', 'completed'),
-        // Admin reversed an earlier deduction — restores available
-        // balance only, same way 'refund' restores what 'payout' took.
-        supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'review_restore').eq('status', 'completed')
-      ]),
-      supabaseClient.from('linked_accounts').select('bank_name, account_number, account_name').eq('user_id', user.id).maybeSingle(),
-      supabaseClient.from('profiles').select('has_withdrawal_pin').eq('id', user.id).single()
-    ]);
+        supabaseClient.from('transactions').select('amount').eq('user_id', user.id).eq('type', 'refund').eq('status', 'completed')
+      ]);
 
-    const [
-      { data: earningRows, error: earningError },
-      { data: payoutRows, error: payoutError },
-      { data: refundRows, error: refundError },
-      { data: referralRows, error: referralError },
-      { data: reviewRows, error: reviewError },
-      { data: reviewDeductionRows, error: reviewDeductionError },
-      { data: reviewRestoreRows, error: reviewRestoreError }
-    ] = balanceResult;
-    const { data: linkedAccount, error: linkedAccountError } = linkedAccountResult;
-    const { data: profile, error: profileError } = profileResult;
+      const totalCredits = creditSums.reduce((a, b) => a + b, 0);
+      const totalDeductions = deductionSums.reduce((a, b) => a + b, 0);
+      const totalRestores = restoreSums.reduce((a, b) => a + b, 0);
 
-    if (earningError || payoutError || refundError || referralError || reviewError || reviewDeductionError || reviewRestoreError || profileError) {
+      if (payoutRowsResult.error || refundRowsResult.error) throw (payoutRowsResult.error || refundRowsResult.error);
+
+      const totalPaidOut = (payoutRowsResult.data || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+      const totalRefunded = (refundRowsResult.data || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+
+      balanceData = totalCredits - totalDeductions + totalRestores - totalPaidOut + totalRefunded;
+    } catch (e) {
       showPageError("We couldn't load your payout details. Please try again.");
       return;
     }
 
-    const totalEarned = (earningRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const totalPaidOut = (payoutRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const totalRefunded = (refundRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const totalReferral = (referralRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const totalReview = (reviewRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const totalReviewDeducted = (reviewDeductionRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const totalReviewRestored = (reviewRestoreRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const { data: linkedAccount, error: linkedAccountError } = await supabaseClient
+      .from('linked_accounts').select('bank_name, account_number, account_name').eq('user_id', user.id).maybeSingle();
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles').select('has_withdrawal_pin').eq('id', user.id).single();
 
-    currentAvailableBalance = totalEarned - totalPaidOut + totalRefunded + totalReferral + totalReview - totalReviewDeducted + totalReviewRestored;
+    if (profileError) {
+      showPageError("We couldn't load your payout details. Please try again.");
+      return;
+    }
+
+    currentAvailableBalance = balanceData;
     document.getElementById('available-balance').textContent = formatNaira(currentAvailableBalance);
 
     hasLinkedAccount = !linkedAccountError && !!linkedAccount;

@@ -58,38 +58,65 @@ serve(async (req) => {
 
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-  // Idempotency: CPX may retry postbacks, so only credit each trans_id once.
   const { data: existing } = await supabase
     .from("cpx_transactions")
-    .select("id")
+    .select("id, status, amount")
     .eq("trans_id", transId)
     .maybeSingle();
 
-  if (existing) {
-    return new Response("already processed");
-  }
-
-  await supabase.from("cpx_transactions").insert({
-    trans_id: transId,
-    user_id: userId,
-    status: status || "unknown",
-    offer_id: offerId,
-  });
-
-  // status 1 = completed, 2 = canceled (per CPX convention) — only credit on completion.
-  if (status === "1") {
-    const { error: insertError } = await supabase.from("transactions").insert({
+  // Case 1: never seen this trans_id before.
+  if (!existing) {
+    await supabase.from("cpx_transactions").insert({
+      trans_id: transId,
       user_id: userId,
-      type: "survey",
-      status: "completed",
+      status: status || "unknown",
+      offer_id: offerId,
       amount: Number(amountLocal || 0),
-      verification_status: "verified",
     });
 
-    if (insertError) {
-      return new Response("credit failed: " + insertError.message, { status: 500 });
+    // status 1 = completed -> credit. Anything else (e.g. screened out,
+    // no bonus) is logged above but nothing is paid.
+    if (status === "1") {
+      const { error: insertError } = await supabase.from("transactions").insert({
+        user_id: userId,
+        type: "survey",
+        status: "completed",
+        amount: Number(amountLocal || 0),
+        verification_status: "verified",
+      });
+
+      if (insertError) {
+        return new Response("credit failed: " + insertError.message, { status: 500 });
+      }
     }
+
+    return new Response("ok");
   }
 
-  return new Response("ok");
+  // Case 2: this trans_id was already credited (status was "1"), and CPX is
+  // now sending a different status for it — a chargeback/reversal. Deduct
+  // the previously credited amount instead of silently ignoring it.
+  if (existing.status === "1" && status !== "1") {
+    const { error: deductError } = await supabase.from("transactions").insert({
+      user_id: userId,
+      type: "survey_deduction",
+      status: "completed",
+      amount: existing.amount || 0,
+    });
+
+    if (deductError) {
+      return new Response("reversal failed: " + deductError.message, { status: 500 });
+    }
+
+    await supabase
+      .from("cpx_transactions")
+      .update({ status: "reversed" })
+      .eq("id", existing.id);
+
+    return new Response("ok - reversed");
+  }
+
+  // Case 3: duplicate postback for something already processed the same way
+  // (CPX retried it). Nothing to do.
+  return new Response("already processed");
 });
