@@ -164,13 +164,23 @@
       <label class="form-label" for="challenge-select">Choose a challenge to review</label>
       <select class="form-input" id="challenge-select"></select>
 
+      <label class="form-label" for="tier-filter" style="margin-top:14px;">Filter by tier</label>
+      <select class="form-input" id="tier-filter">
+        <option value="">All tiers</option>
+        <option value="1">Tier 1 (0–1,000)</option>
+        <option value="2">Tier 2 (1,000–5,000)</option>
+        <option value="3">Tier 3 (5,000–10,000)</option>
+        <option value="4">Tier 4 (10,000–20,000)</option>
+        <option value="5">Tier 5 (20,000–50,000)</option>
+      </select>
+
       <div id="submissions-loading" style="font-size:14px; opacity:0.7; margin-top:14px;">Select a challenge above.</div>
       <div id="submissions-empty" style="font-size:14px; opacity:0.7; display:none; margin-top:14px;">No submissions for this challenge yet.</div>
       <div class="table-scroll">
         <table class="admin-table" id="submissions-table" style="display:none; margin-top:14px;">
           <thead>
             <tr>
-              <th>User</th><th>Video</th><th>Views</th><th>Likes</th><th>Shares</th><th>Comments</th><th>Actions</th>
+              <th>User</th><th>Tier</th><th>Video</th><th>Views</th><th>Likes</th><th>Shares</th><th>Comments</th><th>Actions</th>
             </tr>
           </thead>
           <tbody id="submissions-body"></tbody>
@@ -361,10 +371,17 @@
 
   // ---------- Submissions ----------
 
+  let allSubmissionRows = [];
+  let currentChallengeId = null;
+  let currentRewardAmount = null;
+
   async function loadSubmissions(challengeId, rewardAmount){
     const loadingEl = document.getElementById('submissions-loading');
     const emptyEl = document.getElementById('submissions-empty');
     const tableEl = document.getElementById('submissions-table');
+
+    currentChallengeId = challengeId;
+    currentRewardAmount = rewardAmount;
 
     if (!challengeId){
       loadingEl.textContent = 'Select a challenge above.';
@@ -381,8 +398,9 @@
 
     const { data: rows, error } = await supabaseClient
       .from('challenge_submissions')
-      .select('id, user_id, tiktok_url, views, likes, shares, comments, is_winner, reward_credited')
+      .select('id, user_id, tier, tiktok_url, views, likes, shares, comments, is_winner, reward_credited, is_removed')
       .eq('challenge_id', challengeId)
+      .order('tier', { ascending: true })
       .order('created_at', { ascending: true });
 
     loadingEl.style.display = 'none';
@@ -398,6 +416,29 @@
       return;
     }
 
+    allSubmissionRows = rows;
+    await renderSubmissions();
+  }
+
+  document.getElementById('tier-filter').addEventListener('change', renderSubmissions);
+
+  async function renderSubmissions(){
+    const emptyEl = document.getElementById('submissions-empty');
+    const tableEl = document.getElementById('submissions-table');
+    const tierFilter = document.getElementById('tier-filter').value;
+
+    const rows = tierFilter
+      ? allSubmissionRows.filter(r => String(r.tier) === tierFilter)
+      : allSubmissionRows;
+
+    if (rows.length === 0){
+      emptyEl.textContent = 'No submissions match this filter.';
+      emptyEl.style.display = 'block';
+      tableEl.style.display = 'none';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
     const userIds = [...new Set(rows.map(r => r.user_id))];
     const nameById = {};
     const { data: profileRows } = await supabaseClient
@@ -407,13 +448,18 @@
     const bodyEl = document.getElementById('submissions-body');
     bodyEl.innerHTML = rows.map(row => {
       const winnerBadge = row.is_winner ? `<span class="pill pill-winner">Winner</span>` : '';
-      const winnerAction = row.is_winner
-        ? `<button class="link-btn danger unwin-btn" data-id="${row.id}" data-user="${row.user_id}" data-reward="${rewardAmount}">Unmark</button>`
-        : `<button class="link-btn win-btn" data-id="${row.id}" data-user="${row.user_id}" data-reward="${rewardAmount}">Mark winner</button>`;
+      const removedBadge = row.is_removed ? `<span class="pill pill-inactive">Removed</span>` : '';
+      const winnerAction = row.is_removed ? '' : (row.is_winner
+        ? `<button class="link-btn danger unwin-btn" data-id="${row.id}" data-user="${row.user_id}" data-reward="${currentRewardAmount}">Unmark</button>`
+        : `<button class="link-btn win-btn" data-id="${row.id}" data-user="${row.user_id}" data-tier="${row.tier}" data-reward="${currentRewardAmount}">Mark winner</button>`);
+      const removeAction = row.is_removed
+        ? `<button class="link-btn restore-video-btn" data-id="${row.id}">Restore</button>`
+        : `<button class="link-btn danger remove-video-btn" data-id="${row.id}">Remove</button>`;
 
       return `
       <tr data-row-id="${row.id}">
-        <td>${escapeHtml(nameById[row.user_id] || row.user_id)} ${winnerBadge}</td>
+        <td>${escapeHtml(nameById[row.user_id] || row.user_id)} ${winnerBadge} ${removedBadge}</td>
+        <td>Tier ${row.tier ?? '—'}</td>
         <td><a href="${row.tiktok_url}" target="_blank" rel="noopener">Open</a></td>
         <td><input class="stat-input" type="number" min="0" data-field="views" value="${row.views ?? ''}"></td>
         <td><input class="stat-input" type="number" min="0" data-field="likes" value="${row.likes ?? ''}"></td>
@@ -422,6 +468,7 @@
         <td>
           <button class="link-btn save-stats-btn" data-id="${row.id}">Save</button>
           &nbsp;${winnerAction}
+          &nbsp;${removeAction}
         </td>
       </tr>`;
     }).join('');
@@ -451,16 +498,19 @@
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
         const userId = btn.getAttribute('data-user');
+        const tier = btn.getAttribute('data-tier');
         const reward = btn.getAttribute('data-reward');
 
-        if (!confirm(`Mark this submission as the winner and credit ${formatNaira(reward)} to the user?`)) return;
+        if (!confirm(`Mark this submission as the Tier ${tier} winner and credit ${formatNaira(reward)} to the user?`)) return;
         btn.disabled = true;
 
-        // Only one winner per challenge — clear any existing winner flag first.
+        // Only one winner per tier per challenge — clear any existing
+        // winner flag within this tier first (other tiers are untouched).
         await supabaseClient
           .from('challenge_submissions')
           .update({ is_winner: false })
-          .eq('challenge_id', challengeId);
+          .eq('challenge_id', currentChallengeId)
+          .eq('tier', tier);
 
         const { error: winError } = await supabaseClient
           .from('challenge_submissions')
@@ -474,7 +524,7 @@
             type: 'challenge',
             status: 'completed',
             amount: reward,
-            task_id: challengeId,
+            task_id: currentChallengeId,
             verification_status: 'verified'
           });
 
@@ -485,8 +535,8 @@
           return;
         }
 
-        showToast('Winner marked and reward credited.');
-        loadSubmissions(challengeId, reward);
+        showToast(`Tier ${tier} winner marked and reward credited.`);
+        loadSubmissions(currentChallengeId, currentRewardAmount);
       });
     });
 
@@ -521,7 +571,42 @@
         }
 
         showToast('Winner unmarked and reward deducted.');
-        loadSubmissions(challengeId, reward);
+        loadSubmissions(currentChallengeId, currentRewardAmount);
+      });
+    });
+
+    bodyEl.querySelectorAll('.remove-video-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        if (!confirm('Remove this video? The user will see their entry was taken down for breaking the rules.')) return;
+        btn.disabled = true;
+
+        const { error: removeError } = await supabaseClient
+          .from('challenge_submissions')
+          .update({ is_removed: true })
+          .eq('id', id);
+
+        btn.disabled = false;
+        if (removeError){ showToast("Couldn't remove: " + removeError.message); return; }
+        showToast('Video removed.');
+        loadSubmissions(currentChallengeId, currentRewardAmount);
+      });
+    });
+
+    bodyEl.querySelectorAll('.restore-video-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        btn.disabled = true;
+
+        const { error: restoreError } = await supabaseClient
+          .from('challenge_submissions')
+          .update({ is_removed: false })
+          .eq('id', id);
+
+        btn.disabled = false;
+        if (restoreError){ showToast("Couldn't restore: " + restoreError.message); return; }
+        showToast('Video restored.');
+        loadSubmissions(currentChallengeId, currentRewardAmount);
       });
     });
   }

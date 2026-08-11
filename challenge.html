@@ -30,23 +30,60 @@
     border-radius:8px;
     padding:12px 14px;
   }
-  .submit-row{
-    display:flex;
+  .tier-grid{
+    display:grid;
+    grid-template-columns:1fr;
     gap:8px;
     max-width:460px;
-    margin:0 auto;
+    margin:0 auto 16px;
+    text-align:left;
   }
-  .submit-row input{
-    flex:1;
+  .tier-option{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    border:1px solid rgba(0,0,0,0.12);
+    border-radius:8px;
+    padding:12px 14px;
+    cursor:pointer;
+  }
+  .tier-option.selected{
+    border-color:#3b5bdb;
+    background:rgba(59,91,219,0.06);
+  }
+  .tier-option input{ margin:0; }
+  .tier-option-label{ font-size:14px; }
+  .tier-option-label strong{ display:block; }
+  .form-field{
+    max-width:460px;
+    margin:0 auto 16px;
+    text-align:left;
+  }
+  .form-field label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    opacity:0.75;
+    margin-bottom:6px;
+  }
+  .form-field input{
+    width:100%;
     padding:10px 12px;
     border:1px solid rgba(0,0,0,0.15);
     border-radius:8px;
     font-size:14px;
     font-family:inherit;
+    box-sizing:border-box;
   }
-  .submit-row input:focus{
+  .form-field input:focus{
     outline:none;
     border-color:#3b5bdb;
+  }
+  .warning-text{
+    font-size:12px;
+    opacity:0.6;
+    max-width:460px;
+    margin:0 auto 16px;
   }
   .submitted-box{
     max-width:460px;
@@ -55,13 +92,23 @@
     border:1px solid rgba(0,150,80,0.2);
     border-radius:8px;
     padding:16px;
+    text-align:left;
   }
-  .submitted-link{
-    word-break:break-all;
+  .removed-box{
+    max-width:460px;
+    margin:0 auto;
+    background:rgba(192,57,43,0.08);
+    border:1px solid rgba(192,57,43,0.25);
+    border-radius:8px;
+    padding:16px;
+    text-align:left;
+  }
+  .submitted-row{
     font-size:13px;
-    display:block;
-    margin:8px 0;
+    margin:4px 0;
+    word-break:break-all;
   }
+  .submitted-row a{ color:#3b5bdb; }
 </style>
 </head>
 <body>
@@ -82,7 +129,7 @@
 <main class="page">
   <div class="kicker">Earn more</div>
   <h1>Weekly TikTok challenge</h1>
-  <p class="lead">Post a new video, submit your link, and you could win.</p>
+  <p class="lead">Pick your tier, post a new video, and you could win.</p>
 
   <div id="challenge-loading" class="card">
     <p>Loading this week's challenge…</p>
@@ -95,22 +142,65 @@
     <p class="challenge-desc" id="challenge-desc"></p>
     <p class="challenge-rules" id="challenge-rules" style="display:none;"></p>
 
-    <div id="submit-section">
-      <div class="submit-row">
-        <input type="url" id="tiktok-url-input" placeholder="Paste your TikTok video link">
-        <button class="btn btn-solid" id="submit-btn">Submit</button>
+    <!-- Step 1: tier + TikTok account link -->
+    <div id="step-1">
+      <div class="tier-grid" id="tier-grid">
+        <label class="tier-option" data-tier="1">
+          <input type="radio" name="tier" value="1">
+          <span class="tier-option-label"><strong>Tier 1</strong>0 – 1,000 followers</span>
+        </label>
+        <label class="tier-option" data-tier="2">
+          <input type="radio" name="tier" value="2">
+          <span class="tier-option-label"><strong>Tier 2</strong>1,000 – 5,000 followers</span>
+        </label>
+        <label class="tier-option" data-tier="3">
+          <input type="radio" name="tier" value="3">
+          <span class="tier-option-label"><strong>Tier 3</strong>5,000 – 10,000 followers</span>
+        </label>
+        <label class="tier-option" data-tier="4">
+          <input type="radio" name="tier" value="4">
+          <span class="tier-option-label"><strong>Tier 4</strong>10,000 – 20,000 followers</span>
+        </label>
+        <label class="tier-option" data-tier="5">
+          <input type="radio" name="tier" value="5">
+          <span class="tier-option-label"><strong>Tier 5</strong>20,000 – 50,000 followers</span>
+        </label>
       </div>
-      <p class="task-status" id="submit-status" style="font-size:13px; opacity:0.7; margin-top:10px;"></p>
+
+      <div class="form-field">
+        <label for="account-url-input">Your TikTok account link (the one you'll use to participate)</label>
+        <input type="url" id="account-url-input" placeholder="https://www.tiktok.com/@yourhandle">
+      </div>
+
+      <button class="btn btn-solid" id="join-btn">Join challenge</button>
+      <p class="task-status" id="step1-status" style="font-size:13px; opacity:0.7; margin-top:10px;"></p>
     </div>
 
-    <div id="submitted-section" class="submitted-box" style="display:none;">
-      <p style="margin:0 0 4px; font-weight:600;">You're in this week's challenge!</p>
-      <a class="submitted-link" id="submitted-link" href="#" target="_blank" rel="noopener"></a>
-      <div class="submit-row">
-        <input type="url" id="edit-url-input" placeholder="Update your video link">
-        <button class="btn btn-solid" id="update-btn">Update</button>
+    <!-- Step 2: video link -->
+    <div id="step-2" style="display:none;">
+      <div class="form-field">
+        <label for="video-url-input">Link to your challenge video</label>
+        <input type="url" id="video-url-input" placeholder="https://www.tiktok.com/@yourhandle/video/...">
       </div>
-      <p style="font-size:12px; opacity:0.6; margin-top:10px;">Winners are chosen manually after the challenge ends and announced separately.</p>
+      <p class="warning-text">By submitting, you confirm this video follows the challenge rules. Admin may review it afterward — if it breaks the rules, it may be taken down and your entry disqualified.</p>
+      <button class="btn btn-solid" id="finish-join-btn">Submit & join</button>
+      <button class="btn btn-ghost" id="back-btn" style="margin-left:8px;">Back</button>
+      <p class="task-status" id="step2-status" style="font-size:13px; opacity:0.7; margin-top:10px;"></p>
+    </div>
+
+    <!-- Already joined -->
+    <div id="submitted-section" class="submitted-box" style="display:none;">
+      <p style="margin:0 0 8px; font-weight:600;">You're in this week's challenge!</p>
+      <p class="submitted-row"><strong>Tier:</strong> <span id="submitted-tier"></span></p>
+      <p class="submitted-row"><strong>Account:</strong> <a id="submitted-account" href="#" target="_blank" rel="noopener"></a></p>
+      <p class="submitted-row"><strong>Video:</strong> <a id="submitted-video" href="#" target="_blank" rel="noopener"></a></p>
+      <p style="font-size:12px; opacity:0.6; margin-top:10px;">Winners are chosen manually per tier after the challenge ends and announced separately.</p>
+    </div>
+
+    <!-- Video removed by admin -->
+    <div id="removed-section" class="removed-box" style="display:none;">
+      <p style="margin:0 0 8px; font-weight:600;">Your entry was removed</p>
+      <p style="font-size:13px;">Admin reviewed your video and found it didn't follow the challenge rules, so this entry has been taken down and disqualified.</p>
     </div>
 
   </div>
@@ -142,6 +232,14 @@
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const TIER_LABELS = {
+    1: 'Tier 1 (0 – 1,000 followers)',
+    2: 'Tier 2 (1,000 – 5,000 followers)',
+    3: 'Tier 3 (5,000 – 10,000 followers)',
+    4: 'Tier 4 (10,000 – 20,000 followers)',
+    5: 'Tier 5 (20,000 – 50,000 followers)'
+  };
 
   let toastTimer;
   function showToast(msg){
@@ -187,20 +285,50 @@
 
   let currentUserId = null;
   let currentChallenge = null;
+  let selectedTier = null;
+  let pendingAccountUrl = null;
 
-  function showSubmittedState(url){
-    document.getElementById('submit-section').style.display = 'none';
-    const box = document.getElementById('submitted-section');
-    box.style.display = 'block';
-    const link = document.getElementById('submitted-link');
-    link.href = url;
-    link.textContent = url;
-    document.getElementById('edit-url-input').value = '';
+  document.querySelectorAll('.tier-option').forEach(label => {
+    label.addEventListener('click', () => {
+      document.querySelectorAll('.tier-option').forEach(l => l.classList.remove('selected'));
+      label.classList.add('selected');
+      selectedTier = label.getAttribute('data-tier');
+    });
+  });
+
+  function showStep1(){
+    document.getElementById('submitted-section').style.display = 'none';
+    document.getElementById('removed-section').style.display = 'none';
+    document.getElementById('step-2').style.display = 'none';
+    document.getElementById('step-1').style.display = 'block';
   }
 
-  function showSubmitState(){
+  function showStep2(){
+    document.getElementById('step-1').style.display = 'none';
+    document.getElementById('step-2').style.display = 'block';
+  }
+
+  function showSubmittedState(sub){
+    document.getElementById('step-1').style.display = 'none';
+    document.getElementById('step-2').style.display = 'none';
+    document.getElementById('removed-section').style.display = 'none';
+
+    document.getElementById('submitted-tier').textContent = TIER_LABELS[sub.tier] || `Tier ${sub.tier}`;
+    const accountLink = document.getElementById('submitted-account');
+    accountLink.href = sub.tiktok_account_url;
+    accountLink.textContent = sub.tiktok_account_url;
+    const videoLink = document.getElementById('submitted-video');
+    videoLink.href = sub.tiktok_url;
+    videoLink.textContent = sub.tiktok_url;
+
+    document.getElementById('submitted-section').style.display = 'block';
+  }
+
+  function showRemovedState(){
+    document.getElementById('step-1').style.display = 'none';
+    document.getElementById('step-2').style.display = 'none';
     document.getElementById('submitted-section').style.display = 'none';
-    document.getElementById('submit-section').style.display = 'block';
+    document.getElementById('removed-section').style.display = 'block';
   }
 
   async function loadChallenge(){
@@ -228,7 +356,7 @@
     currentChallenge = challengeRows[0];
     document.getElementById('challenge-title').textContent = currentChallenge.title;
     document.getElementById('challenge-reward').textContent =
-      `Prize: ${formatNaira(currentChallenge.reward_amount)}`;
+      `Prize per tier: ${formatNaira(currentChallenge.reward_amount)}`;
     document.getElementById('challenge-desc').textContent =
       currentChallenge.description || 'Post a new TikTok video for this week\'s challenge.';
 
@@ -242,31 +370,56 @@
 
     const { data: submissionRows, error: submissionError } = await supabaseClient
       .from('challenge_submissions')
-      .select('tiktok_url')
+      .select('tier, tiktok_account_url, tiktok_url, is_removed')
       .eq('challenge_id', currentChallenge.id)
       .eq('user_id', currentUserId)
       .maybeSingle();
 
     if (!submissionError && submissionRows){
-      showSubmittedState(submissionRows.tiktok_url);
+      if (submissionRows.is_removed){
+        showRemovedState();
+      } else {
+        showSubmittedState(submissionRows);
+      }
     } else {
-      showSubmitState();
+      showStep1();
     }
   }
 
-  document.getElementById('submit-btn').addEventListener('click', async () => {
-    const input = document.getElementById('tiktok-url-input');
-    const statusEl = document.getElementById('submit-status');
-    const url = input.value.trim();
+  document.getElementById('join-btn').addEventListener('click', () => {
+    const statusEl = document.getElementById('step1-status');
+    const accountUrl = document.getElementById('account-url-input').value.trim();
 
-    if (!isTikTokUrl(url)){
-      statusEl.textContent = 'Please paste a valid TikTok video link.';
+    if (!selectedTier){
+      statusEl.textContent = 'Please select a tier.';
+      return;
+    }
+    if (!isTikTokUrl(accountUrl)){
+      statusEl.textContent = 'Please enter a valid TikTok account link.';
       return;
     }
 
-    const btn = document.getElementById('submit-btn');
+    statusEl.textContent = '';
+    pendingAccountUrl = accountUrl;
+    showStep2();
+  });
+
+  document.getElementById('back-btn').addEventListener('click', () => {
+    showStep1();
+  });
+
+  document.getElementById('finish-join-btn').addEventListener('click', async () => {
+    const statusEl = document.getElementById('step2-status');
+    const videoUrl = document.getElementById('video-url-input').value.trim();
+
+    if (!isTikTokUrl(videoUrl)){
+      statusEl.textContent = 'Please enter a valid TikTok video link.';
+      return;
+    }
+
+    const btn = document.getElementById('finish-join-btn');
     btn.disabled = true;
-    btn.textContent = 'Submitting…';
+    btn.textContent = 'Joining…';
     statusEl.textContent = '';
 
     const { error } = await supabaseClient
@@ -274,51 +427,25 @@
       .insert({
         challenge_id: currentChallenge.id,
         user_id: currentUserId,
-        tiktok_url: url
+        tier: selectedTier,
+        tiktok_account_url: pendingAccountUrl,
+        tiktok_url: videoUrl
       });
 
     btn.disabled = false;
-    btn.textContent = 'Submit';
+    btn.textContent = 'Submit & join';
 
     if (error){
-      statusEl.textContent = "Couldn't submit: " + error.message;
+      statusEl.textContent = "Couldn't join: " + error.message;
       return;
     }
 
     showToast("You're entered in this week's challenge!");
-    showSubmittedState(url);
-  });
-
-  document.getElementById('update-btn').addEventListener('click', async () => {
-    const input = document.getElementById('edit-url-input');
-    const url = input.value.trim();
-
-    if (!url) return;
-    if (!isTikTokUrl(url)){
-      showToast('Please paste a valid TikTok video link.');
-      return;
-    }
-
-    const btn = document.getElementById('update-btn');
-    btn.disabled = true;
-    btn.textContent = 'Updating…';
-
-    const { error } = await supabaseClient
-      .from('challenge_submissions')
-      .update({ tiktok_url: url })
-      .eq('challenge_id', currentChallenge.id)
-      .eq('user_id', currentUserId);
-
-    btn.disabled = false;
-    btn.textContent = 'Update';
-
-    if (error){
-      showToast("Couldn't update: " + error.message);
-      return;
-    }
-
-    showToast('Your submission was updated.');
-    showSubmittedState(url);
+    showSubmittedState({
+      tier: selectedTier,
+      tiktok_account_url: pendingAccountUrl,
+      tiktok_url: videoUrl
+    });
   });
 
   document.getElementById('logout-btn').addEventListener('click', async (event) => {
