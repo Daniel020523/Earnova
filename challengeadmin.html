@@ -293,7 +293,7 @@
         <td>
           <button class="link-btn toggle-btn" data-id="${row.id}" data-active="${row.is_active}">${row.is_active ? 'Deactivate' : 'Activate'}</button>
           &nbsp;
-          <button class="link-btn danger delete-btn" data-id="${row.id}">Delete</button>
+          <button class="link-btn danger delete-btn" data-id="${row.id}" data-title="${escapeHtml(row.title)}">Delete</button>
         </td>
       </tr>`).join('');
     tableEl.style.display = 'table';
@@ -314,7 +314,18 @@
     bodyEl.querySelectorAll('.delete-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
-        if (!confirm('Delete this challenge? This cannot be undone.')) return;
+        const title = btn.getAttribute('data-title');
+
+        const typed = prompt(
+          `This permanently deletes "${title}" along with every submission, stat, and winner record tied to it — this cannot be undone.\n\nType the challenge title exactly to confirm:`
+        );
+
+        if (typed === null) return; // cancelled
+        if (typed !== title){
+          showToast('Title did not match — nothing was deleted.');
+          return;
+        }
+
         btn.disabled = true;
         const { error: deleteError } = await supabaseClient
           .from('weekly_challenges').delete().eq('id', id);
