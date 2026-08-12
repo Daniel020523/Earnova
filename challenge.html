@@ -299,6 +299,7 @@
               <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Saved</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Shares</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Comments</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Score</th>
             </tr>
           </thead>
           <tbody id="tier-results-body"></tbody>
@@ -582,7 +583,27 @@
         <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.saved ?? '—'}</td>
         <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.shares ?? '—'}</td>
         <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.comments ?? '—'}</td>
+        <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right; font-weight:600;">${r.score !== undefined ? r.score.toFixed(1) + '%' : '—'}</td>
       </tr>`).join('');
+  }
+
+  const SCORE_WEIGHTS = { views: 0.10, likes: 0.35, saved: 0.35, comments: 0.10, shares: 0.10 };
+
+  function computeScores(rows){
+    const totals = { views: 0, likes: 0, saved: 0, comments: 0, shares: 0 };
+    rows.forEach(r => {
+      Object.keys(totals).forEach(key => { totals[key] += Number(r[key] || 0); });
+    });
+
+    return rows.map(r => {
+      let score = 0;
+      Object.keys(SCORE_WEIGHTS).forEach(key => {
+        const total = totals[key];
+        const share = total > 0 ? (Number(r[key] || 0) / total) : 0;
+        score += share * SCORE_WEIGHTS[key];
+      });
+      return { ...r, score: score * 100 };
+    });
   }
 
   async function fetchTierResults(challengeId, tier){
@@ -604,8 +625,9 @@
 
     if (rowsError || !rows) return null;
 
-    rows.sort((a, b) => (b.views || 0) - (a.views || 0));
-    return rows;
+    const scored = computeScores(rows);
+    scored.sort((a, b) => b.score - a.score);
+    return scored;
   }
 
   async function loadTierResults(challengeId, tier){
@@ -849,6 +871,7 @@
                   <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Saved</th>
                   <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Shares</th>
                   <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Comments</th>
+                  <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Score</th>
                 </tr>
               </thead>
               <tbody>${tierResultsRowsHtml(rows)}</tbody>
