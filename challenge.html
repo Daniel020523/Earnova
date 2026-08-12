@@ -18,17 +18,60 @@
     font-size:14px;
     opacity:0.75;
     max-width:460px;
-    margin:0 auto 16px;
+    margin:0 auto 12px;
   }
-  .challenge-rules{
+  .countdown-badge{
+    display:inline-block;
     font-size:13px;
-    opacity:0.65;
+    font-weight:600;
+    padding:6px 14px;
+    border-radius:999px;
+    background:rgba(59,91,219,0.1);
+    color:#3b5bdb;
+    margin-bottom:16px;
+  }
+  .countdown-badge.ended{
+    background:rgba(230,180,0,0.15);
+    color:#8a6d00;
+  }
+  .rules-btn{
+    background:none;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:999px;
+    padding:6px 16px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    color:inherit;
+    margin-bottom:16px;
+  }
+  .rules-panel{
+    display:none;
     max-width:460px;
     margin:0 auto 20px;
     text-align:left;
     background:rgba(0,0,0,0.03);
     border-radius:8px;
-    padding:12px 14px;
+    padding:14px 16px;
+    font-size:13px;
+  }
+  .rules-panel h3{
+    font-size:13px;
+    margin:0 0 8px;
+  }
+  .rules-panel ul{
+    margin:0 0 10px;
+    padding-left:18px;
+  }
+  .rules-panel li{
+    margin-bottom:4px;
+  }
+  .rules-panel .custom-rules{
+    opacity:0.75;
+    border-top:1px solid rgba(0,0,0,0.08);
+    padding-top:10px;
+    margin-top:10px;
+    white-space:pre-wrap;
   }
   .tier-grid{
     display:grid;
@@ -87,7 +130,7 @@
   }
   .submitted-box{
     max-width:460px;
-    margin:0 auto;
+    margin:0 auto 20px;
     background:rgba(0,150,80,0.08);
     border:1px solid rgba(0,150,80,0.2);
     border-radius:8px;
@@ -96,12 +139,21 @@
   }
   .removed-box{
     max-width:460px;
-    margin:0 auto;
+    margin:0 auto 20px;
     background:rgba(192,57,43,0.08);
     border:1px solid rgba(192,57,43,0.25);
     border-radius:8px;
     padding:16px;
     text-align:left;
+  }
+  .closed-box{
+    max-width:460px;
+    margin:0 auto 20px;
+    background:rgba(0,0,0,0.03);
+    border-radius:8px;
+    padding:16px;
+    font-size:14px;
+    opacity:0.75;
   }
   .submitted-row{
     font-size:13px;
@@ -109,6 +161,36 @@
     word-break:break-all;
   }
   .submitted-row a{ color:#3b5bdb; }
+  .winners-box{
+    max-width:460px;
+    margin:0 auto 20px;
+    text-align:left;
+  }
+  .winners-box h3{
+    font-size:14px;
+    margin:0 0 10px;
+    text-align:center;
+  }
+  .you-won-banner{
+    background:rgba(230,180,0,0.15);
+    border:1px solid rgba(230,180,0,0.35);
+    border-radius:8px;
+    padding:14px;
+    text-align:center;
+    font-weight:700;
+    margin-bottom:14px;
+  }
+  .winner-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:8px 12px;
+    border:1px solid rgba(0,0,0,0.1);
+    border-radius:8px;
+    margin-bottom:8px;
+    font-size:13px;
+  }
+  .winner-row a{ color:#3b5bdb; font-weight:600; }
 </style>
 </head>
 <body>
@@ -140,7 +222,43 @@
     <h2 id="challenge-title" style="margin:0 0 4px;"></h2>
     <div class="challenge-reward" id="challenge-reward"></div>
     <p class="challenge-desc" id="challenge-desc"></p>
-    <p class="challenge-rules" id="challenge-rules" style="display:none;"></p>
+
+    <div id="countdown-badge" class="countdown-badge">--</div>
+    <br>
+    <button class="rules-btn" id="rules-btn">View rules</button>
+
+    <div class="rules-panel" id="rules-panel">
+      <h3>Required rules</h3>
+      <ul>
+        <li>Your video must be posted <strong>after</strong> this campaign started — videos posted before the campaign began don't count.</li>
+        <li>You must use <strong>all</strong> of the required hashtags for this challenge.</li>
+      </ul>
+      <div class="custom-rules" id="custom-rules" style="display:none;"></div>
+    </div>
+
+    <div id="winners-section" class="winners-box" style="display:none;">
+      <div id="you-won-banner" class="you-won-banner" style="display:none;">🎉 Congratulations — you won!</div>
+      <h3>🏆 Winners</h3>
+      <div id="winners-list"></div>
+    </div>
+
+    <div id="tier-results-section" class="winners-box" style="display:none;">
+      <h3 id="tier-results-title">Tier results</h3>
+      <div class="table-scroll">
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Video</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Views</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Likes</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Shares</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Comments</th>
+            </tr>
+          </thead>
+          <tbody id="tier-results-body"></tbody>
+        </table>
+      </div>
+    </div>
 
     <!-- Step 1: tier + TikTok account link -->
     <div id="step-1">
@@ -194,13 +312,18 @@
       <p class="submitted-row"><strong>Tier:</strong> <span id="submitted-tier"></span></p>
       <p class="submitted-row"><strong>Account:</strong> <a id="submitted-account" href="#" target="_blank" rel="noopener"></a></p>
       <p class="submitted-row"><strong>Video:</strong> <a id="submitted-video" href="#" target="_blank" rel="noopener"></a></p>
-      <p style="font-size:12px; opacity:0.6; margin-top:10px;">Winners are chosen manually per tier after the challenge ends and announced separately.</p>
+      <p style="font-size:12px; opacity:0.6; margin-top:10px;">Winners are chosen manually per tier after the challenge ends and announced here.</p>
     </div>
 
     <!-- Video removed by admin -->
     <div id="removed-section" class="removed-box" style="display:none;">
       <p style="margin:0 0 8px; font-weight:600;">Your entry was removed</p>
       <p style="font-size:13px;">Admin reviewed your video and found it didn't follow the challenge rules, so this entry has been taken down and disqualified.</p>
+    </div>
+
+    <!-- Campaign ended, user never joined -->
+    <div id="closed-section" class="closed-box" style="display:none;">
+      This challenge is no longer accepting entries. Results are being reviewed by admin.
     </div>
 
   </div>
@@ -241,6 +364,8 @@
     5: 'Tier 5 (20,000 – 50,000 followers)'
   };
 
+  const CAMPAIGN_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+
   let toastTimer;
   function showToast(msg){
     const toast = document.getElementById('toast');
@@ -252,6 +377,12 @@
 
   function formatNaira(n){
     return Number(n).toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
   }
 
   function showError(msg){
@@ -287,6 +418,8 @@
   let currentChallenge = null;
   let selectedTier = null;
   let pendingAccountUrl = null;
+  let campaignEnded = false;
+  let countdownTimer;
 
   document.querySelectorAll('.tier-option').forEach(label => {
     label.addEventListener('click', () => {
@@ -296,10 +429,73 @@
     });
   });
 
-  function showStep1(){
+  document.getElementById('rules-btn').addEventListener('click', () => {
+    const panel = document.getElementById('rules-panel');
+    const isOpen = panel.style.display === 'block';
+    panel.style.display = isOpen ? 'none' : 'block';
+    document.getElementById('rules-btn').textContent = isOpen ? 'View rules' : 'Hide rules';
+  });
+
+  function startCountdown(endTime){
+    const badge = document.getElementById('countdown-badge');
+
+    function tick(){
+      const diffMs = endTime - new Date();
+      if (diffMs <= 0){
+        clearInterval(countdownTimer);
+        campaignEnded = true;
+        badge.textContent = 'Awaiting result';
+        badge.classList.add('ended');
+        updateEntryUI();
+        return;
+      }
+      const totalSeconds = Math.floor(diffMs / 1000);
+      const days = Math.floor(totalSeconds / 86400);
+      const h = String(Math.floor((totalSeconds % 86400) / 3600)).padStart(2, '0');
+      const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+      const s = String(totalSeconds % 60).padStart(2, '0');
+      badge.textContent = `Ends in ${days}d ${h}:${m}:${s}`;
+    }
+
+    tick();
+    clearInterval(countdownTimer);
+    countdownTimer = setInterval(tick, 1000);
+  }
+
+  function hideAllEntryStates(){
+    document.getElementById('step-1').style.display = 'none';
+    document.getElementById('step-2').style.display = 'none';
     document.getElementById('submitted-section').style.display = 'none';
     document.getElementById('removed-section').style.display = 'none';
-    document.getElementById('step-2').style.display = 'none';
+    document.getElementById('closed-section').style.display = 'none';
+  }
+
+  let mySubmission = null;
+
+  function updateEntryUI(){
+    hideAllEntryStates();
+
+    if (mySubmission){
+      if (mySubmission.is_removed){
+        document.getElementById('removed-section').style.display = 'block';
+      } else {
+        document.getElementById('submitted-tier').textContent = TIER_LABELS[mySubmission.tier] || `Tier ${mySubmission.tier}`;
+        const accountLink = document.getElementById('submitted-account');
+        accountLink.href = mySubmission.tiktok_account_url;
+        accountLink.textContent = mySubmission.tiktok_account_url;
+        const videoLink = document.getElementById('submitted-video');
+        videoLink.href = mySubmission.tiktok_url;
+        videoLink.textContent = mySubmission.tiktok_url;
+        document.getElementById('submitted-section').style.display = 'block';
+      }
+      return;
+    }
+
+    if (campaignEnded){
+      document.getElementById('closed-section').style.display = 'block';
+      return;
+    }
+
     document.getElementById('step-1').style.display = 'block';
   }
 
@@ -308,27 +504,71 @@
     document.getElementById('step-2').style.display = 'block';
   }
 
-  function showSubmittedState(sub){
-    document.getElementById('step-1').style.display = 'none';
-    document.getElementById('step-2').style.display = 'none';
-    document.getElementById('removed-section').style.display = 'none';
+  async function loadWinners(challengeId){
+    const { data: winnerRows, error } = await supabaseClient
+      .from('challenge_submissions')
+      .select('tier, tiktok_url, user_id')
+      .eq('challenge_id', challengeId)
+      .eq('is_winner', true)
+      .order('tier', { ascending: true });
 
-    document.getElementById('submitted-tier').textContent = TIER_LABELS[sub.tier] || `Tier ${sub.tier}`;
-    const accountLink = document.getElementById('submitted-account');
-    accountLink.href = sub.tiktok_account_url;
-    accountLink.textContent = sub.tiktok_account_url;
-    const videoLink = document.getElementById('submitted-video');
-    videoLink.href = sub.tiktok_url;
-    videoLink.textContent = sub.tiktok_url;
+    if (error || !winnerRows || winnerRows.length === 0) return;
 
-    document.getElementById('submitted-section').style.display = 'block';
+    const section = document.getElementById('winners-section');
+    const list = document.getElementById('winners-list');
+    const banner = document.getElementById('you-won-banner');
+
+    list.innerHTML = winnerRows.map(w => `
+      <div class="winner-row">
+        <span>${TIER_LABELS[w.tier] || 'Tier ' + w.tier}</span>
+        <a href="${w.tiktok_url}" target="_blank" rel="noopener">Watch winning video</a>
+      </div>`).join('');
+
+    const iWon = winnerRows.some(w => w.user_id === currentUserId);
+    banner.style.display = iWon ? 'block' : 'none';
+
+    section.style.display = 'block';
   }
 
-  function showRemovedState(){
-    document.getElementById('step-1').style.display = 'none';
-    document.getElementById('step-2').style.display = 'none';
-    document.getElementById('submitted-section').style.display = 'none';
-    document.getElementById('removed-section').style.display = 'block';
+  async function loadTierResults(challengeId, tier){
+    if (!tier) return;
+
+    const { data: tierResult, error: tierError } = await supabaseClient
+      .from('challenge_tier_results')
+      .select('is_published')
+      .eq('challenge_id', challengeId)
+      .eq('tier', tier)
+      .maybeSingle();
+
+    if (tierError || !tierResult || !tierResult.is_published) return;
+
+    const { data: rows, error: rowsError } = await supabaseClient
+      .from('challenge_submissions')
+      .select('tiktok_url, views, likes, shares, comments, is_winner')
+      .eq('challenge_id', challengeId)
+      .eq('tier', tier)
+      .eq('is_removed', false);
+
+    if (rowsError || !rows || rows.length === 0) return;
+
+    rows.sort((a, b) => (b.views || 0) - (a.views || 0));
+
+    document.getElementById('tier-results-title').textContent =
+      `${TIER_LABELS[tier] || 'Tier ' + tier} results`;
+
+    const bodyEl = document.getElementById('tier-results-body');
+    bodyEl.innerHTML = rows.map(r => `
+      <tr style="${r.is_winner ? 'background:rgba(230,180,0,0.12);' : ''}">
+        <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06);">
+          <a href="${r.tiktok_url}" target="_blank" rel="noopener">${r.is_winner ? '🏆 ' : ''}Watch</a>
+        </td>
+        <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.views ?? '—'}</td>
+        <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.likes ?? '—'}</td>
+        <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.shares ?? '—'}</td>
+        <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.comments ?? '—'}</td>
+      </tr>`).join('');
+
+    document.getElementById('tier-results-section').style.display = 'block';
   }
 
   async function loadChallenge(){
@@ -336,7 +576,7 @@
 
     const { data: challengeRows, error: challengeError } = await supabaseClient
       .from('weekly_challenges')
-      .select('id, title, description, rules, reward_amount, week_start')
+      .select('id, title, description, rules, reward_amount, week_start, created_at')
       .eq('week_start', weekStart)
       .eq('is_active', true)
       .limit(1);
@@ -360,13 +600,25 @@
     document.getElementById('challenge-desc').textContent =
       currentChallenge.description || 'Post a new TikTok video for this week\'s challenge.';
 
-    const rulesEl = document.getElementById('challenge-rules');
     if (currentChallenge.rules){
-      rulesEl.textContent = currentChallenge.rules;
-      rulesEl.style.display = 'block';
+      const customEl = document.getElementById('custom-rules');
+      customEl.textContent = currentChallenge.rules;
+      customEl.style.display = 'block';
     }
 
     document.getElementById('challenge-content').style.display = 'block';
+
+    const endTime = new Date(new Date(currentChallenge.created_at).getTime() + CAMPAIGN_DURATION_MS);
+    if (endTime - new Date() <= 0){
+      campaignEnded = true;
+      const badge = document.getElementById('countdown-badge');
+      badge.textContent = 'Awaiting result';
+      badge.classList.add('ended');
+    } else {
+      startCountdown(endTime);
+    }
+
+    await loadWinners(currentChallenge.id);
 
     const { data: submissionRows, error: submissionError } = await supabaseClient
       .from('challenge_submissions')
@@ -375,14 +627,11 @@
       .eq('user_id', currentUserId)
       .maybeSingle();
 
-    if (!submissionError && submissionRows){
-      if (submissionRows.is_removed){
-        showRemovedState();
-      } else {
-        showSubmittedState(submissionRows);
-      }
-    } else {
-      showStep1();
+    mySubmission = (!submissionError && submissionRows) ? submissionRows : null;
+    updateEntryUI();
+
+    if (mySubmission){
+      await loadTierResults(currentChallenge.id, mySubmission.tier);
     }
   }
 
@@ -405,7 +654,7 @@
   });
 
   document.getElementById('back-btn').addEventListener('click', () => {
-    showStep1();
+    updateEntryUI();
   });
 
   document.getElementById('finish-join-btn').addEventListener('click', async () => {
@@ -441,11 +690,13 @@
     }
 
     showToast("You're entered in this week's challenge!");
-    showSubmittedState({
+    mySubmission = {
       tier: selectedTier,
       tiktok_account_url: pendingAccountUrl,
-      tiktok_url: videoUrl
-    });
+      tiktok_url: videoUrl,
+      is_removed: false
+    };
+    updateEntryUI();
   });
 
   document.getElementById('logout-btn').addEventListener('click', async (event) => {
