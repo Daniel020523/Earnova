@@ -191,6 +191,44 @@
     font-size:13px;
   }
   .winner-row a{ color:#3b5bdb; font-weight:600; }
+  .ended-card{
+    text-align:left;
+  }
+  .ended-card h3{
+    margin:0 0 4px;
+    font-size:16px;
+  }
+  .ended-meta{
+    font-size:12px;
+    opacity:0.6;
+    margin-bottom:12px;
+  }
+  .tier-browse-row{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    margin-bottom:10px;
+  }
+  .tier-browse-btn{
+    background:none;
+    border:1px solid rgba(0,0,0,0.15);
+    border-radius:999px;
+    padding:5px 12px;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    color:inherit;
+  }
+  .tier-browse-btn.selected{
+    border-color:#3b5bdb;
+    background:rgba(59,91,219,0.08);
+    color:#3b5bdb;
+  }
+  .ended-winner-line{
+    font-size:12px;
+    margin:4px 0;
+  }
+  .ended-winner-line a{ color:#3b5bdb; font-weight:600; }
 </style>
 </head>
 <body>
@@ -212,6 +250,13 @@
   <div class="kicker">Earn more</div>
   <h1>Weekly TikTok challenge</h1>
   <p class="lead">Pick your tier, post a new video, and you could win.</p>
+
+  <div style="margin-bottom:16px;">
+    <button class="btn btn-ghost" id="show-current-btn">Current</button>
+    <button class="btn btn-ghost" id="show-ended-btn">Ended</button>
+  </div>
+
+  <div id="current-view">
 
   <div id="challenge-loading" class="card">
     <p>Loading this week's challenge…</p>
@@ -337,6 +382,15 @@
     <p id="challenge-error-text"></p>
     <a class="btn btn-solid" href="login.html">Go to log in</a>
   </div>
+
+  </div>
+
+  <div id="ended-view" style="display:none;">
+    <div id="ended-loading" class="card"><p>Loading past campaigns…</p></div>
+    <div id="ended-empty" class="card" style="display:none;"><p>No past campaigns yet.</p></div>
+    <div id="ended-list"></div>
+  </div>
+
 </main>
 
 <footer>
@@ -364,7 +418,7 @@
     5: 'Tier 5 (20,000 – 50,000 followers)'
   };
 
-  const CAMPAIGN_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+  const CAMPAIGN_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
 
   let toastTimer;
   function showToast(msg){
@@ -398,20 +452,6 @@
     } catch (e) {
       return false;
     }
-  }
-
-  function startOfThisWeek(){
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    const day = d.getDay();
-    const diffToMonday = (day === 0) ? -6 : 1 - day;
-    d.setDate(d.getDate() + diffToMonday);
-    return d;
-  }
-
-  function isoDate(d){
-    const off = d.getTimezoneOffset();
-    return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
   }
 
   let currentUserId = null;
@@ -530,34 +570,8 @@
     section.style.display = 'block';
   }
 
-  async function loadTierResults(challengeId, tier){
-    if (!tier) return;
-
-    const { data: tierResult, error: tierError } = await supabaseClient
-      .from('challenge_tier_results')
-      .select('is_published')
-      .eq('challenge_id', challengeId)
-      .eq('tier', tier)
-      .maybeSingle();
-
-    if (tierError || !tierResult || !tierResult.is_published) return;
-
-    const { data: rows, error: rowsError } = await supabaseClient
-      .from('challenge_submissions')
-      .select('tiktok_url, views, likes, shares, comments, is_winner')
-      .eq('challenge_id', challengeId)
-      .eq('tier', tier)
-      .eq('is_removed', false);
-
-    if (rowsError || !rows || rows.length === 0) return;
-
-    rows.sort((a, b) => (b.views || 0) - (a.views || 0));
-
-    document.getElementById('tier-results-title').textContent =
-      `${TIER_LABELS[tier] || 'Tier ' + tier} results`;
-
-    const bodyEl = document.getElementById('tier-results-body');
-    bodyEl.innerHTML = rows.map(r => `
+  function tierResultsRowsHtml(rows){
+    return rows.map(r => `
       <tr style="${r.is_winner ? 'background:rgba(230,180,0,0.12);' : ''}">
         <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06);">
           <a href="${r.tiktok_url}" target="_blank" rel="noopener">${r.is_winner ? '🏆 ' : ''}Watch</a>
@@ -567,18 +581,47 @@
         <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.shares ?? '—'}</td>
         <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.comments ?? '—'}</td>
       </tr>`).join('');
-
-    document.getElementById('tier-results-section').style.display = 'block';
   }
 
-  async function loadChallenge(){
-    const weekStart = isoDate(startOfThisWeek());
+  async function fetchTierResults(challengeId, tier){
+    const { data: tierResult, error: tierError } = await supabaseClient
+      .from('challenge_tier_results')
+      .select('is_published')
+      .eq('challenge_id', challengeId)
+      .eq('tier', tier)
+      .maybeSingle();
 
+    if (tierError || !tierResult || !tierResult.is_published) return null;
+
+    const { data: rows, error: rowsError } = await supabaseClient
+      .from('challenge_submissions')
+      .select('tiktok_url, views, likes, shares, comments, is_winner')
+      .eq('challenge_id', challengeId)
+      .eq('tier', tier)
+      .eq('is_removed', false);
+
+    if (rowsError || !rows) return null;
+
+    rows.sort((a, b) => (b.views || 0) - (a.views || 0));
+    return rows;
+  }
+
+  async function loadTierResults(challengeId, tier){
+    if (!tier) return;
+    const rows = await fetchTierResults(challengeId, tier);
+    if (!rows || rows.length === 0) return;
+
+    document.getElementById('tier-results-title').textContent =
+      `${TIER_LABELS[tier] || 'Tier ' + tier} results`;
+    document.getElementById('tier-results-body').innerHTML = tierResultsRowsHtml(rows);
+    document.getElementById('tier-results-section').style.display = 'block';
+  }
+  async function loadChallenge(){
     const { data: challengeRows, error: challengeError } = await supabaseClient
       .from('weekly_challenges')
-      .select('id, title, description, rules, reward_amount, week_start, created_at')
-      .eq('week_start', weekStart)
+      .select('id, title, description, rules, reward_amount, starts_at')
       .eq('is_active', true)
+      .order('starts_at', { ascending: false })
       .limit(1);
 
     if (challengeError){
@@ -608,7 +651,7 @@
 
     document.getElementById('challenge-content').style.display = 'block';
 
-    const endTime = new Date(new Date(currentChallenge.created_at).getTime() + CAMPAIGN_DURATION_MS);
+    const endTime = new Date(new Date(currentChallenge.starts_at).getTime() + CAMPAIGN_DURATION_MS);
     if (endTime - new Date() <= 0){
       campaignEnded = true;
       const badge = document.getElementById('countdown-badge');
@@ -704,6 +747,129 @@
     await supabaseClient.auth.signOut();
     window.location.href = 'login.html';
   });
+
+  // ---------- Ended campaigns ----------
+
+  let endedLoaded = false;
+
+  document.getElementById('show-current-btn').addEventListener('click', () => {
+    document.getElementById('ended-view').style.display = 'none';
+    document.getElementById('current-view').style.display = 'block';
+  });
+
+  document.getElementById('show-ended-btn').addEventListener('click', () => {
+    document.getElementById('current-view').style.display = 'none';
+    document.getElementById('ended-view').style.display = 'block';
+    if (!endedLoaded){
+      endedLoaded = true;
+      loadEndedCampaigns();
+    }
+  });
+
+  function formatDateShort(iso){
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  async function loadEndedCampaigns(){
+    const loadingEl = document.getElementById('ended-loading');
+    const emptyEl = document.getElementById('ended-empty');
+    const listEl = document.getElementById('ended-list');
+
+    const { data: rows, error } = await supabaseClient
+      .from('weekly_challenges')
+      .select('id, title, description, reward_amount, starts_at')
+      .order('starts_at', { ascending: false })
+      .limit(20);
+
+    loadingEl.style.display = 'none';
+
+    if (error || !rows){
+      emptyEl.textContent = "Couldn't load past campaigns.";
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    const now = new Date();
+    const ended = rows.filter(r => (new Date(r.starts_at).getTime() + CAMPAIGN_DURATION_MS) <= now);
+
+    if (ended.length === 0){
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    listEl.innerHTML = ended.map(c => {
+      const endTime = new Date(new Date(c.starts_at).getTime() + CAMPAIGN_DURATION_MS);
+      return `
+      <div class="card ended-card" data-challenge-id="${c.id}">
+        <h3>${escapeHtml(c.title)}</h3>
+        <div class="ended-meta">${formatDateShort(c.starts_at)} – ${formatDateShort(endTime)} · Prize per tier: ${formatNaira(c.reward_amount)}</div>
+        <div id="ended-winners-${c.id}" class="ended-winners"></div>
+        <div class="tier-browse-row">
+          ${[1,2,3,4,5].map(t => `<button class="tier-browse-btn" data-challenge="${c.id}" data-tier="${t}">Tier ${t}</button>`).join('')}
+        </div>
+        <div id="ended-results-${c.id}"></div>
+      </div>`;
+    }).join('');
+
+    ended.forEach(c => loadEndedWinners(c.id));
+
+    listEl.querySelectorAll('.tier-browse-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const challengeId = btn.getAttribute('data-challenge');
+        const tier = btn.getAttribute('data-tier');
+        const card = btn.closest('.ended-card');
+
+        card.querySelectorAll('.tier-browse-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+
+        const resultsEl = document.getElementById(`ended-results-${challengeId}`);
+        resultsEl.innerHTML = '<p style="font-size:12px; opacity:0.6;">Loading…</p>';
+
+        const rows = await fetchTierResults(challengeId, tier);
+
+        if (!rows){
+          resultsEl.innerHTML = `<p style="font-size:12px; opacity:0.6;">Results for Tier ${tier} haven't been published yet.</p>`;
+          return;
+        }
+        if (rows.length === 0){
+          resultsEl.innerHTML = `<p style="font-size:12px; opacity:0.6;">No entries in Tier ${tier}.</p>`;
+          return;
+        }
+
+        resultsEl.innerHTML = `
+          <div class="table-scroll">
+            <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:8px;">
+              <thead>
+                <tr>
+                  <th style="text-align:left; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Video</th>
+                  <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Views</th>
+                  <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Likes</th>
+                  <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Shares</th>
+                  <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Comments</th>
+                </tr>
+              </thead>
+              <tbody>${tierResultsRowsHtml(rows)}</tbody>
+            </table>
+          </div>`;
+      });
+    });
+  }
+
+  async function loadEndedWinners(challengeId){
+    const { data: winnerRows } = await supabaseClient
+      .from('challenge_submissions')
+      .select('tier, tiktok_url')
+      .eq('challenge_id', challengeId)
+      .eq('is_winner', true)
+      .order('tier', { ascending: true });
+
+    const el = document.getElementById(`ended-winners-${challengeId}`);
+    if (!el || !winnerRows || winnerRows.length === 0) return;
+
+    el.innerHTML = winnerRows.map(w => `
+      <p class="ended-winner-line">🏆 ${TIER_LABELS[w.tier] || 'Tier ' + w.tier}: <a href="${w.tiktok_url}" target="_blank" rel="noopener">Watch winning video</a></p>
+    `).join('');
+  }
 
   async function init(){
     const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
