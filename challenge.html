@@ -296,6 +296,7 @@
               <th style="text-align:left; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Video</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Views</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Likes</th>
+              <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Saved</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Shares</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Comments</th>
             </tr>
@@ -578,6 +579,7 @@
         </td>
         <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.views ?? '—'}</td>
         <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.likes ?? '—'}</td>
+        <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.saved ?? '—'}</td>
         <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.shares ?? '—'}</td>
         <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">${r.comments ?? '—'}</td>
       </tr>`).join('');
@@ -595,7 +597,7 @@
 
     const { data: rows, error: rowsError } = await supabaseClient
       .from('challenge_submissions')
-      .select('tiktok_url, views, likes, shares, comments, is_winner')
+      .select('tiktok_url, views, likes, saved, shares, comments, is_winner')
       .eq('challenge_id', challengeId)
       .eq('tier', tier)
       .eq('is_removed', false);
@@ -844,6 +846,7 @@
                   <th style="text-align:left; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Video</th>
                   <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Views</th>
                   <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Likes</th>
+                  <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Saved</th>
                   <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Shares</th>
                   <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Comments</th>
                 </tr>
