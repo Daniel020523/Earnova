@@ -271,6 +271,7 @@
     <div id="countdown-badge" class="countdown-badge">--</div>
     <br>
     <button class="rules-btn" id="rules-btn">View rules</button>
+    <button class="rules-btn" id="score-info-btn">How score is calculated</button>
 
     <div class="rules-panel" id="rules-panel">
       <h3>Required rules</h3>
@@ -279,6 +280,66 @@
         <li>You must use <strong>all</strong> of the required hashtags for this challenge.</li>
       </ul>
       <div class="custom-rules" id="custom-rules" style="display:none;"></div>
+    </div>
+
+    <div class="rules-panel" id="score-info-panel">
+      <h3>🏆 How the Final Score Is Calculated</h3>
+      <p>Each participant's final score is based on 5 performance metrics, with each metric having a different weight:</p>
+      <table style="width:100%; border-collapse:collapse; margin:10px 0; font-size:13px;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:4px 6px; border-bottom:1px solid rgba(0,0,0,0.15);">Metric</th>
+            <th style="text-align:right; padding:4px 6px; border-bottom:1px solid rgba(0,0,0,0.15);">Weight</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="padding:4px 6px; border-bottom:1px solid rgba(0,0,0,0.06);">👀 Views</td><td style="padding:4px 6px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">10%</td></tr>
+          <tr><td style="padding:4px 6px; border-bottom:1px solid rgba(0,0,0,0.06);">❤️ Likes</td><td style="padding:4px 6px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">35%</td></tr>
+          <tr><td style="padding:4px 6px; border-bottom:1px solid rgba(0,0,0,0.06);">🔖 Saves</td><td style="padding:4px 6px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">35%</td></tr>
+          <tr><td style="padding:4px 6px; border-bottom:1px solid rgba(0,0,0,0.06);">💬 Comments</td><td style="padding:4px 6px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">10%</td></tr>
+          <tr><td style="padding:4px 6px; border-bottom:1px solid rgba(0,0,0,0.06);">🔄 Shares</td><td style="padding:4px 6px; border-bottom:1px solid rgba(0,0,0,0.06); text-align:right;">10%</td></tr>
+          <tr><td style="padding:4px 6px; font-weight:700;">Total</td><td style="padding:4px 6px; text-align:right; font-weight:700;">100%</td></tr>
+        </tbody>
+      </table>
+
+      <h3>How it works</h3>
+      <p>For each metric, we compare your number with the combined total of everyone competing in your tier.</p>
+      <p>The formula is:</p>
+      <p style="background:rgba(0,0,0,0.05); border-radius:6px; padding:8px 10px; font-size:12.5px;">Your metric score = (Your metric ÷ Total metric from all participants) × Weight</p>
+      <p>Then we add the five metric scores together.</p>
+
+      <h3>Example</h3>
+      <p>Suppose two participants have:</p>
+      <p style="margin:6px 0 2px; font-weight:600;">Daniel</p>
+      <ul>
+        <li>100,000 views</li>
+        <li>44,390 likes</li>
+        <li>3,988 saves</li>
+        <li>3,900 comments</li>
+        <li>127 shares</li>
+      </ul>
+      <p style="margin:6px 0 2px; font-weight:600;">Emeka</p>
+      <ul>
+        <li>99,888 views</li>
+        <li>55,100 likes</li>
+        <li>4,130 saves</li>
+        <li>4,212 comments</li>
+        <li>115 shares</li>
+      </ul>
+
+      <p>For Daniel's views:</p>
+      <p style="background:rgba(0,0,0,0.05); border-radius:6px; padding:8px 10px; font-size:12.5px;">100,000 ÷ (100,000 + 99,888) × 10 = 5.01 points</p>
+
+      <p>For Daniel's likes:</p>
+      <p style="background:rgba(0,0,0,0.05); border-radius:6px; padding:8px 10px; font-size:12.5px;">44,390 ÷ (44,390 + 55,100) × 35 = 15.62 points</p>
+
+      <p>The same calculation is done for saves, comments, and shares.</p>
+      <p>After adding all five:</p>
+      <p><strong>Daniel = 47.9%</strong><br><strong>Emeka = 52.1%</strong></p>
+
+      <p style="margin-top:14px;">📌 <strong>Important</strong></p>
+      <p>The score is calculated within each tier, not by comparing participants across different tiers.</p>
+      <p>This means the winner is the participant with the highest final percentage in their tier.</p>
     </div>
 
     <div id="winners-section" class="winners-box" style="display:none;">
@@ -472,10 +533,23 @@
   });
 
   document.getElementById('rules-btn').addEventListener('click', () => {
+    document.getElementById('score-info-panel').style.display = 'none';
+    document.getElementById('score-info-btn').textContent = 'How score is calculated';
+
     const panel = document.getElementById('rules-panel');
     const isOpen = panel.style.display === 'block';
     panel.style.display = isOpen ? 'none' : 'block';
     document.getElementById('rules-btn').textContent = isOpen ? 'View rules' : 'Hide rules';
+  });
+
+  document.getElementById('score-info-btn').addEventListener('click', () => {
+    document.getElementById('rules-panel').style.display = 'none';
+    document.getElementById('rules-btn').textContent = 'View rules';
+
+    const panel = document.getElementById('score-info-panel');
+    const isOpen = panel.style.display === 'block';
+    panel.style.display = isOpen ? 'none' : 'block';
+    document.getElementById('score-info-btn').textContent = isOpen ? 'How score is calculated' : 'Hide score info';
   });
 
   function startCountdown(endTime){
