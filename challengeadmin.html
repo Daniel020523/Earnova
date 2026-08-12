@@ -37,7 +37,7 @@
   .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
   table.admin-table{
     width:100%;
-    min-width:560px;
+    min-width:900px;
     border-collapse:collapse;
   }
   table.admin-table th, table.admin-table td{
@@ -71,12 +71,19 @@
   .link-btn:hover{ opacity:1; }
   .link-btn.danger{ color:#c0392b; }
   .stat-input{
-    width:90px;
-    padding:4px 6px;
+    width:110px;
+    box-sizing:border-box;
+    padding:6px 6px;
     border:1px solid rgba(0,0,0,0.15);
     border-radius:6px;
-    font-size:13px;
+    font-size:14px;
     text-align:center;
+    -moz-appearance:textfield;
+  }
+  .stat-input::-webkit-outer-spin-button,
+  .stat-input::-webkit-inner-spin-button{
+    -webkit-appearance:none;
+    margin:0;
   }
   select.form-input{ height:40px; }
 </style>
