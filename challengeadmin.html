@@ -189,7 +189,7 @@
         <table class="admin-table" id="submissions-table" style="display:none; margin-top:14px;">
           <thead>
             <tr>
-              <th>User</th><th>Tier</th><th>Video</th><th>Views</th><th>Likes</th><th>Shares</th><th>Comments</th><th>Actions</th>
+              <th>User</th><th>Tier</th><th>Video</th><th>Views</th><th>Likes</th><th>Saved</th><th>Shares</th><th>Comments</th><th>Score</th><th>Actions</th>
             </tr>
           </thead>
           <tbody id="submissions-body"></tbody>
@@ -513,6 +513,27 @@
     updatePublishBar(false);
   });
 
+  const SCORE_WEIGHTS = { views: 0.10, likes: 0.35, saved: 0.35, comments: 0.10, shares: 0.10 };
+
+  function applyScores(statRows){
+    const totals = { views: 0, likes: 0, saved: 0, comments: 0, shares: 0 };
+    statRows.forEach(r => {
+      Object.keys(totals).forEach(key => { totals[key] += Number(r[key] || 0); });
+    });
+
+    statRows.forEach(r => {
+      let score = 0;
+      Object.keys(SCORE_WEIGHTS).forEach(key => {
+        const total = totals[key];
+        const share = total > 0 ? (Number(r[key] || 0) / total) : 0;
+        score += share * SCORE_WEIGHTS[key];
+      });
+
+      const cell = document.querySelector(`tr[data-row-id="${r.id}"] .score-cell`);
+      if (cell) cell.textContent = (score * 100).toFixed(1) + '%';
+    });
+  }
+
   async function renderSubmissions(rows){
     const tableEl = document.getElementById('submissions-table');
     const userIds = [...new Set(rows.map(r => r.user_id))];
@@ -539,8 +560,10 @@
         <td><a href="${row.tiktok_url}" target="_blank" rel="noopener">Open</a></td>
         <td><input class="stat-input" type="number" min="0" data-field="views" value="${row.views ?? ''}"></td>
         <td><input class="stat-input" type="number" min="0" data-field="likes" value="${row.likes ?? ''}"></td>
+        <td><input class="stat-input" type="number" min="0" data-field="saved" value="${row.saved ?? ''}"></td>
         <td><input class="stat-input" type="number" min="0" data-field="shares" value="${row.shares ?? ''}"></td>
         <td><input class="stat-input" type="number" min="0" data-field="comments" value="${row.comments ?? ''}"></td>
+        <td class="score-cell" style="font-weight:600;">—</td>
         <td>
           ${winnerAction}
           &nbsp;${removeAction}
@@ -572,15 +595,24 @@
         if (statError) failed++;
       }
 
+      if (failed > 0){
+        btn.disabled = false;
+        btn.textContent = 'Save all stats';
+        showToast(`Saved with ${failed} error(s) — check your connection and try again.`);
+        return;
+      }
+
+      btn.textContent = 'Calculating…';
+      applyScores(updates.map(u => ({ id: u.id, ...u.stats })));
+
       btn.disabled = false;
       btn.textContent = 'Save all stats';
-
-      if (failed > 0){
-        showToast(`Saved with ${failed} error(s) — check your connection and try again.`);
-      } else {
-        showToast('All stats saved.');
-      }
+      showToast('All stats saved and scored.');
     };
+
+    // Compute an initial score display from whatever is already saved,
+    // so the ranking is visible even before the admin clicks Save again.
+    applyScores(rows);
 
     bodyEl.querySelectorAll('.win-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
