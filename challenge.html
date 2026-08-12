@@ -441,6 +441,12 @@
     <p style="font-size:14px; opacity:0.7;">Check back soon — new challenges are added regularly.</p>
   </div>
 
+  <div id="challenge-upcoming" class="card" style="display:none; text-align:center;">
+    <h2 id="upcoming-title" style="margin:0 0 4px;"></h2>
+    <p style="font-size:14px; opacity:0.7;">This challenge hasn't started yet.</p>
+    <div class="countdown-badge" id="upcoming-countdown">--</div>
+  </div>
+
   <div id="challenge-error" class="card" style="display:none;">
     <p id="challenge-error-text"></p>
     <a class="btn btn-solid" href="login.html">Go to log in</a>
@@ -523,6 +529,7 @@
   let pendingAccountUrl = null;
   let campaignEnded = false;
   let countdownTimer;
+  let upcomingTimer;
 
   document.querySelectorAll('.tier-option').forEach(label => {
     label.addEventListener('click', () => {
@@ -576,6 +583,33 @@
     tick();
     clearInterval(countdownTimer);
     countdownTimer = setInterval(tick, 1000);
+  }
+
+  function showUpcomingState(challenge){
+    document.getElementById('upcoming-title').textContent = challenge.title;
+    document.getElementById('challenge-upcoming').style.display = 'block';
+
+    const badge = document.getElementById('upcoming-countdown');
+    const startTime = new Date(challenge.starts_at);
+
+    function tick(){
+      const diffMs = startTime - new Date();
+      if (diffMs <= 0){
+        clearInterval(upcomingTimer);
+        loadChallenge();
+        return;
+      }
+      const totalSeconds = Math.floor(diffMs / 1000);
+      const days = Math.floor(totalSeconds / 86400);
+      const h = String(Math.floor((totalSeconds % 86400) / 3600)).padStart(2, '0');
+      const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+      const s = String(totalSeconds % 60).padStart(2, '0');
+      badge.textContent = `Starts in ${days}d ${h}:${m}:${s}`;
+    }
+
+    tick();
+    clearInterval(upcomingTimer);
+    upcomingTimer = setInterval(tick, 1000);
   }
 
   function hideAllEntryStates(){
@@ -715,12 +749,17 @@
     document.getElementById('tier-results-section').style.display = 'block';
   }
   async function loadChallenge(){
+    clearInterval(upcomingTimer);
+    document.getElementById('challenge-upcoming').style.display = 'none';
+    document.getElementById('challenge-none').style.display = 'none';
+    document.getElementById('challenge-content').style.display = 'none';
+
     const { data: challengeRows, error: challengeError } = await supabaseClient
       .from('weekly_challenges')
       .select('id, title, description, rules, reward_amount, starts_at')
       .eq('is_active', true)
       .order('starts_at', { ascending: false })
-      .limit(1);
+      .limit(10);
 
     if (challengeError){
       showError("We couldn't load this week's challenge right now.");
@@ -729,12 +768,23 @@
 
     document.getElementById('challenge-loading').style.display = 'none';
 
-    if (!challengeRows || challengeRows.length === 0){
-      document.getElementById('challenge-none').style.display = 'block';
+    const now = new Date();
+    const rows = challengeRows || [];
+    const started = rows.filter(r => new Date(r.starts_at) <= now);
+    const upcoming = rows
+      .filter(r => new Date(r.starts_at) > now)
+      .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+
+    if (started.length === 0){
+      if (upcoming.length > 0){
+        showUpcomingState(upcoming[0]);
+      } else {
+        document.getElementById('challenge-none').style.display = 'block';
+      }
       return;
     }
 
-    currentChallenge = challengeRows[0];
+    currentChallenge = started[0];
     document.getElementById('challenge-title').textContent = currentChallenge.title;
     document.getElementById('challenge-reward').textContent =
       `Prize per tier: ${formatNaira(currentChallenge.reward_amount)}`;
