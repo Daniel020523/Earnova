@@ -27,6 +27,7 @@
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+  const DESTINATION_URL = "https://omg10.com/4/11475054";
   const DEVICE_KEY = "eo_device_id";
 
   function getDeviceId(){
@@ -38,40 +39,38 @@
     return id;
   }
 
-  // Loads the al5sm ad tag, which takes over from here (popunder/redirect/etc.
-  // is decided by their script, not by us).
-  function loadAdTag(){
-    const s = [document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script'));
-    s.dataset.zone = '11474995';
-    s.src = 'https://al5sm.com/tag.min.js';
+  function goToDestination(){
+    window.location.replace(DESTINATION_URL);
   }
 
   async function run(){
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
 
-    if (ref){
-      try {
-        const deviceId = getDeviceId();
-        // Reward is decided and enforced server-side (once per link per device per day).
-        const { data, error } = await supabaseClient.rpc('claim_referral_click', {
-          p_ref_code: ref,
-          p_device_id: deviceId
-        });
-        if (error){
-          console.error('claim_referral_click error:', error);
-        } else {
-          // Look here while testing: {ok:true} = rewarded,
-          // {ok:false, reason:'already_claimed_today'|'invalid_code'|'self_click'} = not rewarded, on purpose.
-          console.log('claim_referral_click result:', data);
-        }
-      } catch (e) {
-        // Even if tracking fails, don't block the ad from loading.
-        console.error('referral tracking failed', e);
-      }
+    if (!ref){
+      goToDestination();
+      return;
     }
 
-    loadAdTag();
+    try {
+      const deviceId = getDeviceId();
+      // Reward is decided and enforced server-side (once per link per device per day).
+      const { data, error } = await supabaseClient.rpc('claim_referral_click', {
+        p_ref_code: ref,
+        p_device_id: deviceId
+      });
+      if (error){
+        console.error('claim_referral_click error:', error);
+      } else {
+        // Look here while testing: {ok:true} = rewarded,
+        // {ok:false, reason:'already_claimed_today'|'invalid_code'|'self_click'} = not rewarded, on purpose.
+        console.log('claim_referral_click result:', data);
+      }
+    } catch (e) {
+      console.error('referral tracking failed', e);
+    }
+
+    setTimeout(goToDestination, 600);
   }
 
   run();
