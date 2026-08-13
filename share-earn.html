@@ -64,12 +64,12 @@
 <main class="page">
   <div class="kicker">Earn more</div>
   <h1>Share &amp; earn</h1>
-  <p class="lead">Share to the platform below, then claim your reward. Each share task can be claimed once.</p>
+  <p class="lead">Share your link below — every unique visitor earns you a reward.</p>
 
-  <!-- Referral link section -->
+  <!-- Share link section -->
   <div class="card ref-card" id="ref-card">
-    <h2 class="item-title">Your referral link</h2>
-    <p class="item-desc">Share this link. Every unique visitor who opens it earns you ₦1 — once per day per visitor.</p>
+    <h2 class="item-title">Your share link</h2>
+    <p class="item-desc">Share this link. Every unique visitor who opens it earns you ₦1 — once per device.</p>
 
     <div class="ref-stats">
       <div>
@@ -78,7 +78,7 @@
       </div>
       <div>
         <p class="ref-stat-num" id="ref-earned">–</p>
-        <p class="ref-stat-label">Earned from referrals</p>
+        <p class="ref-stat-label">Earned from sharing</p>
       </div>
     </div>
 
@@ -88,20 +88,6 @@
     </div>
   </div>
 
-  <div id="share-loading" class="card">
-    <p>Loading share tasks…</p>
-  </div>
-
-  <div id="share-empty" class="card" style="display:none;">
-    <p>No share tasks available right now. Check back soon.</p>
-  </div>
-
-  <div id="share-list"></div>
-
-  <div id="share-error" class="card" style="display:none;">
-    <p id="share-error-text"></p>
-    <a class="btn btn-solid" href="login.html">Go to log in</a>
-  </div>
 </main>
 
 <footer>
@@ -140,12 +126,6 @@
     return div.innerHTML;
   }
 
-  function showError(msg){
-    document.getElementById('share-loading').style.display = 'none';
-    document.getElementById('share-error-text').textContent = msg;
-    document.getElementById('share-error').style.display = 'block';
-  }
-
   let currentUserId = null;
 
   // ---------- Referral link section ----------
@@ -171,7 +151,7 @@
           .from('transactions')
           .select('amount')
           .eq('user_id', currentUserId)
-          .eq('type', 'referral')
+          .eq('type', 'share')
           .eq('status', 'completed')
       ]);
 
@@ -201,113 +181,6 @@
     }
   });
 
-  // ---------- Existing share-tasks section ----------
-
-  function renderShareTasks(items, claimedIds){
-    const listEl = document.getElementById('share-list');
-    const emptyEl = document.getElementById('share-empty');
-
-    if (items.length === 0){
-      emptyEl.style.display = 'block';
-      listEl.innerHTML = '';
-      return;
-    }
-    emptyEl.style.display = 'none';
-
-    listEl.innerHTML = items.map(s => {
-      const claimed = claimedIds.has(s.id);
-      return `
-      <div class="card item-card" data-id="${s.id}" data-amount="${s.reward_amount}">
-        <h2 class="item-title">${escapeHtml(s.title)}</h2>
-        <div class="item-reward">${formatNaira(s.reward_amount)}</div>
-        ${s.description ? `<p class="item-desc">${escapeHtml(s.description)}</p>` : ''}
-        ${s.rules ? `<p class="item-rules">${escapeHtml(s.rules)}</p>` : ''}
-        <div class="item-actions">
-          ${claimed
-            ? `<span class="claimed-pill">Claimed</span>`
-            : `
-              ${s.link_url ? `<a class="btn btn-solid go-btn" href="${s.link_url}" target="_blank" rel="noopener">Go to share link</a>` : ''}
-              <button class="btn btn-solid claim-btn" ${s.link_url ? 'disabled' : ''}>Claim reward</button>
-            `}
-        </div>
-        ${claimed ? '' : `<p class="item-note">By claiming this reward you confirm you completed the share task. Admin may verify your submission — if you didn't, the reward will be revoked.</p>`}
-      </div>`;
-    }).join('');
-
-    listEl.querySelectorAll('.item-card').forEach(card => {
-      const goBtn = card.querySelector('.go-btn');
-      const claimBtn = card.querySelector('.claim-btn');
-
-      if (goBtn){
-        goBtn.addEventListener('click', () => {
-          claimBtn.disabled = false;
-        });
-      }
-
-      if (claimBtn){
-        claimBtn.addEventListener('click', async () => {
-          const id = card.getAttribute('data-id');
-          const amount = card.getAttribute('data-amount');
-          claimBtn.disabled = true;
-          claimBtn.textContent = 'Claiming…';
-
-          const { error } = await supabaseClient
-            .from('transactions')
-            .insert({
-              user_id: currentUserId,
-              type: 'share',
-              status: 'completed',
-              amount: amount,
-              task_id: id,
-              verification_status: 'pending_review'
-            });
-
-          if (error){
-            claimBtn.disabled = false;
-            claimBtn.textContent = 'Claim reward';
-            showToast("Couldn't claim reward: " + error.message);
-            return;
-          }
-
-          showToast(`You earned ${formatNaira(amount)}!`);
-          loadShareTasks();
-        });
-      }
-    });
-  }
-
-  async function loadShareTasks(){
-    document.getElementById('share-loading').style.display = 'block';
-
-    const { data: items, error: itemError } = await supabaseClient
-      .from('share_tasks')
-      .select('id, title, description, reward_amount, link_url, rules')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
-
-    if (itemError){
-      showError("We couldn't load share tasks right now.");
-      return;
-    }
-
-    const { data: claimedRows, error: claimError } = await supabaseClient
-      .from('transactions')
-      .select('task_id')
-      .eq('user_id', currentUserId)
-      .eq('type', 'share')
-      .eq('status', 'completed')
-      .not('task_id', 'is', null);
-
-    if (claimError){
-      showError("We couldn't check your share history right now.");
-      return;
-    }
-
-    document.getElementById('share-loading').style.display = 'none';
-    const claimedIds = new Set((claimedRows || []).map(r => r.task_id));
-    renderShareTasks(items || [], claimedIds);
-  }
-
   document.getElementById('logout-btn').addEventListener('click', async (event) => {
     event.preventDefault();
     await supabaseClient.auth.signOut();
@@ -322,7 +195,6 @@
     }
     currentUserId = session.user.id;
     await loadReferralInfo();
-    await loadShareTasks();
   }
 
   init();
