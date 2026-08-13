@@ -19,6 +19,7 @@
   <div class="box">
     <div class="spinner"></div>
     <p>Redirecting you now…</p>
+    <p id="debug-line" style="font-size:12px; opacity:0.5; margin-top:12px;"></p>
   </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -43,34 +44,44 @@
     window.location.replace(DESTINATION_URL);
   }
 
+  function showDebug(msg){
+    const el = document.getElementById('debug-line');
+    if (el) el.textContent = msg;
+  }
+
   async function run(){
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
+    const debugMode = params.get('debug') === '1';
 
     if (!ref){
-      goToDestination();
+      showDebug(debugMode ? 'No ?ref= param found.' : '');
+      setTimeout(goToDestination, debugMode ? 3000 : 600);
       return;
     }
 
+    let resultText = '';
     try {
       const deviceId = getDeviceId();
-      // Reward is decided and enforced server-side (once per link per device per day).
       const { data, error } = await supabaseClient.rpc('claim_referral_click', {
         p_ref_code: ref,
         p_device_id: deviceId
       });
       if (error){
+        resultText = 'RPC error: ' + error.message;
         console.error('claim_referral_click error:', error);
       } else {
-        // Look here while testing: {ok:true} = rewarded,
-        // {ok:false, reason:'already_claimed_today'|'invalid_code'|'self_click'} = not rewarded, on purpose.
+        // {ok:true} = rewarded. {ok:false, reason:'already_claimed'|'invalid_code'|'self_click'} = not rewarded, on purpose.
+        resultText = 'Result: ' + JSON.stringify(data);
         console.log('claim_referral_click result:', data);
       }
     } catch (e) {
+      resultText = 'Threw: ' + e.message;
       console.error('referral tracking failed', e);
     }
 
-    setTimeout(goToDestination, 600);
+    showDebug(debugMode ? resultText : '');
+    setTimeout(goToDestination, debugMode ? 4000 : 600);
   }
 
   run();

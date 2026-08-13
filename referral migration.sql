@@ -20,14 +20,16 @@ drop policy if exists "insert own ref code" on referral_codes;
 create policy "insert own ref code" on referral_codes
   for insert with check (auth.uid() = user_id);
 
--- 2. Every rewarded click, one row per (link, device, day)
+-- 2. Every rewarded click, one row per (link, device) — permanent lock, not daily.
+--    If you already ran an earlier version of this file, run this first:
+--    alter table referral_clicks drop constraint if exists referral_clicks_ref_code_device_id_click_date_key;
 create table if not exists referral_clicks (
   id         uuid primary key default gen_random_uuid(),
   ref_code   text not null references referral_codes(code) on delete cascade,
   device_id  uuid not null,
   click_date date not null default current_date,
   created_at timestamptz not null default now(),
-  unique (ref_code, device_id, click_date)
+  unique (ref_code, device_id)
 );
 
 alter table referral_clicks enable row level security;
@@ -99,3 +101,16 @@ end;
 $$;
 
 grant execute on function get_or_create_ref_code() to authenticated;
+
+-- =========================================================
+-- DIAGNOSTIC: run this manually in the SQL editor to check setup.
+-- Replace 'YOURCODE' with a real code from `select * from referral_codes;`
+-- =========================================================
+-- select claim_referral_click('YOURCODE', gen_random_uuid());
+--
+-- Expected: {"ok": true, "reward": 1}
+-- If you get a permission/role error instead, the grants above didn't apply —
+-- re-run just the "grant execute" lines.
+-- If it returns {"ok": false, "reason": "invalid_code"}, that ref code
+-- doesn't exist in referral_codes — the user hasn't loaded share-earn.html
+-- yet (which is what creates it), or you copied the wrong code.
