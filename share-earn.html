@@ -171,7 +171,7 @@
           .from('transactions')
           .select('amount')
           .eq('user_id', currentUserId)
-          .eq('type', 'referral_click')
+          .eq('type', 'referral')
           .eq('status', 'completed')
       ]);
 
