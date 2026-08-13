@@ -54,10 +54,17 @@
       try {
         const deviceId = getDeviceId();
         // Reward is decided and enforced server-side (once per link per device per day).
-        await supabaseClient.rpc('claim_referral_click', {
+        const { data, error } = await supabaseClient.rpc('claim_referral_click', {
           p_ref_code: ref,
           p_device_id: deviceId
         });
+        if (error){
+          console.error('claim_referral_click error:', error);
+        } else {
+          // Look here while testing: {ok:true} = rewarded,
+          // {ok:false, reason:'already_claimed_today'|'invalid_code'|'self_click'} = not rewarded, on purpose.
+          console.log('claim_referral_click result:', data);
+        }
       } catch (e) {
         // Even if tracking fails, don't block the ad from loading.
         console.error('referral tracking failed', e);
