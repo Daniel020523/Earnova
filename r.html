@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redirecting… — EarnOva</title>
+<style>
+  body{ font-family: system-ui, sans-serif; display:flex; align-items:center; justify-content:center;
+        height:100vh; margin:0; background:#0f1115; color:#fff; text-align:center; }
+  .box{ padding:24px; }
+  .spinner{ width:28px; height:28px; margin:0 auto 16px; border-radius:50%;
+            border:3px solid rgba(255,255,255,0.2); border-top-color:#fff;
+            animation:spin 0.8s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  p{ opacity:0.75; font-size:14px; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="spinner"></div>
+    <p>Redirecting you now…</p>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const DEVICE_KEY = "eo_device_id";
+
+  function getDeviceId(){
+    let id = localStorage.getItem(DEVICE_KEY);
+    if (!id){
+      id = crypto.randomUUID();
+      localStorage.setItem(DEVICE_KEY, id);
+    }
+    return id;
+  }
+
+  // Loads the al5sm ad tag, which takes over from here (popunder/redirect/etc.
+  // is decided by their script, not by us).
+  function loadAdTag(){
+    const s = [document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script'));
+    s.dataset.zone = '11474995';
+    s.src = 'https://al5sm.com/tag.min.js';
+  }
+
+  async function run(){
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+
+    if (ref){
+      try {
+        const deviceId = getDeviceId();
+        // Reward is decided and enforced server-side (once per link per device per day).
+        await supabaseClient.rpc('claim_referral_click', {
+          p_ref_code: ref,
+          p_device_id: deviceId
+        });
+      } catch (e) {
+        // Even if tracking fails, don't block the ad from loading.
+        console.error('referral tracking failed', e);
+      }
+    }
+
+    loadAdTag();
+  }
+
+  run();
+</script>
+</body>
+</html>

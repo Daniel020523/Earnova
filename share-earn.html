@@ -33,6 +33,17 @@
     background:rgba(0,150,80,0.12);
     color:#0a8a52;
   }
+
+  /* Referral link card */
+  .ref-card{ margin-bottom:20px; }
+  .ref-stats{ display:flex; gap:24px; margin:12px 0 16px; flex-wrap:wrap; }
+  .ref-stat-num{ font-size:22px; font-weight:700; margin:0; }
+  .ref-stat-label{ font-size:12px; opacity:0.65; margin:2px 0 0; }
+  .ref-link-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .ref-link-input{
+    flex:1; min-width:200px; padding:10px 12px; border-radius:6px;
+    border:1px solid rgba(0,0,0,0.15); font-size:13px; background:rgba(0,0,0,0.03);
+  }
 </style>
 </head>
 <body>
@@ -54,6 +65,28 @@
   <div class="kicker">Earn more</div>
   <h1>Share &amp; earn</h1>
   <p class="lead">Share to the platform below, then claim your reward. Each share task can be claimed once.</p>
+
+  <!-- Referral link section -->
+  <div class="card ref-card" id="ref-card">
+    <h2 class="item-title">Your referral link</h2>
+    <p class="item-desc">Share this link. Every unique visitor who opens it earns you ₦1 — once per day per visitor.</p>
+
+    <div class="ref-stats">
+      <div>
+        <p class="ref-stat-num" id="ref-clicks">–</p>
+        <p class="ref-stat-label">Clicks</p>
+      </div>
+      <div>
+        <p class="ref-stat-num" id="ref-earned">–</p>
+        <p class="ref-stat-label">Earned from referrals</p>
+      </div>
+    </div>
+
+    <div class="ref-link-row">
+      <input class="ref-link-input" id="ref-link-input" type="text" readonly value="Loading your link…">
+      <button class="btn btn-solid" id="ref-copy-btn">Copy link</button>
+    </div>
+  </div>
 
   <div id="share-loading" class="card">
     <p>Loading share tasks…</p>
@@ -114,6 +147,61 @@
   }
 
   let currentUserId = null;
+
+  // ---------- Referral link section ----------
+
+  async function loadReferralInfo(){
+    try {
+      // Get (or lazily create) this user's unique code.
+      const { data: code, error: codeError } = await supabaseClient.rpc('get_or_create_ref_code');
+      if (codeError || !code){
+        document.getElementById('ref-link-input').value = "Couldn't load your link.";
+        return;
+      }
+
+      const refUrl = `${window.location.origin}/r.html?ref=${code}`;
+      document.getElementById('ref-link-input').value = refUrl;
+
+      const [{ count: clickCount, error: clickErr }, { data: earnRows, error: earnErr }] = await Promise.all([
+        supabaseClient
+          .from('referral_clicks')
+          .select('id', { count: 'exact', head: true })
+          .eq('ref_code', code),
+        supabaseClient
+          .from('transactions')
+          .select('amount')
+          .eq('user_id', currentUserId)
+          .eq('type', 'referral_click')
+          .eq('status', 'completed')
+      ]);
+
+      document.getElementById('ref-clicks').textContent = clickErr ? '–' : (clickCount ?? 0);
+
+      if (earnErr){
+        document.getElementById('ref-earned').textContent = '–';
+      } else {
+        const total = (earnRows || []).reduce((sum, r) => sum + Number(r.amount), 0);
+        document.getElementById('ref-earned').textContent = formatNaira(total);
+      }
+    } catch (e) {
+      console.error('referral info failed', e);
+      document.getElementById('ref-link-input').value = "Couldn't load your link.";
+    }
+  }
+
+  document.getElementById('ref-copy-btn').addEventListener('click', async () => {
+    const input = document.getElementById('ref-link-input');
+    try {
+      await navigator.clipboard.writeText(input.value);
+      showToast('Link copied!');
+    } catch (e) {
+      input.select();
+      document.execCommand('copy');
+      showToast('Link copied!');
+    }
+  });
+
+  // ---------- Existing share-tasks section ----------
 
   function renderShareTasks(items, claimedIds){
     const listEl = document.getElementById('share-list');
@@ -233,6 +321,7 @@
       return;
     }
     currentUserId = session.user.id;
+    await loadReferralInfo();
     await loadShareTasks();
   }
 
