@@ -180,6 +180,18 @@
     font-weight:700;
     margin-bottom:14px;
   }
+  #result-banner.won{
+    background:rgba(230,180,0,0.15);
+    border:1px solid rgba(230,180,0,0.35);
+    text-align:center;
+  }
+  #result-banner.ended{
+    background:rgba(59,91,219,0.08);
+    border:1px solid rgba(59,91,219,0.25);
+    text-align:center;
+  }
+  #result-banner p{ margin:0; }
+  #result-banner .banner-cta{ margin-top:10px; }
   .winner-row{
     display:flex;
     justify-content:space-between;
@@ -268,6 +280,8 @@
   <div class="kicker">Earn more</div>
   <h1>Weekly TikTok challenge</h1>
   <p class="lead">Pick your tier, post a new video, and you could win.</p>
+
+  <div id="result-banner" class="card" style="display:none;"></div>
 
   <div style="margin-bottom:16px;">
     <button class="btn btn-ghost" id="show-current-btn">Current</button>
@@ -377,6 +391,7 @@
         <table style="width:100%; border-collapse:collapse; font-size:13px;">
           <thead>
             <tr>
+              <th style="text-align:left; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Participant</th>
               <th style="text-align:left; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Video</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Views</th>
               <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Likes</th>
@@ -439,7 +454,7 @@
 
     <!-- Already joined -->
     <div id="submitted-section" class="submitted-box" style="display:none;">
-      <p style="margin:0 0 8px; font-weight:600;">You're in this week's challenge!</p>
+      <p style="margin:0 0 8px; font-weight:600;">You joined the current campaign!</p>
       <p class="submitted-row"><strong>Tier:</strong> <span id="submitted-tier"></span></p>
       <p class="submitted-row"><strong>Account:</strong> <a id="submitted-account" href="#" target="_blank" rel="noopener"></a></p>
       <p class="submitted-row"><strong>Video:</strong> <a id="submitted-video" href="#" target="_blank" rel="noopener"></a></p>
@@ -703,6 +718,7 @@
   function tierResultsRowsHtml(rows){
     return rows.map(r => `
       <tr style="${r.is_winner ? 'background:rgba(230,180,0,0.12);' : ''}">
+        <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06);">${escapeHtml(r.participantName || 'Participant')}</td>
         <td style="padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.06);">
           <a href="${r.tiktok_url}" target="_blank" rel="noopener">${r.is_winner ? '🏆 ' : ''}Watch</a>
         </td>
@@ -746,12 +762,23 @@
 
     const { data: rows, error: rowsError } = await supabaseClient
       .from('challenge_submissions')
-      .select('tiktok_url, views, likes, saved, shares, comments, is_winner')
+      .select('user_id, tiktok_url, views, likes, saved, shares, comments, is_winner')
       .eq('challenge_id', challengeId)
       .eq('tier', tier)
       .eq('is_removed', false);
 
     if (rowsError || !rows) return null;
+
+    const userIds = [...new Set(rows.map(r => r.user_id))];
+    const nameById = {};
+    if (userIds.length){
+      const { data: profileRows } = await supabaseClient
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+      (profileRows || []).forEach(p => { nameById[p.id] = p.full_name; });
+    }
+    rows.forEach(r => { r.participantName = nameById[r.user_id] || 'Participant'; });
 
     const scored = computeScores(rows);
     scored.sort((a, b) => b.score - a.score);
@@ -1032,6 +1059,7 @@
             <table style="width:100%; border-collapse:collapse; font-size:13px; margin-top:8px;">
               <thead>
                 <tr>
+                  <th style="text-align:left; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Participant</th>
                   <th style="text-align:left; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Video</th>
                   <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Views</th>
                   <th style="text-align:right; padding:6px 8px; border-bottom:1px solid rgba(0,0,0,0.1);">Likes</th>
@@ -1064,6 +1092,51 @@
     `).join('');
   }
 
+  async function checkMyPublishedResults(){
+    const { data: mySubs, error } = await supabaseClient
+      .from('challenge_submissions')
+      .select('id, challenge_id, tier, is_winner, created_at, weekly_challenges(title)')
+      .eq('user_id', currentUserId)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (error || !mySubs || mySubs.length === 0) return;
+
+    for (const sub of mySubs){
+      const { data: tierResult } = await supabaseClient
+        .from('challenge_tier_results')
+        .select('is_published')
+        .eq('challenge_id', sub.challenge_id)
+        .eq('tier', sub.tier)
+        .maybeSingle();
+
+      if (tierResult && tierResult.is_published){
+        showResultBanner(sub);
+        return;
+      }
+    }
+  }
+
+  function showResultBanner(sub){
+    const banner = document.getElementById('result-banner');
+    const challengeTitle = (sub.weekly_challenges && sub.weekly_challenges.title) || 'the challenge';
+
+    if (sub.is_winner){
+      banner.className = 'card won';
+      banner.innerHTML = `
+        <p style="font-size:18px;">🎉 <strong>You Won!</strong></p>
+        <p style="margin-top:6px;">Congratulations — you took Tier ${sub.tier} in "${escapeHtml(challengeTitle)}".</p>
+      `;
+    } else {
+      banner.className = 'card ended';
+      banner.innerHTML = `
+        <p style="font-size:16px;">🏁 <strong>ENDED</strong></p>
+        <p style="margin-top:6px;">Results for "${escapeHtml(challengeTitle)}" are in. Participate in the next challenge!</p>
+      `;
+    }
+    banner.style.display = 'block';
+  }
+
   async function init(){
     const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
     if (sessionError || !session){
@@ -1072,6 +1145,7 @@
     }
     currentUserId = session.user.id;
     await loadChallenge();
+    await checkMyPublishedResults();
   }
 
   init();
