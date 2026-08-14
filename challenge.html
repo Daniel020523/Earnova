@@ -827,11 +827,26 @@
       return { row: r, start, end };
     });
 
-    // A campaign that's actually running always takes priority. Once it
-    // ends, we don't keep it displayed here — we look ahead to whatever's
-    // queued next (countdown to its start) or show "no challenge available"
-    // if nothing is queued. Ended campaigns remain browsable in the Ended tab.
-    const running = withWindow.filter(w => w.start <= now && w.end > now)
+    // A campaign counts as ended either by time OR because admin already
+    // published at least one tier's results early — publishing overrides
+    // the natural countdown.
+    const candidateIds = rows.map(r => r.id);
+    let publishedChallengeIds = new Set();
+    if (candidateIds.length > 0){
+      const { data: publishedRows } = await supabaseClient
+        .from('challenge_tier_results')
+        .select('challenge_id')
+        .in('challenge_id', candidateIds)
+        .eq('is_published', true);
+      publishedChallengeIds = new Set((publishedRows || []).map(p => p.challenge_id));
+    }
+
+    // A campaign that's actually running (and not yet published) always
+    // takes priority. Once it ends — by time or by early publish — we
+    // don't keep it displayed here — we look ahead to whatever's queued
+    // next (countdown to its start) or show "no challenge available" if
+    // nothing is queued. Ended campaigns remain browsable in the Ended tab.
+    const running = withWindow.filter(w => w.start <= now && w.end > now && !publishedChallengeIds.has(w.row.id))
       .sort((a, b) => b.start - a.start);
     const upcoming = withWindow.filter(w => w.start > now)
       .sort((a, b) => a.start - b.start);
@@ -1009,21 +1024,27 @@
     }
 
     const now = new Date();
-    const ended = rows.filter(r => (new Date(r.starts_at).getTime() + CAMPAIGN_DURATION_MS) <= now);
+    const allIds = rows.map(r => r.id);
+    const { data: publishedRows } = await supabaseClient
+      .from('challenge_tier_results')
+      .select('challenge_id, tier')
+      .in('challenge_id', allIds)
+      .eq('is_published', true);
+
+    const publishedPairs = new Set((publishedRows || []).map(r => `${r.challenge_id}-${r.tier}`));
+    const publishedChallengeIds = new Set((publishedRows || []).map(r => r.challenge_id));
+
+    // A campaign counts as ended either because its 3-day window has
+    // naturally elapsed, or because admin already published at least one
+    // tier's results early.
+    const ended = rows.filter(r =>
+      (new Date(r.starts_at).getTime() + CAMPAIGN_DURATION_MS) <= now || publishedChallengeIds.has(r.id)
+    );
 
     if (ended.length === 0){
       emptyEl.style.display = 'block';
       return;
     }
-
-    const endedIds = ended.map(c => c.id);
-    const { data: publishedRows } = await supabaseClient
-      .from('challenge_tier_results')
-      .select('challenge_id, tier')
-      .in('challenge_id', endedIds)
-      .eq('is_published', true);
-
-    const publishedPairs = new Set((publishedRows || []).map(r => `${r.challenge_id}-${r.tier}`));
 
     listEl.innerHTML = ended.map(c => {
       const endTime = new Date(new Date(c.starts_at).getTime() + CAMPAIGN_DURATION_MS);
