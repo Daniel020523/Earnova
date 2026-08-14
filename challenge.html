@@ -656,6 +656,7 @@
   }
 
   let mySubmission = null;
+  let mySubmissionPublished = false;
 
   function updateEntryUI(){
     hideAllEntryStates();
@@ -663,6 +664,9 @@
     if (mySubmission){
       if (mySubmission.is_removed){
         document.getElementById('removed-section').style.display = 'block';
+      } else if (mySubmissionPublished){
+        // Results are already in — the top result banner covers this,
+        // so no need to keep showing the "you joined" card underneath.
       } else {
         document.getElementById('submitted-tier').textContent = TIER_LABELS[mySubmission.tier] || `Tier ${mySubmission.tier}`;
         const accountLink = document.getElementById('submitted-account');
@@ -874,6 +878,18 @@
       .maybeSingle();
 
     mySubmission = (!submissionError && submissionRows) ? submissionRows : null;
+
+    mySubmissionPublished = false;
+    if (mySubmission){
+      const { data: tierResult } = await supabaseClient
+        .from('challenge_tier_results')
+        .select('is_published')
+        .eq('challenge_id', currentChallenge.id)
+        .eq('tier', mySubmission.tier)
+        .maybeSingle();
+      mySubmissionPublished = !!(tierResult && tierResult.is_published);
+    }
+
     updateEntryUI();
 
     if (mySubmission){
