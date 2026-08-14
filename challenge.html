@@ -1132,10 +1132,11 @@
   async function checkMyPublishedResults(){
     const { data: mySubs, error } = await supabaseClient
       .from('challenge_submissions')
-      .select('id, challenge_id, tier, is_winner, created_at, weekly_challenges(title)')
+      .select('id, challenge_id, tier, is_winner, banner_seen, created_at, weekly_challenges(title)')
       .eq('user_id', currentUserId)
+      .eq('banner_seen', false)
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(30);
 
     if (error || !mySubs || mySubs.length === 0) return;
 
@@ -1149,6 +1150,12 @@
 
       if (tierResult && tierResult.is_published){
         showResultBanner(sub);
+        // Mark it seen right away — so if the user refreshes mid-viewing
+        // (before the 30s auto-hide fires), it won't reappear.
+        await supabaseClient
+          .from('challenge_submissions')
+          .update({ banner_seen: true })
+          .eq('id', sub.id);
         return;
       }
     }
@@ -1172,6 +1179,13 @@
       `;
     }
     banner.style.display = 'block';
+
+    // Silent 30-second countdown for either outcome — starts the moment
+    // the user actually sees this (page load), then it disappears on its
+    // own without any visible timer.
+    setTimeout(() => {
+      banner.style.display = 'none';
+    }, 30000);
   }
 
   async function init(){
