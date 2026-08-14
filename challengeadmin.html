@@ -385,9 +385,42 @@
       return;
     }
 
+    const CAMPAIGN_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
+    const REQUIRED_GAP_MS = 10 * 60 * 1000;
+    const newStartMs = new Date(startsAt).getTime();
+
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Adding…';
+    submitBtn.textContent = 'Checking schedule…';
     statusEl.textContent = '';
+
+    const { data: latestRows, error: latestError } = await supabaseClient
+      .from('weekly_challenges')
+      .select('starts_at')
+      .order('starts_at', { ascending: false })
+      .limit(1);
+
+    if (latestError){
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Add challenge';
+      statusEl.textContent = "Couldn't check existing schedule: " + latestError.message;
+      return;
+    }
+
+    if (latestRows && latestRows.length > 0){
+      const latestStartMs = new Date(latestRows[0].starts_at).getTime();
+      const minAllowedMs = latestStartMs + CAMPAIGN_DURATION_MS + REQUIRED_GAP_MS;
+
+      if (newStartMs < minAllowedMs){
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add challenge';
+        statusEl.textContent =
+          `Too soon — the previous campaign runs until ${formatDateTime(new Date(latestStartMs + CAMPAIGN_DURATION_MS))}. ` +
+          `Please set a start time on or after ${formatDateTime(new Date(minAllowedMs))} (3 days + 10 min gap required).`;
+        return;
+      }
+    }
+
+    submitBtn.textContent = 'Adding…';
 
     const { error } = await supabaseClient
       .from('weekly_challenges')

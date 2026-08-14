@@ -203,6 +203,24 @@
     opacity:0.6;
     margin-bottom:12px;
   }
+  .ended-status-pill{
+    display:inline-block;
+    padding:1px 7px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:0.02em;
+    vertical-align:middle;
+    margin-left:2px;
+  }
+  .ended-status-final{
+    background:rgba(0,150,80,0.12);
+    color:#0a8a52;
+  }
+  .ended-status-pending{
+    background:rgba(230,180,0,0.15);
+    color:#8a6d00;
+  }
   .tier-browse-row{
     display:flex;
     gap:6px;
@@ -566,10 +584,7 @@
       const diffMs = endTime - new Date();
       if (diffMs <= 0){
         clearInterval(countdownTimer);
-        campaignEnded = true;
-        badge.textContent = 'Awaiting result';
-        badge.classList.add('ended');
-        updateEntryUI();
+        loadChallenge();
         return;
       }
       const totalSeconds = Math.floor(diffMs / 1000);
@@ -776,19 +791,16 @@
       return { row: r, start, end };
     });
 
-    // A campaign that's actually running always takes priority over any
-    // other active challenge — including one someone just added with an
-    // earlier or "starts now" time. Only once nothing is currently running
-    // do we fall back to the most recently ended one (Awaiting result) or
-    // the soonest upcoming one.
+    // A campaign that's actually running always takes priority. Once it
+    // ends, we don't keep it displayed here — we look ahead to whatever's
+    // queued next (countdown to its start) or show "no challenge available"
+    // if nothing is queued. Ended campaigns remain browsable in the Ended tab.
     const running = withWindow.filter(w => w.start <= now && w.end > now)
-      .sort((a, b) => b.start - a.start);
-    const ended = withWindow.filter(w => w.end <= now)
       .sort((a, b) => b.start - a.start);
     const upcoming = withWindow.filter(w => w.start > now)
       .sort((a, b) => a.start - b.start);
 
-    const chosen = running[0] || ended[0] || null;
+    const chosen = running[0] || null;
 
     if (!chosen){
       if (upcoming.length > 0){
@@ -814,15 +826,11 @@
 
     document.getElementById('challenge-content').style.display = 'block';
 
-    const endTime = new Date(new Date(currentChallenge.starts_at).getTime() + CAMPAIGN_DURATION_MS);
-    if (endTime - new Date() <= 0){
-      campaignEnded = true;
-      const badge = document.getElementById('countdown-badge');
-      badge.textContent = 'Awaiting result';
-      badge.classList.add('ended');
-    } else {
-      startCountdown(endTime);
-    }
+    // currentChallenge is only ever a currently-running one at this point
+    // (see the running/upcoming selection above), so this always starts
+    // a live "ends in" countdown.
+    const endTime = chosen.end;
+    startCountdown(endTime);
 
     await loadWinners(currentChallenge.id);
 
@@ -960,6 +968,15 @@
       return;
     }
 
+    const endedIds = ended.map(c => c.id);
+    const { data: publishedRows } = await supabaseClient
+      .from('challenge_tier_results')
+      .select('challenge_id, tier')
+      .in('challenge_id', endedIds)
+      .eq('is_published', true);
+
+    const publishedPairs = new Set((publishedRows || []).map(r => `${r.challenge_id}-${r.tier}`));
+
     listEl.innerHTML = ended.map(c => {
       const endTime = new Date(new Date(c.starts_at).getTime() + CAMPAIGN_DURATION_MS);
       return `
@@ -968,7 +985,13 @@
         <div class="ended-meta">${formatDateShort(c.starts_at)} – ${formatDateShort(endTime)} · Prize per tier: ${formatNaira(c.reward_amount)}</div>
         <div id="ended-winners-${c.id}" class="ended-winners"></div>
         <div class="tier-browse-row">
-          ${[1,2,3,4,5].map(t => `<button class="tier-browse-btn" data-challenge="${c.id}" data-tier="${t}">Tier ${t}</button>`).join('')}
+          ${[1,2,3,4,5].map(t => {
+            const isPublished = publishedPairs.has(`${c.id}-${t}`);
+            const badge = isPublished
+              ? `<span class="ended-status-pill ended-status-final">Ended</span>`
+              : `<span class="ended-status-pill ended-status-pending">Awaiting</span>`;
+            return `<button class="tier-browse-btn" data-challenge="${c.id}" data-tier="${t}">Tier ${t} ${badge}</button>`;
+          }).join('')}
         </div>
         <div id="ended-results-${c.id}"></div>
       </div>`;
