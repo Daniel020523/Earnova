@@ -522,10 +522,57 @@
 
   document.getElementById('publish-btn').addEventListener('click', async () => {
     if (!currentChallengeId || !currentTier) return;
-    if (!confirm('Publish results for this tier? Everyone who competed in it will be able to see all stats.')) return;
+    if (!confirm('Publish results for this tier? The highest-scoring participant will be credited as the winner automatically if one hasn\'t been marked already.')) return;
 
     const btn = document.getElementById('publish-btn');
     btn.disabled = true;
+    btn.textContent = 'Publishing…';
+
+    // Pull fresh data from the server (not just what's in the input boxes)
+    // so the auto-winner pick is always based on saved stats.
+    const { data: tierRows, error: fetchError } = await supabaseClient
+      .from('challenge_submissions')
+      .select('id, user_id, views, likes, saved, shares, comments, is_winner, reward_credited')
+      .eq('challenge_id', currentChallengeId)
+      .eq('tier', currentTier)
+      .eq('is_removed', false);
+
+    if (fetchError){
+      btn.disabled = false;
+      btn.textContent = 'Publish results';
+      showToast("Couldn't publish: " + fetchError.message);
+      return;
+    }
+
+    const alreadyHasWinner = (tierRows || []).some(r => r.is_winner);
+
+    if (!alreadyHasWinner && tierRows && tierRows.length > 0){
+      const scored = computeTierScores(tierRows);
+      const topScorer = scored.reduce((best, r) => (r.score > best.score ? r : best), scored[0]);
+
+      const { error: winError } = await supabaseClient
+        .from('challenge_submissions')
+        .update({ is_winner: true, reward_credited: true })
+        .eq('id', topScorer.id);
+
+      const { error: creditError } = await supabaseClient
+        .from('transactions')
+        .insert({
+          user_id: topScorer.user_id,
+          type: 'challenge',
+          status: 'completed',
+          amount: currentRewardAmount,
+          task_id: currentChallengeId,
+          verification_status: 'verified'
+        });
+
+      if (winError || creditError){
+        btn.disabled = false;
+        btn.textContent = 'Publish results';
+        showToast("Couldn't auto-select winner: " + ((winError || creditError).message));
+        return;
+      }
+    }
 
     const { error } = await supabaseClient
       .from('challenge_tier_results')
@@ -537,10 +584,12 @@
       }, { onConflict: 'challenge_id,tier' });
 
     btn.disabled = false;
+    btn.textContent = 'Publish results';
 
     if (error){ showToast("Couldn't publish: " + error.message); return; }
-    showToast('Results published for this tier.');
+    showToast(alreadyHasWinner ? 'Results published for this tier.' : 'Results published — highest scorer credited as winner.');
     updatePublishBar(true);
+    refreshSubmissions();
   });
 
   document.getElementById('unpublish-btn').addEventListener('click', async () => {
@@ -567,23 +616,30 @@
 
   const SCORE_WEIGHTS = { views: 0.10, likes: 0.35, saved: 0.35, comments: 0.10, shares: 0.10 };
 
-  function applyScores(statRows){
+  function computeTierScores(statRows){
     const totals = { views: 0, likes: 0, saved: 0, comments: 0, shares: 0 };
     statRows.forEach(r => {
       Object.keys(totals).forEach(key => { totals[key] += Number(r[key] || 0); });
     });
 
-    statRows.forEach(r => {
+    return statRows.map(r => {
       let score = 0;
       Object.keys(SCORE_WEIGHTS).forEach(key => {
         const total = totals[key];
         const share = total > 0 ? (Number(r[key] || 0) / total) : 0;
         score += share * SCORE_WEIGHTS[key];
       });
-
-      const cell = document.querySelector(`tr[data-row-id="${r.id}"] .score-cell`);
-      if (cell) cell.textContent = (score * 100).toFixed(1) + '%';
+      return { ...r, score: score * 100 };
     });
+  }
+
+  function applyScores(statRows){
+    const scored = computeTierScores(statRows);
+    scored.forEach(r => {
+      const cell = document.querySelector(`tr[data-row-id="${r.id}"] .score-cell`);
+      if (cell) cell.textContent = r.score.toFixed(1) + '%';
+    });
+    return scored;
   }
 
   async function renderSubmissions(rows){
