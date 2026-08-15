@@ -42,8 +42,24 @@ where s.product_id = p.id
   and s.partner_id is null;
 
 -- If any rows still couldn't be backfilled (e.g. an affiliate_link whose
--- product was later deleted), this will fail loudly rather than silently
--- leaving orphaned sales — fix those rows manually before re-running.
+-- product was later deleted, or a row that already had a NULL
+-- affiliate_link_id before this migration), stop here with a clear message
+-- instead of a confusing generic NOT NULL error.
+do $$
+declare
+  v_missing_count int;
+begin
+  select count(*) into v_missing_count
+  from affiliate_sales
+  where product_id is null;
+
+  if v_missing_count > 0 then
+    raise exception
+      '% affiliate_sales row(s) could not be backfilled with a product_id. Run: select id, affiliate_link_id, buyer_email, sale_amount, created_at from affiliate_sales where product_id is null;  then either fix/delete those rows or tell me their affiliate_link_id / buyer_email so I can adjust the migration.',
+      v_missing_count;
+  end if;
+end $$;
+
 alter table affiliate_sales
   alter column product_id set not null,
   alter column partner_id set not null;
