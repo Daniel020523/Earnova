@@ -50,6 +50,34 @@
   <h1>Post to EarnOva</h1>
   <p class="lead">Post sponsored posts, job offers, and affiliate products for review.</p>
 
+  <!-- Wallet balance -->
+  <div class="card" id="walletCard">
+    <h2>Wallet balance</h2>
+    <p class="lead">Current balance: <strong id="walletBalance">—</strong></p>
+    <p class="field-hint">Payouts for completed sponsored posts are deducted from this balance automatically. If it runs too low to cover a campaign's payout, that campaign is hidden from users until you top up.</p>
+
+    <form id="topupForm" style="margin-top:14px;">
+      <div class="form-grid">
+        <div class="field">
+          <label for="topup-amount">Amount (₦)</label>
+          <input id="topup-amount" type="number" min="1" step="0.01" required>
+        </div>
+        <div class="field">
+          <label for="topup-reference">Payment reference <span class="optional-tag">(optional)</span></label>
+          <input id="topup-reference" type="text" placeholder="Bank transfer ref, receipt no., etc.">
+        </div>
+      </div>
+      <button type="submit" class="btn btn-solid" id="topup-submit-btn" style="margin-top:14px;">Request top-up</button>
+      <p class="field-hint">Top-up requests are reviewed by an admin before your balance is credited.</p>
+    </form>
+
+    <h2 style="margin-top:24px;">Your top-up requests</h2>
+    <table class="data-table" id="topup-table">
+      <thead><tr><th>Amount</th><th>Reference</th><th>Status</th></tr></thead>
+      <tbody id="topup-table-body"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
   <!-- Create a listing -->
   <div class="card" id="createListingCard">
     <h2>Post to EarnOva</h2>
@@ -629,6 +657,99 @@
     }
   });
 
+  // ---- Wallet / top-ups ----
+  const topupForm = document.getElementById('topupForm');
+  const topupSubmitBtn = document.getElementById('topup-submit-btn');
+  const topupTableBody = document.getElementById('topup-table-body');
+  const walletBalanceEl = document.getElementById('walletBalance');
+
+  function topupStatusPill(status) {
+    if (status === 'approved') return '<span class="pill pill-active">Approved</span>';
+    if (status === 'rejected') return '<span class="pill" style="background:rgba(220,38,38,0.12); color:#dc2626;">Rejected</span>';
+    return '<span class="pill pill-pending">Pending review</span>';
+  }
+
+  async function loadBalance(user) {
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('balance')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.error('Balance load error:', error);
+      walletBalanceEl.textContent = 'Unavailable';
+      return;
+    }
+
+    walletBalanceEl.textContent = formatCurrency(data?.balance);
+  }
+
+  async function loadTopups(user) {
+    const { data, error } = await supabaseClient
+      .from('wallet_topups')
+      .select('*')
+      .eq('partner_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Topups load error:', error);
+      topupTableBody.innerHTML = '<tr><td colspan="3" class="empty-row">Could not load your top-up requests.</td></tr>';
+      return;
+    }
+
+    if (!data || !data.length) {
+      topupTableBody.innerHTML = '<tr><td colspan="3" class="empty-row">No top-up requests yet.</td></tr>';
+      return;
+    }
+
+    topupTableBody.innerHTML = data.map(t => `
+      <tr>
+        <td>${formatCurrency(t.amount)}</td>
+        <td>${escapeHtml(t.reference || '—')}</td>
+        <td>${topupStatusPill(t.status)}</td>
+      </tr>
+    `).join('');
+  }
+
+  topupForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!currentUser) return;
+
+    const amount = Number(document.getElementById('topup-amount').value);
+    const reference = document.getElementById('topup-reference').value.trim();
+
+    if (!amount || amount <= 0) {
+      showToast('Enter a valid top-up amount.');
+      return;
+    }
+
+    topupSubmitBtn.disabled = true;
+    topupSubmitBtn.textContent = 'Submitting…';
+
+    try {
+      const { error } = await supabaseClient
+        .from('wallet_topups')
+        .insert({
+          partner_id: currentUser.id,
+          amount,
+          reference: reference || null
+        });
+
+      if (error) throw error;
+
+      showToast('Top-up request submitted for review!');
+      topupForm.reset();
+      loadTopups(currentUser);
+    } catch (err) {
+      console.error('Topup submit error:', err);
+      showToast(err.message || 'Could not submit top-up request. Please try again.');
+    } finally {
+      topupSubmitBtn.disabled = false;
+      topupSubmitBtn.textContent = 'Request top-up';
+    }
+  });
+
   logoutBtn.addEventListener('click', async (event) => {
     event.preventDefault();
     await supabaseClient.auth.signOut();
@@ -638,6 +759,8 @@
   (async function init() {
     currentUser = await requireSession();
     if (currentUser) {
+      loadBalance(currentUser);
+      loadTopups(currentUser);
       loadSponsoredPosts(currentUser);
       loadJobOffers(currentUser);
       loadAffiliateProducts(currentUser);

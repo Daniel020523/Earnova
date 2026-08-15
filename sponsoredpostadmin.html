@@ -90,6 +90,12 @@
   <h1>Sponsored posts admin</h1>
   <p class="lead">Add new sponsored post campaigns, edit existing ones, and control which are visible to users.</p>
 
+  <div id="page-loading" class="card"><p>Checking access…</p></div>
+  <div id="page-error" class="card" style="display:none;">
+    <p id="page-error-text"></p>
+  </div>
+
+  <div id="page-content" style="display:none;">
   <div class="stat-grid">
     <div class="stat-card">
       <div class="stat-label">Total campaigns</div>
@@ -214,6 +220,7 @@
   <div id="submissionsWrap">
     <p class="empty-note">Loading submissions…</p>
   </div>
+  </div>
 </main>
 
 <footer>
@@ -253,6 +260,14 @@
     clearTimeout(toastTimer);
     const duration = msg.length > 60 ? 6000 : 2400;
     toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
+  }
+
+  function showPageError(msg){
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'none';
+    const errBox = document.getElementById('page-error');
+    document.getElementById('page-error-text').textContent = msg;
+    errBox.style.display = 'block';
   }
 
   function escapeHtml(str){
@@ -364,7 +379,7 @@
   async function loadPosts(){
     const { data, error } = await supabaseClient
       .from('sponsored_posts')
-      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, is_active, created_at, campaign_ends_at')
+      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, is_active, created_at, campaign_ends_at, created_by')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -379,16 +394,38 @@
   async function toggleActive(id){
     const post = allPosts.find(p => String(p.id) === String(id));
     if (!post) return;
+
+    const activating = !post.is_active;
+
+    if (activating) {
+      const { data: partnerProfile, error: partnerError } = await supabaseClient
+        .from('profiles')
+        .select('balance')
+        .eq('id', post.created_by)
+        .single();
+
+      if (partnerError) {
+        console.error('Partner balance check error:', partnerError);
+        showToast("Couldn't verify the partner's balance.");
+        return;
+      }
+
+      if (!partnerProfile || Number(partnerProfile.balance) < Number(post.payout)) {
+        showToast("This partner's balance is too low to cover this campaign's payout. Ask them to top up first.");
+        return;
+      }
+    }
+
     const { error } = await supabaseClient
       .from('sponsored_posts')
-      .update({ is_active: !post.is_active })
+      .update({ is_active: activating })
       .eq('id', id);
 
     if (error) {
       console.error('toggleActive error:', error);
       showToast(`Couldn't update campaign: ${error.message || 'unknown error'}`);
     } else {
-      showToast(post.is_active ? 'Campaign deactivated.' : 'Campaign activated.');
+      showToast(activating ? 'Campaign activated.' : 'Campaign deactivated.');
       loadPosts();
     }
   }
@@ -693,22 +730,49 @@
   }
 
   async function completeSubmission(id){
-    if (!confirm('Mark this complete and credit the user their payout now?')) return;
-    const { error } = await supabaseClient
-      .from('sponsored_post_participations')
-      .update({ status: 'completed' })
-      .eq('id', id);
+    if (!confirm('Mark this complete and credit the user their payout now? This will deduct the payout from the partner\'s balance.')) return;
+
+    const { error } = await supabaseClient.rpc('complete_sponsored_submission', {
+      p_submission_id: id
+    });
 
     if (error) {
       console.error('completeSubmission error:', error);
-      showToast(`Couldn't complete this submission: ${error.message || 'unknown error'}`);
+      showToast(error.message || "Couldn't complete this submission.");
+      loadPosts(); // refresh in case the campaign just got auto-hidden
       return;
     }
     showToast('Marked complete — payout credited.');
     loadSubmissions();
   }
 
-  loadSubmissions();
+  async function loadPage(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profileError || !profile || !profile.is_admin) {
+      showPageError("You don't have access to this page.");
+      return;
+    }
+
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'block';
+
+    loadPosts();
+    loadSubmissions();
+  }
+
+  loadPage();
 </script>
 
 </body>

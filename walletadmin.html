@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wallet top-ups admin — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .search-row{ display:flex; gap:8px; margin:12px 0; flex-wrap:wrap; }
+  .search-row input, .search-row select{ padding:10px 12px; border:1px solid rgba(0,0,0,0.15); border-radius:6px; font-size:14px; }
+  .search-row input{ flex:1; min-width:200px; }
+
+  table.data-table{ width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; }
+  table.data-table th, table.data-table td{ text-align:left; padding:10px 8px; border-bottom:1px solid rgba(0,0,0,0.08); vertical-align:middle; }
+  table.data-table th{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; }
+
+  .status-badge{ display:inline-block; font-size:12px; font-weight:600; padding:3px 10px; border-radius:999px; white-space:nowrap; }
+  .status-pending{ background:rgba(217,119,6,0.12); color:#d97706; }
+  .status-approved{ background:rgba(13,148,136,0.12); color:#0d9488; }
+  .status-rejected{ background:rgba(220,38,38,0.12); color:#dc2626; }
+
+  .btn-approve{ background:none; border:1px solid rgba(13,148,136,0.4); color:#0d9488; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .btn-approve:hover{ background:rgba(13,148,136,0.08); }
+  .btn-danger{ background:none; border:1px solid rgba(220,38,38,0.4); color:#dc2626; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; }
+  .btn-danger:hover{ background:rgba(220,38,38,0.08); }
+  .row-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .empty-note{ font-size:14px; opacity:0.65; margin-top:12px; }
+
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-top:12px; }
+  .stat-card{ border:1px solid rgba(0,0,0,0.12); border-radius:8px; padding:16px; }
+  .stat-label{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; margin-bottom:6px; }
+  .stat-value{ font-size:22px; font-weight:700; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="dashboard.html">Exit admin</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <a href="dashboard.html" class="back-link">&larr; Back to dashboard</a>
+  <div class="kicker">Admin</div>
+  <h1>Wallet top-ups</h1>
+  <p class="lead">Review partner top-up requests and approve or reject them. Approving credits the partner's balance immediately.</p>
+
+  <div id="page-loading" class="card"><p>Checking access…</p></div>
+  <div id="page-error" class="card" style="display:none;">
+    <p id="page-error-text"></p>
+  </div>
+
+  <div id="page-content" style="display:none;">
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Pending requests</div>
+        <div class="stat-value" id="statPending">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total approved</div>
+        <div class="stat-value" id="statApprovedTotal">—</div>
+      </div>
+    </div>
+
+    <div class="search-row">
+      <input id="topupSearch" type="text" placeholder="Search by partner name or email…">
+      <select id="topupStatusFilter">
+        <option value="">All statuses</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+      </select>
+    </div>
+
+    <div id="topupsWrap">
+      <p class="empty-note">Loading top-up requests…</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    const duration = msg.length > 60 ? 6000 : 2400;
+    toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
+  }
+
+  function showPageError(msg){
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'none';
+    const errBox = document.getElementById('page-error');
+    document.getElementById('page-error-text').textContent = msg;
+    errBox.style.display = 'block';
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  function formatCurrency(n){
+    const num = Number(n) || 0;
+    return num.toLocaleString('en-NG', { style: 'currency', currency: 'NGN' });
+  }
+
+  function formatDate(iso){
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  let allTopups = [];
+
+  function renderTopups(topups){
+    const wrap = document.getElementById('topupsWrap');
+    if (!topups || topups.length === 0) {
+      wrap.innerHTML = '<p class="empty-note">No top-up requests match right now.</p>';
+      return;
+    }
+
+    wrap.innerHTML = `
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Partner</th>
+            <th>Amount</th>
+            <th>Reference</th>
+            <th>Requested</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${topups.map(t => {
+            const partner = t.profiles || {};
+            const label = partner.full_name || partner.email || t.partner_id;
+            let actions = '<span class="empty-note">—</span>';
+            if (t.status === 'pending') {
+              actions = `
+                <button type="button" class="btn-approve approve-btn">Approve</button>
+                <button type="button" class="btn-danger reject-btn">Reject</button>
+              `;
+            } else if (t.status === 'rejected' && t.admin_notes) {
+              actions = `<span class="empty-note">${escapeHtml(t.admin_notes)}</span>`;
+            }
+            return `
+              <tr data-topup-id="${t.id}">
+                <td>${escapeHtml(String(label))}</td>
+                <td>${formatCurrency(t.amount)}</td>
+                <td>${escapeHtml(t.reference || '—')}</td>
+                <td>${formatDate(t.created_at)}</td>
+                <td><span class="status-badge status-${t.status}">${t.status}</span></td>
+                <td><div class="row-actions">${actions}</div></td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+
+    wrap.querySelectorAll('.approve-btn').forEach(btn => {
+      btn.addEventListener('click', () => approveTopup(btn.closest('tr').getAttribute('data-topup-id')));
+    });
+    wrap.querySelectorAll('.reject-btn').forEach(btn => {
+      btn.addEventListener('click', () => rejectTopup(btn.closest('tr').getAttribute('data-topup-id')));
+    });
+  }
+
+  function applyFilters(){
+    const q = document.getElementById('topupSearch').value.trim().toLowerCase();
+    const status = document.getElementById('topupStatusFilter').value;
+
+    const filtered = allTopups.filter(t => {
+      const partner = t.profiles || {};
+      const haystack = `${partner.full_name || ''} ${partner.email || ''}`.toLowerCase();
+      const matchesQuery = !q || haystack.includes(q);
+      const matchesStatus = !status || t.status === status;
+      return matchesQuery && matchesStatus;
+    });
+
+    renderTopups(filtered);
+  }
+
+  document.getElementById('topupSearch').addEventListener('input', applyFilters);
+  document.getElementById('topupStatusFilter').addEventListener('change', applyFilters);
+
+  async function loadTopups(){
+    const { data, error } = await supabaseClient
+      .from('wallet_topups')
+      .select('*, profiles!wallet_topups_partner_id_fkey(full_name, email)')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('loadTopups error:', error);
+      document.getElementById('topupsWrap').innerHTML =
+        `<p class="empty-note">Couldn't load top-up requests. (${escapeHtml(error.message || 'unknown error')})</p>`;
+      return;
+    }
+
+    allTopups = data || [];
+    applyFilters();
+
+    document.getElementById('statPending').textContent =
+      allTopups.filter(t => t.status === 'pending').length;
+    const approvedTotal = allTopups
+      .filter(t => t.status === 'approved')
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    document.getElementById('statApprovedTotal').textContent = formatCurrency(approvedTotal);
+  }
+
+  async function approveTopup(id){
+    if (!confirm('Approve this top-up and credit the balance now?')) return;
+
+    const { error } = await supabaseClient.rpc('approve_topup', { p_topup_id: id });
+
+    if (error) {
+      console.error('approveTopup error:', error);
+      showToast(error.message || "Couldn't approve this top-up.");
+      return;
+    }
+    showToast('Top-up approved and credited.');
+    loadTopups();
+  }
+
+  async function rejectTopup(id){
+    const reason = prompt('Reason for rejecting this top-up (optional):');
+    if (reason === null) return; // cancelled
+
+    const { error } = await supabaseClient.rpc('reject_topup', {
+      p_topup_id: id,
+      p_reason: reason || null
+    });
+
+    if (error) {
+      console.error('rejectTopup error:', error);
+      showToast(error.message || "Couldn't reject this top-up.");
+      return;
+    }
+    showToast('Top-up rejected.');
+    loadTopups();
+  }
+
+  async function loadPage(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profileError || !profile || !profile.is_admin) {
+      showPageError("You don't have access to this page.");
+      return;
+    }
+
+    document.getElementById('page-loading').style.display = 'none';
+    document.getElementById('page-content').style.display = 'block';
+
+    loadTopups();
+  }
+
+  loadPage();
+</script>
+
+</body>
+</html>
