@@ -6,6 +6,30 @@
 <title>Partner Dashboard — EarnOva</title>
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  .tab-bar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .tab-btn{
+    border:1px solid rgba(0,0,0,0.15); border-radius:999px; padding:8px 16px;
+    font-size:13px; font-weight:600; background:none; cursor:pointer; opacity:0.75;
+  }
+  .tab-btn.active{ background:rgba(0,0,0,0.85); color:#fff; opacity:1; }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+  .form-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:12px; }
+  .form-grid .full{ grid-column:1 / -1; }
+  .field label{ display:block; font-size:13px; font-weight:600; margin-bottom:4px; opacity:0.8; }
+  .field input, .field textarea, .field select{
+    width:100%; padding:9px 10px; border:1px solid rgba(0,0,0,0.15);
+    border-radius:6px; font-size:14px; font-family:inherit; background:rgba(0,0,0,0.02);
+  }
+  .field textarea{ resize:vertical; min-height:64px; }
+  .checkbox-field{ display:flex; align-items:center; gap:8px; }
+  .checkbox-field label{ margin-bottom:0; }
+  .field-hint{ font-size:12px; opacity:0.65; margin:4px 0 0 0; }
+  .pill{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+  .pill-active{ background:rgba(0,150,80,0.15); color:#0a7a4a; }
+  .pill-pending{ background:rgba(200,150,0,0.15); color:#8a6400; }
+</style>
 </head>
 <body>
 
@@ -73,6 +97,184 @@
         <tr><td colspan="4" class="empty-row">Loading referrals…</td></tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Create a listing -->
+  <div class="card" id="createListingCard">
+    <h2>Post to EarnOva</h2>
+    <p class="lead">New listings are saved as inactive until an admin reviews and activates them.</p>
+
+    <div class="tab-bar">
+      <button type="button" class="tab-btn active" data-tab="sponsored">Sponsored post</button>
+      <button type="button" class="tab-btn" data-tab="job">Job offer</button>
+      <button type="button" class="tab-btn" data-tab="affiliate">Affiliate product</button>
+    </div>
+
+    <!-- Sponsored post tab -->
+    <div class="tab-panel active" id="tab-sponsored">
+      <form id="sponsoredForm">
+        <div class="form-grid">
+          <div class="field">
+            <label for="sp-title">Campaign title</label>
+            <input id="sp-title" type="text" required>
+          </div>
+          <div class="field">
+            <label for="sp-brand">Brand / sponsor</label>
+            <input id="sp-brand" type="text" required>
+          </div>
+          <div class="field">
+            <label for="sp-platform">Platform</label>
+            <select id="sp-platform" required>
+              <option value="">Select platform</option>
+              <option value="Instagram">Instagram</option>
+              <option value="TikTok">TikTok</option>
+              <option value="YouTube">YouTube</option>
+              <option value="X">X</option>
+              <option value="Blog">Blog</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="sp-payout">Payout (₦)</label>
+            <input id="sp-payout" type="number" step="0.01" min="0" required>
+          </div>
+          <div class="field">
+            <label for="sp-ends">Campaign ends</label>
+            <input id="sp-ends" type="date">
+          </div>
+          <div class="field full">
+            <label for="sp-summary">Short summary (shown on the card)</label>
+            <textarea id="sp-summary" rows="2"></textarea>
+          </div>
+          <div class="field full">
+            <label for="sp-requirements">Requirements</label>
+            <textarea id="sp-requirements" rows="3" placeholder="e.g. Minimum 1,000 likes, must tag @brand, post must stay up 30 days…"></textarea>
+          </div>
+          <div class="field full">
+            <label for="sp-guidelines">Content guidelines</label>
+            <textarea id="sp-guidelines" rows="3"></textarea>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-solid" id="sp-submit-btn" style="margin-top:14px;">Submit for review</button>
+      </form>
+
+      <h2 style="margin-top:28px;">Your sponsored posts</h2>
+      <table class="data-table" id="sp-table">
+        <thead><tr><th>Title</th><th>Brand</th><th>Payout</th><th>Status</th></tr></thead>
+        <tbody id="sp-table-body"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Job offer tab -->
+    <div class="tab-panel" id="tab-job">
+      <form id="jobForm">
+        <div class="form-grid">
+          <div class="field">
+            <label for="job-title">Job title</label>
+            <input id="job-title" type="text" required>
+          </div>
+          <div class="field">
+            <label for="job-company">Company</label>
+            <input id="job-company" type="text" required>
+          </div>
+          <div class="field">
+            <label for="job-location">Location</label>
+            <input id="job-location" type="text" placeholder="Remote, Lagos, etc." required>
+          </div>
+          <div class="field">
+            <label for="job-type">Job type</label>
+            <select id="job-type" required>
+              <option value="">Select type</option>
+              <option value="Full-time">Full-time</option>
+              <option value="Part-time">Part-time</option>
+              <option value="Contract">Contract</option>
+              <option value="Internship">Internship</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="job-salary">Salary range</label>
+            <input id="job-salary" type="text" placeholder="e.g. ₦150,000 – ₦250,000/mo">
+          </div>
+          <div class="field">
+            <label for="job-apply-link">Apply link</label>
+            <input id="job-apply-link" type="url" placeholder="https://">
+          </div>
+          <div class="field">
+            <label for="job-apply-email">Or apply email</label>
+            <input id="job-apply-email" type="email" placeholder="jobs@yourcompany.com">
+          </div>
+          <div class="field full">
+            <label for="job-summary">Short summary (shown on the card)</label>
+            <textarea id="job-summary" rows="2"></textarea>
+          </div>
+          <div class="field full">
+            <label for="job-requirements">Requirements</label>
+            <textarea id="job-requirements" rows="3"></textarea>
+          </div>
+          <div class="field full">
+            <label for="job-responsibilities">Responsibilities</label>
+            <textarea id="job-responsibilities" rows="3"></textarea>
+          </div>
+          <div class="field full">
+            <label for="job-schedule">Work schedule</label>
+            <textarea id="job-schedule" rows="2"></textarea>
+          </div>
+          <div class="field full">
+            <label for="job-rules">Rules &amp; targets <span class="optional-tag">(optional)</span></label>
+            <textarea id="job-rules" rows="2"></textarea>
+          </div>
+        </div>
+        <p class="field-hint">Provide either an apply link or an apply email.</p>
+        <button type="submit" class="btn btn-solid" id="job-submit-btn" style="margin-top:14px;">Submit for review</button>
+      </form>
+
+      <h2 style="margin-top:28px;">Your job offers</h2>
+      <table class="data-table" id="job-table">
+        <thead><tr><th>Title</th><th>Company</th><th>Type</th><th>Status</th></tr></thead>
+        <tbody id="job-table-body"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Affiliate product tab -->
+    <div class="tab-panel" id="tab-affiliate">
+      <form id="affiliateForm">
+        <div class="form-grid">
+          <div class="field">
+            <label for="af-name">Product name</label>
+            <input id="af-name" type="text" required>
+          </div>
+          <div class="field">
+            <label for="af-category">Category</label>
+            <input id="af-category" type="text" placeholder="e.g. course, ebook, software">
+          </div>
+          <div class="field">
+            <label for="af-price">Price (₦)</label>
+            <input id="af-price" type="number" min="0" step="1" required>
+          </div>
+          <div class="field">
+            <label for="af-commission">Commission (%)</label>
+            <input id="af-commission" type="number" min="0" max="100" step="1" required>
+          </div>
+          <div class="field full">
+            <label for="af-image-file">Photo</label>
+            <input type="file" id="af-image-file" accept="image/png, image/jpeg, image/webp">
+            <input type="hidden" id="af-image">
+            <img id="af-image-preview" alt="" style="display:none; margin-top:10px; max-width:220px; border-radius:8px; border:1px solid rgba(0,0,0,0.12);">
+            <div id="af-image-status" style="font-size:12px; opacity:0.65; margin-top:6px;"></div>
+          </div>
+          <div class="field full">
+            <label for="af-description">Description</label>
+            <textarea id="af-description" rows="3"></textarea>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-solid" id="af-submit-btn" style="margin-top:14px;">Submit for review</button>
+      </form>
+
+      <h2 style="margin-top:28px;">Your affiliate products</h2>
+      <table class="data-table" id="af-table">
+        <thead><tr><th>Name</th><th>Price</th><th>Commission</th><th>Status</th></tr></thead>
+        <tbody id="af-table-body"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Payout request -->
@@ -312,6 +514,292 @@
     }
   });
 
+  // ---------------------------------------------------------
+  // Create-a-listing: three real tables (sponsored_posts, jobs,
+  // products) matching the schemas used by sponsoredpostadmin.html,
+  // joboffer.html, and affiliateadmin.html. Requires a `created_by`
+  // uuid column (referencing auth.users) on all three tables, plus
+  // an RLS policy letting partners insert/select their own rows.
+  // New rows are inserted with is_active:false — an admin activates
+  // them from the existing admin panels once reviewed.
+  // ---------------------------------------------------------
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  function statusPill(isActive) {
+    return isActive
+      ? '<span class="pill pill-active">Active</span>'
+      : '<span class="pill pill-pending">Pending review</span>';
+  }
+
+  // ---- Sponsored posts ----
+  const sponsoredForm = document.getElementById('sponsoredForm');
+  const spSubmitBtn = document.getElementById('sp-submit-btn');
+  const spTableBody = document.getElementById('sp-table-body');
+
+  async function loadSponsoredPosts(user) {
+    const { data, error } = await supabaseClient
+      .from('sponsored_posts')
+      .select('*')
+      .eq('created_by', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Sponsored posts load error:', error);
+      spTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">Could not load your sponsored posts.</td></tr>';
+      return;
+    }
+
+    if (!data || !data.length) {
+      spTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">No sponsored posts yet — create one above.</td></tr>';
+      return;
+    }
+
+    spTableBody.innerHTML = data.map(p => `
+      <tr>
+        <td>${escapeHtml(p.title)}</td>
+        <td>${escapeHtml(p.brand)}</td>
+        <td>${formatCurrency(p.payout)}</td>
+        <td>${statusPill(p.is_active)}</td>
+      </tr>
+    `).join('');
+  }
+
+  sponsoredForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!currentUser) return;
+
+    const payload = {
+      created_by: currentUser.id,
+      title: document.getElementById('sp-title').value.trim(),
+      brand: document.getElementById('sp-brand').value.trim(),
+      platform: document.getElementById('sp-platform').value,
+      payout: parseFloat(document.getElementById('sp-payout').value),
+      campaign_ends_at: document.getElementById('sp-ends').value || null,
+      summary: document.getElementById('sp-summary').value.trim() || null,
+      requirements: document.getElementById('sp-requirements').value.trim() || null,
+      content_guidelines: document.getElementById('sp-guidelines').value.trim() || null,
+      is_active: false
+    };
+
+    spSubmitBtn.disabled = true;
+    spSubmitBtn.textContent = 'Submitting…';
+
+    try {
+      const { error } = await supabaseClient.from('sponsored_posts').insert(payload);
+      if (error) throw error;
+
+      showToast('Sponsored post submitted for review!');
+      sponsoredForm.reset();
+      loadSponsoredPosts(currentUser);
+    } catch (err) {
+      console.error('Sponsored post submit error:', err);
+      showToast(err.message || 'Could not submit sponsored post. Please try again.');
+    } finally {
+      spSubmitBtn.disabled = false;
+      spSubmitBtn.textContent = 'Submit for review';
+    }
+  });
+
+  // ---- Job offers ----
+  const jobForm = document.getElementById('jobForm');
+  const jobSubmitBtn = document.getElementById('job-submit-btn');
+  const jobTableBody = document.getElementById('job-table-body');
+
+  async function loadJobOffers(user) {
+    const { data, error } = await supabaseClient
+      .from('jobs')
+      .select('*')
+      .eq('created_by', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Job offers load error:', error);
+      jobTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">Could not load your job offers.</td></tr>';
+      return;
+    }
+
+    if (!data || !data.length) {
+      jobTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">No job offers yet — create one above.</td></tr>';
+      return;
+    }
+
+    jobTableBody.innerHTML = data.map(j => `
+      <tr>
+        <td>${escapeHtml(j.title)}</td>
+        <td>${escapeHtml(j.company)}</td>
+        <td>${escapeHtml(j.job_type)}</td>
+        <td>${statusPill(j.is_active)}</td>
+      </tr>
+    `).join('');
+  }
+
+  jobForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!currentUser) return;
+
+    const applyLink = document.getElementById('job-apply-link').value.trim();
+    const applyEmail = document.getElementById('job-apply-email').value.trim();
+
+    if (!applyLink && !applyEmail) {
+      showToast('Provide an apply link or an apply email.');
+      return;
+    }
+
+    const payload = {
+      created_by: currentUser.id,
+      title: document.getElementById('job-title').value.trim(),
+      company: document.getElementById('job-company').value.trim(),
+      location: document.getElementById('job-location').value.trim(),
+      job_type: document.getElementById('job-type').value,
+      salary_range: document.getElementById('job-salary').value.trim() || null,
+      apply_link: applyLink || null,
+      apply_email: applyEmail || null,
+      summary: document.getElementById('job-summary').value.trim() || null,
+      requirements: document.getElementById('job-requirements').value.trim() || null,
+      responsibilities: document.getElementById('job-responsibilities').value.trim() || null,
+      work_schedule: document.getElementById('job-schedule').value.trim() || null,
+      rules: document.getElementById('job-rules').value.trim() || null,
+      is_active: false
+    };
+
+    jobSubmitBtn.disabled = true;
+    jobSubmitBtn.textContent = 'Submitting…';
+
+    try {
+      const { error } = await supabaseClient.from('jobs').insert(payload);
+      if (error) throw error;
+
+      showToast('Job offer submitted for review!');
+      jobForm.reset();
+      loadJobOffers(currentUser);
+    } catch (err) {
+      console.error('Job offer submit error:', err);
+      showToast(err.message || 'Could not submit job offer. Please try again.');
+    } finally {
+      jobSubmitBtn.disabled = false;
+      jobSubmitBtn.textContent = 'Submit for review';
+    }
+  });
+
+  // ---- Affiliate products ----
+  const affiliateForm = document.getElementById('affiliateForm');
+  const afSubmitBtn = document.getElementById('af-submit-btn');
+  const afTableBody = document.getElementById('af-table-body');
+
+  const PRODUCT_IMAGE_BUCKET = 'product-images';
+  let afImageUploading = false;
+
+  document.getElementById('af-image-file').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('af-image-status');
+    const previewEl = document.getElementById('af-image-preview');
+    statusEl.textContent = 'Uploading…';
+    afImageUploading = true;
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const path = `${Date.now()}-${safeName}`;
+
+    const { error: uploadError } = await supabaseClient.storage
+      .from(PRODUCT_IMAGE_BUCKET)
+      .upload(path, file, { upsert: false });
+
+    if (uploadError) {
+      statusEl.textContent = "Couldn't upload photo — try again.";
+      showToast("Couldn't upload photo");
+      afImageUploading = false;
+      return;
+    }
+
+    const { data: publicUrlData } = supabaseClient.storage
+      .from(PRODUCT_IMAGE_BUCKET)
+      .getPublicUrl(path);
+
+    document.getElementById('af-image').value = publicUrlData.publicUrl;
+    previewEl.src = publicUrlData.publicUrl;
+    previewEl.style.display = 'block';
+    statusEl.textContent = 'Photo uploaded';
+    afImageUploading = false;
+  });
+
+  async function loadAffiliateProducts(user) {
+    const { data, error } = await supabaseClient
+      .from('products')
+      .select('*')
+      .eq('created_by', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Affiliate products load error:', error);
+      afTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">Could not load your affiliate products.</td></tr>';
+      return;
+    }
+
+    if (!data || !data.length) {
+      afTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">No affiliate products yet — create one above.</td></tr>';
+      return;
+    }
+
+    afTableBody.innerHTML = data.map(p => `
+      <tr>
+        <td>${escapeHtml(p.name)}</td>
+        <td>${formatCurrency(p.price)}</td>
+        <td>${p.commission_rate}%</td>
+        <td>${statusPill(p.is_active)}</td>
+      </tr>
+    `).join('');
+  }
+
+  affiliateForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!currentUser) return;
+
+    if (afImageUploading) {
+      showToast('Wait for the photo to finish uploading.');
+      return;
+    }
+
+    const payload = {
+      created_by: currentUser.id,
+      name: document.getElementById('af-name').value.trim(),
+      category: document.getElementById('af-category').value.trim() || null,
+      price: Number(document.getElementById('af-price').value),
+      commission_rate: Number(document.getElementById('af-commission').value),
+      image_url: document.getElementById('af-image').value.trim() || null,
+      description: document.getElementById('af-description').value.trim() || null,
+      is_active: false
+    };
+
+    afSubmitBtn.disabled = true;
+    afSubmitBtn.textContent = 'Submitting…';
+
+    try {
+      const { error } = await supabaseClient.from('products').insert(payload);
+      if (error) throw error;
+
+      showToast('Affiliate product submitted for review!');
+      affiliateForm.reset();
+      document.getElementById('af-image').value = '';
+      document.getElementById('af-image-preview').style.display = 'none';
+      document.getElementById('af-image-status').textContent = '';
+      loadAffiliateProducts(currentUser);
+    } catch (err) {
+      console.error('Affiliate product submit error:', err);
+      showToast(err.message || 'Could not submit affiliate product. Please try again.');
+    } finally {
+      afSubmitBtn.disabled = false;
+      afSubmitBtn.textContent = 'Submit for review';
+    }
+  });
+
   logoutBtn.addEventListener('click', async (event) => {
     event.preventDefault();
     await supabaseClient.auth.signOut();
@@ -322,6 +810,9 @@
     currentUser = await requireSession();
     if (currentUser) {
       loadDashboard(currentUser);
+      loadSponsoredPosts(currentUser);
+      loadJobOffers(currentUser);
+      loadAffiliateProducts(currentUser);
     }
   })();
 </script>
