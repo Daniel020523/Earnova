@@ -181,7 +181,31 @@
     object-fit:contain;
     background:rgba(0,0,0,0.04);
     border-radius:12px 12px 0 0;
+    cursor:zoom-in;
   }
+  .image-lightbox-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.9);
+    z-index:200;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .image-lightbox-overlay.open{ display:flex; }
+  .image-lightbox-img{
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+  }
+  .image-lightbox-overlay .modal-close{
+    top:20px;
+    right:20px;
+    background:rgba(255,255,255,0.15);
+    color:#fff;
+  }
+  .image-lightbox-overlay .modal-close:hover{ background:rgba(255,255,255,0.25); }
   .modal-body{ padding:20px; }
   .modal-category{
     font-size:12px;
@@ -288,9 +312,6 @@
 
     <div class="card">
       <h2>Marketplace</h2>
-      <div class="product-filters" id="category-filters">
-        <button class="filter-chip active" data-category="all">All</button>
-      </div>
       <div id="products-loading" style="font-size:14px; opacity:0.7; margin-top:8px;">Loading products…</div>
       <div id="products-empty" style="font-size:14px; opacity:0.7; display:none; margin-top:8px;">No products available right now.</div>
       <div class="product-grid" id="product-grid"></div>
@@ -331,7 +352,6 @@
     <button class="modal-close" id="product-modal-close" aria-label="Close">✕</button>
     <img class="modal-image" id="modal-image" alt="">
     <div class="modal-body">
-      <div class="modal-category" id="modal-category"></div>
       <div class="modal-name" id="modal-name"></div>
       <div class="modal-desc" id="modal-desc"></div>
       <div class="modal-meta">
@@ -341,6 +361,11 @@
       <button class="modal-get-link-btn" id="modal-get-link-btn">Get affiliate link</button>
     </div>
   </div>
+</div>
+
+<div class="image-lightbox-overlay" id="image-lightbox-overlay">
+  <button class="modal-close" id="image-lightbox-close" aria-label="Close">✕</button>
+  <img class="image-lightbox-img" id="image-lightbox-img" alt="">
 </div>
 
 <footer>
@@ -414,7 +439,6 @@
   let allProducts = [];
   let allSales = [];
   let salesExpanded = false;
-  let activeCategory = 'all';
 
   function generateCode(){
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
@@ -465,54 +489,21 @@
     return created.code;
   }
 
-  function renderCategoryFilters(){
-    const wrap = document.getElementById('category-filters');
-    const categories = Array.from(new Set(allProducts.map(p => p.category).filter(Boolean)));
-    wrap.innerHTML = '';
-
-    const allBtn = document.createElement('button');
-    allBtn.className = 'filter-chip' + (activeCategory === 'all' ? ' active' : '');
-    allBtn.textContent = 'All';
-    allBtn.dataset.category = 'all';
-    wrap.appendChild(allBtn);
-
-    categories.forEach(cat => {
-      const btn = document.createElement('button');
-      btn.className = 'filter-chip' + (activeCategory === cat ? ' active' : '');
-      btn.textContent = capitalize(cat);
-      btn.dataset.category = cat;
-      wrap.appendChild(btn);
-    });
-
-    wrap.querySelectorAll('.filter-chip').forEach(btn => {
-      btn.addEventListener('click', () => {
-        activeCategory = btn.dataset.category;
-        renderCategoryFilters();
-        renderProducts();
-      });
-    });
-  }
-
   function renderProducts(){
     const grid = document.getElementById('product-grid');
     const emptyEl = document.getElementById('products-empty');
 
-    const visible = activeCategory === 'all'
-      ? allProducts
-      : allProducts.filter(p => p.category === activeCategory);
-
-    if (visible.length === 0) {
+    if (allProducts.length === 0) {
       grid.innerHTML = '';
       emptyEl.style.display = 'block';
       return;
     }
     emptyEl.style.display = 'none';
 
-    grid.innerHTML = visible.map(p => `
+    grid.innerHTML = allProducts.map(p => `
       <div class="product-card" data-product-id="${p.id}">
         <img class="product-thumb" src="${p.image_url || 'assets/product-placeholder.png'}" alt="${p.name}">
         <div class="product-body">
-          <div class="product-category">${p.category ? capitalize(p.category) : 'General'}</div>
           <div class="product-name">${p.name}</div>
           <div class="product-desc">${p.description || ''}</div>
           <div class="product-meta">
@@ -565,7 +556,6 @@
 
     document.getElementById('modal-image').src = p.image_url || 'assets/product-placeholder.png';
     document.getElementById('modal-image').alt = p.name;
-    document.getElementById('modal-category').textContent = p.category ? capitalize(p.category) : 'General';
     document.getElementById('modal-name').textContent = p.name;
     document.getElementById('modal-desc').textContent = p.description || 'No description provided.';
     document.getElementById('modal-price').textContent = formatNaira(p.price);
@@ -583,12 +573,35 @@
     document.getElementById('product-modal-overlay').classList.remove('open');
   }
 
+  function openImageLightbox(src, alt){
+    document.getElementById('image-lightbox-img').src = src;
+    document.getElementById('image-lightbox-img').alt = alt;
+    document.getElementById('image-lightbox-overlay').classList.add('open');
+  }
+
+  function closeImageLightbox(){
+    document.getElementById('image-lightbox-overlay').classList.remove('open');
+  }
+
+  document.getElementById('modal-image').addEventListener('click', () => {
+    const img = document.getElementById('modal-image');
+    openImageLightbox(img.src, img.alt);
+  });
+
+  document.getElementById('image-lightbox-close').addEventListener('click', closeImageLightbox);
+  document.getElementById('image-lightbox-overlay').addEventListener('click', (event) => {
+    if (event.target.id === 'image-lightbox-overlay') closeImageLightbox();
+  });
+
   document.getElementById('product-modal-close').addEventListener('click', closeProductModal);
   document.getElementById('product-modal-overlay').addEventListener('click', (event) => {
     if (event.target.id === 'product-modal-overlay') closeProductModal();
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeProductModal();
+    if (event.key === 'Escape'){
+      closeImageLightbox();
+      closeProductModal();
+    }
   });
 
   async function loadProducts(){
@@ -610,7 +623,6 @@
     }
 
     allProducts = data || [];
-    renderCategoryFilters();
     renderProducts();
   }
 

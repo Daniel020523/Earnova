@@ -574,12 +574,17 @@
 
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
-      .select('full_name, referral_code')
+      .select('full_name, referral_code, is_activated')
       .eq('id', user.id)
       .single();
 
     if (profileError || !profile) {
       showDashboardError("We couldn't load your profile. Please try logging in again.");
+      return;
+    }
+
+    if (!profile.is_activated) {
+      window.location.href = 'activate.html';
       return;
     }
 

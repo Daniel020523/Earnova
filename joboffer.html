@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job offers — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .job-list{ display:flex; flex-direction:column; gap:12px; margin-top:12px; }
+  .job-card{
+    border:1px solid rgba(0,0,0,0.12);
+    border-radius:8px;
+    padding:16px;
+    text-align:left;
+    cursor:pointer;
+    background:none;
+    transition:background 0.15s ease, border-color 0.15s ease;
+  }
+  .job-card:hover{
+    background:rgba(0,0,0,0.03);
+    border-color:rgba(0,0,0,0.25);
+  }
+  .job-card h3{ margin:0 0 4px 0; font-size:16px; }
+  .job-meta{ font-size:13px; opacity:0.7; margin-bottom:8px; }
+  .job-tag{
+    display:inline-block;
+    font-size:12px;
+    font-weight:600;
+    padding:2px 8px;
+    border-radius:999px;
+    background:rgba(0,0,0,0.06);
+    margin-right:6px;
+  }
+  .job-summary{ font-size:14px; margin:8px 0 0 0; opacity:0.85; }
+  .search-row{ display:flex; gap:8px; margin:12px 0; flex-wrap:wrap; }
+  .search-row input{ flex:1; min-width:200px; }
+
+  /* Modal */
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.45);
+    z-index:100;
+    align-items:flex-start;
+    justify-content:center;
+    padding:24px 12px;
+    overflow-y:auto;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal-box{
+    background:#fff;
+    border-radius:10px;
+    max-width:560px;
+    width:100%;
+    padding:24px;
+    position:relative;
+    margin-top:20px;
+  }
+  .modal-close{
+    position:absolute;
+    top:12px;
+    right:12px;
+    background:none;
+    border:none;
+    font-size:20px;
+    line-height:1;
+    cursor:pointer;
+    opacity:0.6;
+  }
+  .modal-close:hover{ opacity:1; }
+  .modal-section{ margin-top:16px; }
+  .modal-section h4{
+    margin:0 0 6px 0;
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    opacity:0.6;
+  }
+  .modal-section p{ margin:0; font-size:14px; white-space:pre-wrap; }
+  .modal-apply{ margin-top:20px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="profile.html">Profile</a>
+      <a class="btn btn-ghost" href="settings.html">Settings</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <a href="dashboard.html" class="back-link">&larr; Back to dashboard</a>
+  <div class="kicker">Remote job board</div>
+  <h1>Job offers</h1>
+  <p class="lead">Browse remote roles posted by verified companies. Click a job to see full details and apply — no tasks, no payouts here.</p>
+
+  <div class="search-row">
+    <input id="searchInput" type="text" placeholder="Search by title or company…">
+    <select id="typeFilter">
+      <option value="">All job types</option>
+      <option value="Full-time">Full-time</option>
+      <option value="Part-time">Part-time</option>
+      <option value="Contract">Contract</option>
+      <option value="Internship">Internship</option>
+    </select>
+  </div>
+
+  <div id="jobs-loading" class="card"><p>Loading job offers…</p></div>
+  <div id="jobs-empty" class="card" style="display:none;"><p>No job offers match your search right now. Check back soon.</p></div>
+  <div id="job-list" class="job-list"></div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<!-- Job detail modal -->
+<div class="modal-overlay" id="jobModalOverlay">
+  <div class="modal-box">
+    <button class="modal-close" id="modalCloseBtn" aria-label="Close">&times;</button>
+    <div class="kicker" id="modalCompany"></div>
+    <h2 id="modalTitle" style="margin:4px 0 8px 0;"></h2>
+    <div class="job-meta" id="modalMeta"></div>
+    <div id="modalTags"></div>
+
+    <div class="modal-section">
+      <h4>What you need</h4>
+      <p id="modalRequirements"></p>
+    </div>
+    <div class="modal-section">
+      <h4>What you'll be doing</h4>
+      <p id="modalResponsibilities"></p>
+    </div>
+    <div class="modal-section">
+      <h4>Work schedule</h4>
+      <p id="modalSchedule"></p>
+    </div>
+    <div class="modal-section" id="modalRulesSection">
+      <h4>Rules &amp; targets</h4>
+      <p id="modalRules"></p>
+    </div>
+
+    <a class="btn btn-solid modal-apply" id="modalApplyBtn" href="#" target="_blank" rel="noopener">Apply now</a>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function formatDate(iso){
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  let allJobs = [];
+
+  function renderJobs(jobs){
+    const listEl = document.getElementById('job-list');
+    const emptyEl = document.getElementById('jobs-empty');
+
+    if (jobs.length === 0) {
+      listEl.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    listEl.innerHTML = jobs.map(job => `
+      <div class="job-card" data-job-id="${job.id}" role="button" tabindex="0">
+        <h3>${escapeHtml(job.title)}</h3>
+        <div class="job-meta">${escapeHtml(job.company)} · ${escapeHtml(job.location)} · Posted ${formatDate(job.created_at)}</div>
+        <span class="job-tag">${escapeHtml(job.job_type)}</span>
+        ${job.salary_range ? `<span class="job-tag">${escapeHtml(job.salary_range)}</span>` : ''}
+        ${job.summary ? `<p class="job-summary">${escapeHtml(job.summary)}</p>` : ''}
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('.job-card').forEach(card => {
+      const open = () => openModal(card.getAttribute('data-job-id'));
+      card.addEventListener('click', open);
+      card.addEventListener('keypress', (e) => { if (e.key === 'Enter') open(); });
+    });
+  }
+
+  function openModal(jobId){
+    const job = allJobs.find(j => String(j.id) === String(jobId));
+    if (!job) return;
+
+    document.getElementById('modalCompany').textContent = job.company;
+    document.getElementById('modalTitle').textContent = job.title;
+    document.getElementById('modalMeta').textContent =
+      `${job.location} · Posted ${formatDate(job.created_at)}`;
+
+    const tagsEl = document.getElementById('modalTags');
+    tagsEl.innerHTML = `<span class="job-tag">${escapeHtml(job.job_type)}</span>` +
+      (job.salary_range ? `<span class="job-tag">${escapeHtml(job.salary_range)}</span>` : '');
+
+    document.getElementById('modalRequirements').textContent = job.requirements || 'Not specified.';
+    document.getElementById('modalResponsibilities').textContent = job.responsibilities || 'Not specified.';
+    document.getElementById('modalSchedule').textContent = job.work_schedule || 'Not specified.';
+
+    const rulesSection = document.getElementById('modalRulesSection');
+    if (job.rules) {
+      document.getElementById('modalRules').textContent = job.rules;
+      rulesSection.style.display = 'block';
+    } else {
+      rulesSection.style.display = 'none';
+    }
+
+    const applyBtn = document.getElementById('modalApplyBtn');
+    if (job.apply_link) {
+      applyBtn.href = job.apply_link;
+      applyBtn.target = '_blank';
+      applyBtn.textContent = 'Apply now';
+    } else if (job.apply_email) {
+      applyBtn.href = `mailto:${job.apply_email}`;
+      applyBtn.removeAttribute('target');
+      applyBtn.textContent = 'Apply via email';
+    } else {
+      applyBtn.href = '#';
+      applyBtn.textContent = 'No application link provided';
+    }
+
+    document.getElementById('jobModalOverlay').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal(){
+    document.getElementById('jobModalOverlay').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+  document.getElementById('jobModalOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'jobModalOverlay') closeModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  function applyFilters(){
+    const query = document.getElementById('searchInput').value.trim().toLowerCase();
+    const type = document.getElementById('typeFilter').value;
+
+    const filtered = allJobs.filter(job => {
+      const matchesQuery = !query ||
+        job.title.toLowerCase().includes(query) ||
+        job.company.toLowerCase().includes(query);
+      const matchesType = !type || job.job_type === type;
+      return matchesQuery && matchesType;
+    });
+
+    renderJobs(filtered);
+  }
+
+  document.getElementById('searchInput').addEventListener('input', applyFilters);
+  document.getElementById('typeFilter').addEventListener('change', applyFilters);
+
+  async function loadJobs(){
+    const loadingEl = document.getElementById('jobs-loading');
+
+    const { data, error } = await supabaseClient
+      .from('jobs')
+      .select('id, title, company, location, job_type, salary_range, summary, requirements, responsibilities, work_schedule, rules, apply_link, apply_email, created_at')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    loadingEl.style.display = 'none';
+
+    if (error) {
+      showToast("Couldn't load job offers right now.");
+      return;
+    }
+
+    allJobs = data || [];
+    applyFilters();
+  }
+
+  loadJobs();
+</script>
+
+</body>
+</html>

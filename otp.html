@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Verify your email — EarnOva</title>
 <link rel="stylesheet" href="styles.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
 <header>
   <div class="nav">
-    <a href="index.html" class="logo">
+    <a href="earnova.html" class="logo">
       <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
-      <span class="tag">Think smart. Earn big.</span>
+      <span class="tag">Think big. Earn smart.</span>
     </a>
     <div class="nav-actions">
       <a class="btn btn-ghost" href="login.html">Log in</a>
@@ -114,11 +114,16 @@
 
       if (error) throw error;
 
-      // Session is now active (data.session / data.user populated)
+      // Session is now active (data.session / data.user populated).
+      // From here, everyone goes to activate.html first — it checks
+      // is_activated itself and will bounce straight through to
+      // dashboard.html if the account is already activated (e.g. on
+      // a re-verification edge case), so this redirect target is safe
+      // either way.
       sessionStorage.removeItem('pendingEmail');
       showToast('Verified! Redirecting…');
       setTimeout(() => {
-        window.location.href = 'dashboard.html';
+        window.location.href = 'activate.html';
       }, 800);
 
     } catch (err) {

@@ -253,6 +253,13 @@
         <thead><tr><th>Name</th><th>Price</th><th>Commission</th><th>Status</th></tr></thead>
         <tbody id="af-table-body"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
       </table>
+
+      <h2 style="margin-top:28px;">Your product sales</h2>
+      <p class="field-hint">The website keeps 10% of every sale. Direct sales (no referral link) pay you the other 90%; sales through an affiliate's link pay them their commission first, and you get the rest.</p>
+      <table class="data-table" id="sales-table">
+        <thead><tr><th>Date</th><th>Product</th><th>Sale amount</th><th>Source</th><th>You earned</th></tr></thead>
+        <tbody id="sales-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
+      </table>
     </div>
   </div>
 
@@ -657,6 +664,49 @@
     }
   });
 
+  // ---- Product sales (partner's cut of each sale) ----
+  const salesTableBody = document.getElementById('sales-table-body');
+
+  function sourcePill(hasReferral) {
+    return hasReferral
+      ? '<span class="pill pill-pending" style="background:rgba(0,0,0,0.08); color:inherit;">Referral</span>'
+      : '<span class="pill pill-active">Direct</span>';
+  }
+
+  function formatSaleDate(iso) {
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  async function loadProductSales(user) {
+    const { data, error } = await supabaseClient
+      .from('affiliate_sales')
+      .select('created_at, sale_amount, partner_amount, affiliate_link_id, products(name)')
+      .eq('partner_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Product sales load error:', error);
+      salesTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">Could not load your sales.</td></tr>';
+      return;
+    }
+
+    if (!data || !data.length) {
+      salesTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">No sales yet.</td></tr>';
+      return;
+    }
+
+    salesTableBody.innerHTML = data.map(s => `
+      <tr>
+        <td>${formatSaleDate(s.created_at)}</td>
+        <td>${escapeHtml(s.products?.name || 'Product')}</td>
+        <td>${formatCurrency(s.sale_amount)}</td>
+        <td>${sourcePill(!!s.affiliate_link_id)}</td>
+        <td>${formatCurrency(s.partner_amount)}</td>
+      </tr>
+    `).join('');
+  }
+
   // ---- Wallet / top-ups ----
   const topupForm = document.getElementById('topupForm');
   const topupSubmitBtn = document.getElementById('topup-submit-btn');
@@ -764,6 +814,7 @@
       loadSponsoredPosts(currentUser);
       loadJobOffers(currentUser);
       loadAffiliateProducts(currentUser);
+      loadProductSales(currentUser);
     }
   })();
 </script>

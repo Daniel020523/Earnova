@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activate your account — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://js.paystack.co/v2/inline.js"></script>
+<style>
+  .activate-card{
+    max-width:480px;
+    text-align:center;
+  }
+  .fee-amount{
+    font-size:36px;
+    font-weight:700;
+    margin:12px 0 4px;
+  }
+  .fee-note{
+    font-size:14px;
+    opacity:0.7;
+    margin-bottom:24px;
+  }
+  .fee-list{
+    text-align:left;
+    font-size:14px;
+    background:rgba(0,0,0,0.03);
+    border-radius:8px;
+    padding:14px 18px;
+    margin-bottom:24px;
+  }
+  .fee-list li{ margin-bottom:6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="index.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think big. Earn smart.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">One last step</div>
+  <h1>Activate your account</h1>
+  <p class="lead">Your email is verified — pay the one-time activation fee to unlock task access.</p>
+
+  <div id="loading" class="card">
+    <p>Checking your account…</p>
+  </div>
+
+  <div id="activate-content" class="card activate-card" style="display:none;">
+    <div class="fee-amount">₦1,500</div>
+    <p class="fee-note">One-time activation fee, paid once per account.</p>
+
+    <ul class="fee-list">
+      <li>✅ Unlocks daily tasks, surveys, referrals & affiliate tools</li>
+      <li>✅ Unlocks the weekly TikTok challenge</li>
+      <li>✅ One-time only — never charged again</li>
+    </ul>
+
+    <button class="btn btn-solid" id="pay-btn" style="width:100%; justify-content:center;">Pay ₦1,500 with Paystack</button>
+    <p class="task-status" id="pay-status" style="font-size:13px; opacity:0.7; margin-top:12px;"></p>
+  </div>
+
+  <div id="error-box" class="card" style="display:none;">
+    <p id="error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Paystack PUBLIC key — safe to expose client-side by design.
+  // Get this from Paystack dashboard > Settings > API Keys & Webhooks.
+  const PAYSTACK_PUBLIC_KEY = "pk_live_replace_with_your_actual_public_key";
+
+  const PAYSTACK_VERIFY_URL = `${SUPABASE_URL}/functions/v1/paystack-verify`;
+  const ACTIVATION_AMOUNT_KOBO = 150000; // ₦1,500
+
+  let toastTimer;
+  function showToast(msg){
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  function showError(msg){
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('activate-content').style.display = 'none';
+    document.getElementById('error-text').textContent = msg;
+    document.getElementById('error-box').style.display = 'block';
+  }
+
+  let currentUser = null;
+
+  async function init(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session){
+      window.location.href = 'login.html';
+      return;
+    }
+
+    currentUser = session.user;
+
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('is_activated')
+      .eq('id', currentUser.id)
+      .single();
+
+    if (profileError){
+      showError("We couldn't load your account. Please try logging in again.");
+      return;
+    }
+
+    if (profile.is_activated){
+      window.location.href = 'dashboard.html';
+      return;
+    }
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('activate-content').style.display = 'block';
+  }
+
+  document.getElementById('pay-btn').addEventListener('click', () => {
+    const btn = document.getElementById('pay-btn');
+    const statusEl = document.getElementById('pay-status');
+    btn.disabled = true;
+    statusEl.textContent = '';
+
+    const popup = new PaystackPop();
+    popup.newTransaction({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: currentUser.email,
+      amount: ACTIVATION_AMOUNT_KOBO,
+      currency: 'NGN',
+      metadata: {
+        user_id: currentUser.id
+      },
+      onSuccess: async (transaction) => {
+        statusEl.textContent = 'Verifying payment…';
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+
+        try {
+          const resp = await fetch(PAYSTACK_VERIFY_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ reference: transaction.reference })
+          });
+          const json = await resp.json();
+
+          if (!resp.ok || !json.activated){
+            statusEl.textContent = json.error || "We couldn't verify your payment. Contact support with your reference: " + transaction.reference;
+            btn.disabled = false;
+            return;
+          }
+
+          showToast('Account activated!');
+          setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
+        } catch (err){
+          statusEl.textContent = "We couldn't verify your payment. Contact support with your reference: " + transaction.reference;
+          btn.disabled = false;
+        }
+      },
+      onCancel: () => {
+        btn.disabled = false;
+        statusEl.textContent = 'Payment cancelled.';
+      }
+    });
+  });
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  init();
+</script>
+
+</body>
+</html>
