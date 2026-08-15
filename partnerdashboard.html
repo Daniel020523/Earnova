@@ -153,9 +153,11 @@
 
     // Gate this page to partner accounts only — anyone whose profile
     // isn't flagged as a partner gets sent to the regular dashboard.
+    // Kept to just is_partner here so a missing/renamed email or phone
+    // column elsewhere can't break this core check.
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
-      .select('is_partner, email, phone')
+      .select('is_partner')
       .eq('id', session.user.id)
       .single();
 
@@ -166,41 +168,52 @@
       return null;
     }
 
-    if (!profile?.is_partner) {
-      // Not a partner on this profile — see if this person also has a
-      // separate regular (non-partner) account under the same email or
-      // phone before sending them to the regular dashboard.
-      const orFilters = [];
-      if (profile?.email) orFilters.push(`email.eq.${profile.email}`);
-      if (profile?.phone) orFilters.push(`phone.eq.${profile.phone}`);
-
-      let regularAccount = null;
-      if (orFilters.length) {
-        const { data: match, error: matchError } = await supabaseClient
-          .from('profiles')
-          .select('id')
-          .or(orFilters.join(','))
-          .eq('is_partner', false)
-          .neq('id', session.user.id)
-          .maybeSingle();
-
-        if (matchError) {
-          console.error('Linked account check error:', matchError);
-        } else {
-          regularAccount = match;
-        }
-      }
-
-      if (regularAccount) {
-        window.location.href = 'dashboard.html';
-      } else {
-        showToast("We couldn't find a regular account for you.");
-        window.location.href = 'login.html';
-      }
-      return null;
+    if (profile?.is_partner) {
+      return session.user;
     }
 
-    return session.user;
+    // Not a partner on this profile — see if this person also has a
+    // separate regular (non-partner) account under the same email or
+    // phone before sending them to the regular dashboard. This lookup
+    // is separate so it can't accidentally break the check above.
+    const { data: contactInfo, error: contactError } = await supabaseClient
+      .from('profiles')
+      .select('email, phone')
+      .eq('id', session.user.id)
+      .single();
+
+    if (contactError) {
+      console.error('Contact lookup error:', contactError);
+    }
+
+    const orFilters = [];
+    if (contactInfo?.email) orFilters.push(`email.eq.${contactInfo.email}`);
+    if (contactInfo?.phone) orFilters.push(`phone.eq.${contactInfo.phone}`);
+
+    let regularAccount = null;
+    if (orFilters.length) {
+      const { data: match, error: matchError } = await supabaseClient
+        .from('profiles')
+        .select('id')
+        .or(orFilters.join(','))
+        .eq('is_partner', false)
+        .neq('id', session.user.id)
+        .maybeSingle();
+
+      if (matchError) {
+        console.error('Linked account check error:', matchError);
+      } else {
+        regularAccount = match;
+      }
+    }
+
+    if (regularAccount) {
+      window.location.href = 'dashboard.html';
+    } else {
+      showToast("We couldn't find a regular account for you.");
+      window.location.href = 'login.html';
+    }
+    return null;
   }
 
   // Loads the partner's profile, referral code, and aggregate stats.
