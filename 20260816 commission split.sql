@@ -20,11 +20,33 @@ alter table affiliate_sales
   alter column affiliate_link_id drop not null;
 
 alter table affiliate_sales
-  add column if not exists product_id uuid not null references products(id),
-  add column if not exists partner_id uuid not null references profiles(id),
+  add column if not exists product_id uuid references products(id),
+  add column if not exists partner_id uuid references profiles(id),
   add column if not exists partner_amount numeric not null default 0,
   add column if not exists site_amount numeric not null default 0,
   add column if not exists paystack_reference text;
+
+-- Backfill product_id / partner_id for any sales that already exist
+-- (every existing row is a referral sale, so it has an affiliate_link_id
+-- to derive the product — and the product tells us the partner).
+update affiliate_sales s
+set product_id = al.product_id
+from affiliate_links al
+where s.affiliate_link_id = al.id
+  and s.product_id is null;
+
+update affiliate_sales s
+set partner_id = p.created_by
+from products p
+where s.product_id = p.id
+  and s.partner_id is null;
+
+-- If any rows still couldn't be backfilled (e.g. an affiliate_link whose
+-- product was later deleted), this will fail loudly rather than silently
+-- leaving orphaned sales — fix those rows manually before re-running.
+alter table affiliate_sales
+  alter column product_id set not null,
+  alter column partner_id set not null;
 
 -- Idempotency guard: a given Paystack reference can only ever produce one
 -- affiliate_sales row, even if verify-paystack is called twice for it
