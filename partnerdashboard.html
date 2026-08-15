@@ -147,15 +147,12 @@
   async function requireSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) {
-      showToast('DEBUG: no session found — redirecting to login.');
-      setTimeout(() => { window.location.href = 'login.html'; }, 4000);
+      window.location.href = 'login.html';
       return null;
     }
 
     // Gate this page to partner accounts only — anyone whose profile
     // isn't flagged as a partner gets sent to the regular dashboard.
-    // Kept to just is_partner here so a missing/renamed email or phone
-    // column elsewhere can't break this core check.
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
       .select('is_partner')
@@ -164,13 +161,10 @@
 
     if (profileError) {
       console.error('Profile check error:', profileError);
-      showToast(`DEBUG: profile query failed — ${profileError.message || profileError.code}`);
-      setTimeout(() => { window.location.href = 'dashboard.html'; }, 4000);
+      showToast('Could not verify your account. Please try again.');
+      window.location.href = 'dashboard.html';
       return null;
     }
-
-    showToast(`DEBUG: is_partner = ${JSON.stringify(profile?.is_partner)} (type: ${typeof profile?.is_partner})`);
-    await new Promise(r => setTimeout(r, 4000));
 
     if (profile?.is_partner === true) {
       return session.user;
@@ -178,8 +172,7 @@
 
     // Not a partner on this profile — see if this person also has a
     // separate regular (non-partner) account under the same email or
-    // phone before sending them to the regular dashboard. This lookup
-    // is separate so it can't accidentally break the check above.
+    // phone before sending them to the regular dashboard.
     const { data: contactInfo, error: contactError } = await supabaseClient
       .from('profiles')
       .select('email, phone')
@@ -212,11 +205,10 @@
     }
 
     if (regularAccount) {
-      showToast(`DEBUG: is_partner was falsy, found linked non-partner account ${regularAccount.id} — redirecting.`);
-      setTimeout(() => { window.location.href = 'dashboard.html'; }, 4000);
+      window.location.href = 'dashboard.html';
     } else {
-      showToast("DEBUG: is_partner was falsy, no linked account found — redirecting to login.");
-      setTimeout(() => { window.location.href = 'login.html'; }, 4000);
+      showToast("We couldn't find a regular account for you.");
+      window.location.href = 'login.html';
     }
     return null;
   }

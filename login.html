@@ -111,9 +111,29 @@
       return;
     }
 
+    // Route partners to the partner dashboard, everyone else to the
+    // regular dashboard. Fall back to the regular dashboard if the
+    // profile lookup fails, so a lookup hiccup never locks anyone out.
+    let destination = 'dashboard.html';
+    try {
+      const { data: profile, error: profileError } = await supabaseClient
+        .from('profiles')
+        .select('is_partner')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Profile check error:', profileError);
+      } else if (profile?.is_partner === true) {
+        destination = 'partnerdashboard.html';
+      }
+    } catch (err) {
+      console.error('Profile check error:', err);
+    }
+
     showToast('Logged in — redirecting to your dashboard…');
     setTimeout(() => {
-      window.location.href = 'dashboard.html';
+      window.location.href = destination;
     }, 800);
   });
 </script>
