@@ -163,8 +163,10 @@
 
     if (profileError) {
       console.error('Profile check error:', profileError);
-      showToast('Could not verify your account. Please try again.');
-      window.location.href = 'dashboard.html';
+      // TEMPORARY: showing the raw error so it's visible on mobile
+      // without needing devtools. Remove this line once diagnosed.
+      showToast(`Profile check failed: ${profileError.message || profileError.code || 'unknown error'}`);
+      setTimeout(() => { window.location.href = 'dashboard.html'; }, 4000);
       return null;
     }
 
