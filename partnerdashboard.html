@@ -147,7 +147,8 @@
   async function requireSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) {
-      window.location.href = 'login.html';
+      showToast('DEBUG: no session found — redirecting to login.');
+      setTimeout(() => { window.location.href = 'login.html'; }, 4000);
       return null;
     }
 
@@ -163,14 +164,15 @@
 
     if (profileError) {
       console.error('Profile check error:', profileError);
-      // TEMPORARY: showing the raw error so it's visible on mobile
-      // without needing devtools. Remove this line once diagnosed.
-      showToast(`Profile check failed: ${profileError.message || profileError.code || 'unknown error'}`);
+      showToast(`DEBUG: profile query failed — ${profileError.message || profileError.code}`);
       setTimeout(() => { window.location.href = 'dashboard.html'; }, 4000);
       return null;
     }
 
-    if (profile?.is_partner) {
+    showToast(`DEBUG: is_partner = ${JSON.stringify(profile?.is_partner)} (type: ${typeof profile?.is_partner})`);
+    await new Promise(r => setTimeout(r, 4000));
+
+    if (profile?.is_partner === true) {
       return session.user;
     }
 
@@ -210,10 +212,11 @@
     }
 
     if (regularAccount) {
-      window.location.href = 'dashboard.html';
+      showToast(`DEBUG: is_partner was falsy, found linked non-partner account ${regularAccount.id} — redirecting.`);
+      setTimeout(() => { window.location.href = 'dashboard.html'; }, 4000);
     } else {
-      showToast("We couldn't find a regular account for you.");
-      window.location.href = 'login.html';
+      showToast("DEBUG: is_partner was falsy, no linked account found — redirecting to login.");
+      setTimeout(() => { window.location.href = 'login.html'; }, 4000);
     }
     return null;
   }
