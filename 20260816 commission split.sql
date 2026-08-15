@@ -60,6 +60,21 @@ begin
   end if;
 end $$;
 
+do $$
+declare
+  v_missing_count int;
+begin
+  select count(*) into v_missing_count
+  from affiliate_sales
+  where partner_id is null;
+
+  if v_missing_count > 0 then
+    raise exception
+      '% affiliate_sales row(s) could not be backfilled with a partner_id. Run: select s.id, s.product_id, p.created_by from affiliate_sales s left join products p on p.id = s.product_id where s.partner_id is null;  then either fix/delete those rows or tell me the details so I can adjust the migration.',
+      v_missing_count;
+  end if;
+end $$;
+
 alter table affiliate_sales
   alter column product_id set not null,
   alter column partner_id set not null;
