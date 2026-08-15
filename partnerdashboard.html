@@ -40,7 +40,6 @@
       <span class="tag">Think smart. Earn big.</span>
     </a>
     <div class="nav-actions">
-      <span class="switch-line" id="partnerGreeting"></span>
       <a class="btn btn-ghost" href="#" id="logoutBtn">Log out</a>
     </div>
   </div>
@@ -48,56 +47,8 @@
 
 <main class="page">
   <div class="kicker">Partner dashboard</div>
-  <h1>Welcome back<span id="partnerNameHeading"></span></h1>
-  <p class="lead">Track your referral performance, manage campaigns, and request payouts.</p>
-
-  <!-- Stats -->
-  <div class="stats-grid" id="statsGrid">
-    <div class="card stat-card">
-      <div class="stat-label">Total clicks</div>
-      <div class="stat-value" id="statClicks">—</div>
-    </div>
-    <div class="card stat-card">
-      <div class="stat-label">Referrals</div>
-      <div class="stat-value" id="statReferrals">—</div>
-    </div>
-    <div class="card stat-card">
-      <div class="stat-label">Conversions</div>
-      <div class="stat-value" id="statConversions">—</div>
-    </div>
-    <div class="card stat-card">
-      <div class="stat-label">Total earnings</div>
-      <div class="stat-value" id="statEarnings">—</div>
-    </div>
-  </div>
-
-  <!-- Referral link -->
-  <div class="card" id="referralCard">
-    <label for="referralLink">Your referral link</label>
-    <div class="referral-row">
-      <input id="referralLink" type="text" readonly value="Loading…">
-      <button class="btn btn-solid" id="copyLinkBtn" type="button">Copy</button>
-    </div>
-    <p class="hint">Share this link — anyone who signs up through it is automatically tracked as your referral.</p>
-  </div>
-
-  <!-- Recent referrals -->
-  <div class="card" id="referralsListCard">
-    <h2>Recent referrals</h2>
-    <table class="data-table" id="referralsTable">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Joined</th>
-          <th>Status</th>
-          <th>Earnings</th>
-        </tr>
-      </thead>
-      <tbody id="referralsTableBody">
-        <tr><td colspan="4" class="empty-row">Loading referrals…</td></tr>
-      </tbody>
-    </table>
-  </div>
+  <h1>Post to EarnOva</h1>
+  <p class="lead">Post sponsored posts, job offers, and affiliate products for review.</p>
 
   <!-- Create a listing -->
   <div class="card" id="createListingCard">
@@ -277,21 +228,6 @@
     </div>
   </div>
 
-  <!-- Payout request -->
-  <div class="card" id="payoutCard">
-    <h2>Request a payout</h2>
-    <p class="lead">Available balance: <strong id="availableBalance">—</strong></p>
-    <form id="payoutForm">
-      <label for="payoutAmount">Amount</label>
-      <input id="payoutAmount" type="number" min="1" step="0.01" placeholder="0.00" required>
-
-      <label for="payoutAccount">Bank account</label>
-      <input id="payoutAccount" type="text" placeholder="Account number" required>
-
-      <button type="submit" class="btn btn-solid" id="payoutBtn">Request payout</button>
-    </form>
-  </div>
-
   <div class="switch-line">Need to update your business info? <a href="partner-settings.html">Partner settings</a></div>
 </main>
 
@@ -310,8 +246,8 @@
   // Supabase setup — replace with your project's real values
   // (Project Settings > API in the Supabase dashboard)
   // ---------------------------------------------------------
-  const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
-  const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let toastTimer;
@@ -334,14 +270,6 @@
     return div.innerHTML;
   }
 
-  const partnerGreeting = document.getElementById('partnerGreeting');
-  const partnerNameHeading = document.getElementById('partnerNameHeading');
-  const referralLinkInput = document.getElementById('referralLink');
-  const copyLinkBtn = document.getElementById('copyLinkBtn');
-  const referralsTableBody = document.getElementById('referralsTableBody');
-  const availableBalanceEl = document.getElementById('availableBalance');
-  const payoutForm = document.getElementById('payoutForm');
-  const payoutBtn = document.getElementById('payoutBtn');
   const logoutBtn = document.getElementById('logoutBtn');
 
   let currentUser = null;
@@ -414,105 +342,6 @@
     }
     return null;
   }
-
-  // Loads the partner's profile, referral code, and aggregate stats.
-  // Expects a `get_partner_dashboard` RPC returning profile + stats fields —
-  // adjust the field names below to match your actual schema.
-  async function loadDashboard(user) {
-    const { data, error } = await supabaseClient
-      .rpc('get_partner_dashboard', { p_user_id: user.id });
-
-    if (error) {
-      console.error('Dashboard load error:', error);
-      showToast('Could not load your dashboard. Please refresh the page.');
-      return;
-    }
-
-    const info = Array.isArray(data) ? data[0] : data;
-    if (!info) return;
-
-    partnerGreeting.textContent = info.business_name ? `Hi, ${info.business_name}` : '';
-    partnerNameHeading.textContent = info.business_name ? `, ${info.business_name}` : '';
-
-    document.getElementById('statClicks').textContent = (info.total_clicks ?? 0).toLocaleString();
-    document.getElementById('statReferrals').textContent = (info.total_referrals ?? 0).toLocaleString();
-    document.getElementById('statConversions').textContent = (info.total_conversions ?? 0).toLocaleString();
-    document.getElementById('statEarnings').textContent = formatCurrency(info.total_earnings);
-    availableBalanceEl.textContent = formatCurrency(info.available_balance);
-
-    const referralCode = info.referral_code || '';
-    referralLinkInput.value = referralCode
-      ? `${window.location.origin}/signup.html?ref=${referralCode}`
-      : 'No referral code found';
-
-    renderReferrals(info.recent_referrals || []);
-  }
-
-  function renderReferrals(referrals) {
-    if (!referrals.length) {
-      referralsTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">No referrals yet — share your link to get started.</td></tr>';
-      return;
-    }
-
-    referralsTableBody.innerHTML = referrals.map(r => `
-      <tr>
-        <td>${escapeHtml(r.name || 'Anonymous')}</td>
-        <td>${r.joined_at ? new Date(r.joined_at).toLocaleDateString() : '—'}</td>
-        <td><span class="status-pill status-${escapeHtml(r.status || 'pending')}">${escapeHtml(r.status || 'pending')}</span></td>
-        <td>${formatCurrency(r.earnings)}</td>
-      </tr>
-    `).join('');
-  }
-
-  copyLinkBtn.addEventListener('click', async () => {
-    if (!referralLinkInput.value || referralLinkInput.value.startsWith('No referral') || referralLinkInput.value === 'Loading…') return;
-    try {
-      await navigator.clipboard.writeText(referralLinkInput.value);
-      showToast('Referral link copied!');
-    } catch (err) {
-      referralLinkInput.select();
-      showToast('Select and copy the link above.');
-    }
-  });
-
-  payoutForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    if (!currentUser) return;
-
-    const amount = parseFloat(document.getElementById('payoutAmount').value);
-    const account = document.getElementById('payoutAccount').value.trim();
-
-    if (!amount || amount <= 0) {
-      showToast('Enter a valid payout amount.');
-      return;
-    }
-
-    payoutBtn.disabled = true;
-    payoutBtn.textContent = 'Submitting…';
-
-    try {
-      const { error } = await supabaseClient
-        .from('payout_requests')
-        .insert({
-          user_id: currentUser.id,
-          amount: amount,
-          bank_account: account,
-          status: 'pending'
-        });
-
-      if (error) throw error;
-
-      showToast('Payout request submitted!');
-      payoutForm.reset();
-      loadDashboard(currentUser);
-    } catch (err) {
-      console.error('Payout error:', err);
-      showToast(err.message || 'Could not submit payout request. Please try again.');
-    } finally {
-      payoutBtn.disabled = false;
-      payoutBtn.textContent = 'Request payout';
-    }
-  });
 
   // ---------------------------------------------------------
   // Create-a-listing: three real tables (sponsored_posts, jobs,
@@ -809,7 +638,6 @@
   (async function init() {
     currentUser = await requireSession();
     if (currentUser) {
-      loadDashboard(currentUser);
       loadSponsoredPosts(currentUser);
       loadJobOffers(currentUser);
       loadAffiliateProducts(currentUser);
