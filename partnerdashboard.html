@@ -73,6 +73,7 @@
       <thead><tr><th>Amount</th><th>Reference</th><th>Status</th></tr></thead>
       <tbody id="topup-table-body"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
     </table>
+      <button type="button" class="btn btn-ghost" id="topup-see-all-btn" style="display:none; margin-top:8px;">See all</button>
   </div>
 
   <!-- Create a listing -->
@@ -139,6 +140,7 @@
         <thead><tr><th>Title</th><th>Brand</th><th>Payout</th><th>Status</th></tr></thead>
         <tbody id="sp-table-body"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
       </table>
+      <button type="button" class="btn btn-ghost" id="sp-see-all-btn" style="display:none; margin-top:8px;">See all</button>
     </div>
 
     <!-- Job offer tab -->
@@ -209,6 +211,7 @@
         <thead><tr><th>Title</th><th>Company</th><th>Type</th><th>Status</th></tr></thead>
         <tbody id="job-table-body"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
       </table>
+      <button type="button" class="btn btn-ghost" id="job-see-all-btn" style="display:none; margin-top:8px;">See all</button>
     </div>
 
     <!-- Affiliate product tab -->
@@ -258,6 +261,7 @@
         <thead><tr><th>Name</th><th>Price</th><th>Commission</th><th>File</th><th>Status</th><th></th></tr></thead>
         <tbody id="af-table-body"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
       </table>
+      <button type="button" class="btn btn-ghost" id="af-see-all-btn" style="display:none; margin-top:8px;">See all</button>
 
       <h2 style="margin-top:28px;">Your product sales</h2>
       <p class="field-hint">The website keeps 10% of every sale. Direct sales (no referral link) pay you the other 90%; sales through an affiliate's link pay them their commission first, and you get the rest.</p>
@@ -265,6 +269,7 @@
         <thead><tr><th>Date</th><th>Product</th><th>Sale amount</th><th>Source</th><th>You earned</th></tr></thead>
         <tbody id="sales-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
       </table>
+      <button type="button" class="btn btn-ghost" id="sales-see-all-btn" style="display:none; margin-top:8px;">See all</button>
     </div>
 
     <!-- Payout tab -->
@@ -294,7 +299,7 @@
         <button type="submit" class="btn btn-solid" id="pa-save-btn" style="margin-top:14px; display:none;">Save payout account</button>
       </form>
 
-      <h2 style="margin-top:28px;">Request payout</h2>
+      <h2 style="margin-top:28px;">Request & pay</h2>
       <form id="payoutRequestForm">
         <div class="form-grid">
           <div class="field">
@@ -302,7 +307,7 @@
             <input id="pr-amount" type="number" min="1" step="1" required>
           </div>
         </div>
-        <button type="submit" class="btn btn-solid" id="pr-submit-btn" style="margin-top:14px;">Request payout</button>
+        <button type="submit" class="btn btn-solid" id="pr-submit-btn" style="margin-top:14px;">Request & pay</button>
       </form>
 
       <h2 style="margin-top:28px;">Payout history</h2>
@@ -310,6 +315,7 @@
         <thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
         <tbody id="payout-table-body"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
       </table>
+      <button type="button" class="btn btn-ghost" id="payout-see-all-btn" style="display:none; margin-top:8px;">See all</button>
     </div>
   </div>
 
@@ -333,7 +339,7 @@
   // ---------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
-  const PAYSTACK_PUBLIC_KEY = "pk_live_2958efcbdba4cf15d53ec8ea997dcc8f542505dc"; // same key used in product.html
+  const PAYSTACK_PUBLIC_KEY = "pk_test_REPLACE_WITH_YOUR_PAYSTACK_PUBLIC_KEY"; // same key used in product.html
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let toastTimer;
@@ -458,7 +464,32 @@
   // ---- Sponsored posts ----
   const sponsoredForm = document.getElementById('sponsoredForm');
   const spSubmitBtn = document.getElementById('sp-submit-btn');
+  const PREVIEW_COUNT = 5;
+  function renderPreviewTable(tbody, seeAllBtn, data, rowFn, colspan, emptyMsg, afterRenderFn) {
+    if (!data || !data.length) {
+      tbody.innerHTML = `<tr><td colspan="${colspan}" class="empty-row">${emptyMsg}</td></tr>`;
+      seeAllBtn.style.display = 'none';
+      return;
+    }
+    const expanded = seeAllBtn.dataset.expanded === 'true';
+    const rows = expanded ? data : data.slice(0, PREVIEW_COUNT);
+    tbody.innerHTML = rows.map(rowFn).join('');
+    if (afterRenderFn) afterRenderFn();
+
+    if (data.length > PREVIEW_COUNT) {
+      seeAllBtn.style.display = 'inline-block';
+      seeAllBtn.textContent = expanded ? 'Show less' : `See all (${data.length})`;
+    } else {
+      seeAllBtn.style.display = 'none';
+    }
+    seeAllBtn.onclick = () => {
+      seeAllBtn.dataset.expanded = expanded ? 'false' : 'true';
+      renderPreviewTable(tbody, seeAllBtn, data, rowFn, colspan, emptyMsg, afterRenderFn);
+    };
+  }
+
   const spTableBody = document.getElementById('sp-table-body');
+  const spSeeAllBtn = document.getElementById('sp-see-all-btn');
 
   async function loadSponsoredPosts(user) {
     const { data, error } = await supabaseClient
@@ -470,22 +501,18 @@
     if (error) {
       console.error('Sponsored posts load error:', error);
       spTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">Could not load your sponsored posts.</td></tr>';
+      spSeeAllBtn.style.display = 'none';
       return;
     }
 
-    if (!data || !data.length) {
-      spTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">No sponsored posts yet — create one above.</td></tr>';
-      return;
-    }
-
-    spTableBody.innerHTML = data.map(p => `
+    renderPreviewTable(spTableBody, spSeeAllBtn, data, p => `
       <tr>
         <td>${escapeHtml(p.title)}</td>
         <td>${escapeHtml(p.brand)}</td>
         <td>${formatCurrency(p.payout)}</td>
         <td>${statusPill(p.is_active)}</td>
       </tr>
-    `).join('');
+    `, 4, 'No sponsored posts yet — create one above.');
   }
 
   sponsoredForm.addEventListener('submit', async (event) => {
@@ -528,6 +555,7 @@
   const jobForm = document.getElementById('jobForm');
   const jobSubmitBtn = document.getElementById('job-submit-btn');
   const jobTableBody = document.getElementById('job-table-body');
+  const jobSeeAllBtn = document.getElementById('job-see-all-btn');
 
   async function loadJobOffers(user) {
     const { data, error } = await supabaseClient
@@ -539,22 +567,18 @@
     if (error) {
       console.error('Job offers load error:', error);
       jobTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">Could not load your job offers.</td></tr>';
+      jobSeeAllBtn.style.display = 'none';
       return;
     }
 
-    if (!data || !data.length) {
-      jobTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">No job offers yet — create one above.</td></tr>';
-      return;
-    }
-
-    jobTableBody.innerHTML = data.map(j => `
+    renderPreviewTable(jobTableBody, jobSeeAllBtn, data, j => `
       <tr>
         <td>${escapeHtml(j.title)}</td>
         <td>${escapeHtml(j.company)}</td>
         <td>${escapeHtml(j.job_type)}</td>
         <td>${statusPill(j.is_active)}</td>
       </tr>
-    `).join('');
+    `, 4, 'No job offers yet — create one above.');
   }
 
   jobForm.addEventListener('submit', async (event) => {
@@ -609,6 +633,7 @@
   const affiliateForm = document.getElementById('affiliateForm');
   const afSubmitBtn = document.getElementById('af-submit-btn');
   const afTableBody = document.getElementById('af-table-body');
+  const afSeeAllBtn = document.getElementById('af-see-all-btn');
 
   const PRODUCT_IMAGE_BUCKET = 'product-images';
   const PRODUCT_FILE_BUCKET = 'product-files';
@@ -686,15 +711,11 @@
     if (error) {
       console.error('Affiliate products load error:', error);
       afTableBody.innerHTML = '<tr><td colspan="6" class="empty-row">Could not load your affiliate products.</td></tr>';
+      afSeeAllBtn.style.display = 'none';
       return;
     }
 
-    if (!data || !data.length) {
-      afTableBody.innerHTML = '<tr><td colspan="6" class="empty-row">No affiliate products yet — create one above.</td></tr>';
-      return;
-    }
-
-    afTableBody.innerHTML = data.map(p => `
+    renderPreviewTable(afTableBody, afSeeAllBtn, data, p => `
       <tr>
         <td>${escapeHtml(p.name)}</td>
         <td>${formatCurrency(p.price)}</td>
@@ -703,10 +724,10 @@
         <td>${statusPill(p.is_active)}</td>
         <td><button type="button" class="btn btn-ghost" data-delete-product="${p.id}" data-file-path="${p.file_path || ''}" style="color:#a40000;">Delete</button></td>
       </tr>
-    `).join('');
-
-    afTableBody.querySelectorAll('[data-delete-product]').forEach(btn => {
-      btn.addEventListener('click', () => deleteAffiliateProduct(btn.dataset.deleteProduct, btn.dataset.filePath, btn));
+    `, 6, 'No affiliate products yet — create one above.', () => {
+      afTableBody.querySelectorAll('[data-delete-product]').forEach(btn => {
+        btn.addEventListener('click', () => deleteAffiliateProduct(btn.dataset.deleteProduct, btn.dataset.filePath, btn));
+      });
     });
   }
 
@@ -794,6 +815,7 @@
 
   // ---- Product sales (partner's cut of each sale) ----
   const salesTableBody = document.getElementById('sales-table-body');
+  const salesSeeAllBtn = document.getElementById('sales-see-all-btn');
 
   function sourcePill(hasReferral) {
     return hasReferral
@@ -816,15 +838,11 @@
     if (error) {
       console.error('Product sales load error:', error);
       salesTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">Could not load your sales.</td></tr>';
+      salesSeeAllBtn.style.display = 'none';
       return;
     }
 
-    if (!data || !data.length) {
-      salesTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">No sales yet.</td></tr>';
-      return;
-    }
-
-    salesTableBody.innerHTML = data.map(s => `
+    renderPreviewTable(salesTableBody, salesSeeAllBtn, data, s => `
       <tr>
         <td>${formatSaleDate(s.created_at)}</td>
         <td>${escapeHtml(s.products?.name || 'Product')}</td>
@@ -832,13 +850,14 @@
         <td>${sourcePill(!!s.affiliate_link_id)}</td>
         <td>${formatCurrency(s.partner_amount)}</td>
       </tr>
-    `).join('');
+    `, 5, 'No sales yet.');
   }
 
   // ---- Wallet / top-ups ----
   const topupForm = document.getElementById('topupForm');
   const topupSubmitBtn = document.getElementById('topup-submit-btn');
   const topupTableBody = document.getElementById('topup-table-body');
+  const topupSeeAllBtn = document.getElementById('topup-see-all-btn');
   const walletBalanceEl = document.getElementById('walletBalance');
 
   function topupStatusPill(status) {
@@ -873,21 +892,17 @@
     if (error) {
       console.error('Topups load error:', error);
       topupTableBody.innerHTML = '<tr><td colspan="3" class="empty-row">Could not load your top-up requests.</td></tr>';
+      topupSeeAllBtn.style.display = 'none';
       return;
     }
 
-    if (!data || !data.length) {
-      topupTableBody.innerHTML = '<tr><td colspan="3" class="empty-row">No top-up requests yet.</td></tr>';
-      return;
-    }
-
-    topupTableBody.innerHTML = data.map(t => `
+    renderPreviewTable(topupTableBody, topupSeeAllBtn, data, t => `
       <tr>
         <td>${formatCurrency(t.amount)}</td>
         <td>${escapeHtml(t.reference || '—')}</td>
         <td>${topupStatusPill(t.status)}</td>
       </tr>
-    `).join('');
+    `, 3, 'No top-ups yet.');
   }
 
   topupForm.addEventListener('submit', (event) => {
@@ -970,6 +985,7 @@
   const payoutAvailableEl = document.getElementById('payout-available');
   const payoutPendingHint = document.getElementById('payout-pending-hint');
   const payoutTableBody = document.getElementById('payout-table-body');
+  const payoutSeeAllBtn = document.getElementById('payout-see-all-btn');
 
   let verifiedAccountName = null; // set only after a successful verify, cleared on any edit
   let banksLoaded = false;
@@ -1124,19 +1140,17 @@
 
     if (error) {
       payoutTableBody.innerHTML = '<tr><td colspan="3" class="empty-row">Could not load payout history.</td></tr>';
+      payoutSeeAllBtn.style.display = 'none';
       return;
     }
-    if (!data || !data.length) {
-      payoutTableBody.innerHTML = '<tr><td colspan="3" class="empty-row">No payouts requested yet.</td></tr>';
-      return;
-    }
-    payoutTableBody.innerHTML = data.map(p => `
+
+    renderPreviewTable(payoutTableBody, payoutSeeAllBtn, data, p => `
       <tr>
         <td>${formatSaleDate(p.created_at)}</td>
         <td>${formatCurrency(p.amount)}</td>
         <td>${payoutStatusPill(p.status)}</td>
       </tr>
-    `).join('');
+    `, 3, 'No payouts requested yet.');
   }
 
   payoutRequestForm.addEventListener('submit', async (event) => {
@@ -1178,7 +1192,7 @@
       showToast('Could not reach the server. Please try again.');
     } finally {
       prSubmitBtn.disabled = false;
-      prSubmitBtn.textContent = 'Request payout';
+      prSubmitBtn.textContent = 'Request & pay';
     }
   });
 
