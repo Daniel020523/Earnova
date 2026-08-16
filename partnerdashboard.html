@@ -74,6 +74,47 @@
       <tbody id="topup-table-body"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
     </table>
       <button type="button" class="btn btn-ghost" id="topup-see-all-btn" style="display:none; margin-top:8px;">See all</button>
+
+    <p class="field-hint" id="payout-pending-hint" style="display:none; margin-top:20px;"></p>
+
+    <h2 style="margin-top:24px;">Payout account</h2>
+    <div id="payout-account-view" style="display:none;">
+      <p class="field-hint">Withdrawals go to: <strong id="payout-account-summary"></strong></p>
+      <button type="button" class="btn btn-ghost" id="payout-account-change-btn">Change account</button>
+    </div>
+    <form id="payoutAccountForm">
+      <div class="form-grid">
+        <div class="field">
+          <label for="pa-bank">Bank</label>
+          <select id="pa-bank" required><option value="">Loading banks…</option></select>
+        </div>
+        <div class="field">
+          <label for="pa-account-number">Account number</label>
+          <input id="pa-account-number" type="text" inputmode="numeric" maxlength="10" required>
+        </div>
+      </div>
+      <button type="button" class="btn btn-ghost" id="pa-verify-btn" style="margin-top:10px;">Verify account</button>
+      <div id="pa-verify-status" style="font-size:13px; margin-top:8px;"></div>
+      <button type="submit" class="btn btn-solid" id="pa-save-btn" style="margin-top:14px; display:none;">Save payout account</button>
+    </form>
+
+    <h2 style="margin-top:28px;">Withdraw</h2>
+    <form id="payoutRequestForm">
+      <div class="form-grid">
+        <div class="field">
+          <label for="pr-amount">Amount (₦)</label>
+          <input id="pr-amount" type="number" min="1" step="1" required>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-solid" id="pr-submit-btn" style="margin-top:14px;">Withdraw</button>
+    </form>
+
+    <h2 style="margin-top:28px;">Withdrawal history</h2>
+    <table class="data-table" id="payout-table">
+      <thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+      <tbody id="payout-table-body"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
+    </table>
+    <button type="button" class="btn btn-ghost" id="payout-see-all-btn" style="display:none; margin-top:8px;">See all</button>
   </div>
 
   <!-- Create a listing -->
@@ -85,7 +126,6 @@
       <button type="button" class="tab-btn active" data-tab="sponsored">Sponsored post</button>
       <button type="button" class="tab-btn" data-tab="job">Job offer</button>
       <button type="button" class="tab-btn" data-tab="affiliate">Affiliate product</button>
-      <button type="button" class="tab-btn" data-tab="payout">Payout</button>
     </div>
 
     <!-- Sponsored post tab -->
@@ -272,51 +312,7 @@
       <button type="button" class="btn btn-ghost" id="sales-see-all-btn" style="display:none; margin-top:8px;">See all</button>
     </div>
 
-    <!-- Payout tab -->
-    <div class="tab-panel" id="tab-payout">
-      <h2>Available to withdraw</h2>
-      <p class="lead"><strong id="payout-available">—</strong></p>
-      <p class="field-hint" id="payout-pending-hint" style="display:none;"></p>
-
-      <h2 style="margin-top:24px;">Payout account</h2>
-      <div id="payout-account-view" style="display:none;">
-        <p class="field-hint">Payouts go to: <strong id="payout-account-summary"></strong></p>
-        <button type="button" class="btn btn-ghost" id="payout-account-change-btn">Change account</button>
-      </div>
-      <form id="payoutAccountForm">
-        <div class="form-grid">
-          <div class="field">
-            <label for="pa-bank">Bank</label>
-            <select id="pa-bank" required><option value="">Loading banks…</option></select>
-          </div>
-          <div class="field">
-            <label for="pa-account-number">Account number</label>
-            <input id="pa-account-number" type="text" inputmode="numeric" maxlength="10" required>
-          </div>
-        </div>
-        <button type="button" class="btn btn-ghost" id="pa-verify-btn" style="margin-top:10px;">Verify account</button>
-        <div id="pa-verify-status" style="font-size:13px; margin-top:8px;"></div>
-        <button type="submit" class="btn btn-solid" id="pa-save-btn" style="margin-top:14px; display:none;">Save payout account</button>
-      </form>
-
-      <h2 style="margin-top:28px;">Request & pay</h2>
-      <form id="payoutRequestForm">
-        <div class="form-grid">
-          <div class="field">
-            <label for="pr-amount">Amount (₦)</label>
-            <input id="pr-amount" type="number" min="1" step="1" required>
-          </div>
-        </div>
-        <button type="submit" class="btn btn-solid" id="pr-submit-btn" style="margin-top:14px;">Request & pay</button>
-      </form>
-
-      <h2 style="margin-top:28px;">Payout history</h2>
-      <table class="data-table" id="payout-table">
-        <thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
-        <tbody id="payout-table-body"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
-      </table>
-      <button type="button" class="btn btn-ghost" id="payout-see-all-btn" style="display:none; margin-top:8px;">See all</button>
-    </div>
+    <!-- Payout tab intentionally removed — payout controls now live in the Wallet balance card above -->
   </div>
 
   <div class="switch-line">Need to update your business info? <a href="partner-settings.html">Partner settings</a></div>
@@ -982,7 +978,6 @@
   const payoutAccountChangeBtn = document.getElementById('payout-account-change-btn');
   const payoutRequestForm = document.getElementById('payoutRequestForm');
   const prSubmitBtn = document.getElementById('pr-submit-btn');
-  const payoutAvailableEl = document.getElementById('payout-available');
   const payoutPendingHint = document.getElementById('payout-pending-hint');
   const payoutTableBody = document.getElementById('payout-table-body');
   const payoutSeeAllBtn = document.getElementById('payout-see-all-btn');
@@ -1116,12 +1111,8 @@
 
   async function loadPayoutSummary() {
     const { data, error } = await supabaseClient.rpc('get_partner_payout_summary');
-    if (error || !data) {
-      payoutAvailableEl.textContent = 'Unavailable';
-      return;
-    }
+    if (error || !data) return;
     const row = Array.isArray(data) ? data[0] : data;
-    payoutAvailableEl.textContent = formatCurrency(row?.available || 0);
     if (row?.pending > 0) {
       payoutPendingHint.style.display = 'block';
       payoutPendingHint.textContent = `${formatCurrency(row.pending)} is currently processing.`;
@@ -1175,16 +1166,17 @@
       const result = await resp.json();
 
       if (!result || !result.ok) {
-        showToast(result?.error || 'Could not request payout. Please try again.');
+        showToast(result?.error || 'Could not process withdrawal. Please try again.');
       } else if (result.status === 'success') {
-        showToast('Payout sent to your account!');
+        showToast('Withdrawal sent to your account!');
       } else if (result.status === 'failed') {
-        showToast(result.failure_reason || 'Payout failed — check your account details and try again.');
+        showToast(result.failure_reason || 'Withdrawal failed — check your account details and try again.');
       } else {
-        showToast('Payout requested — processing.');
+        showToast('Withdrawal requested — processing.');
       }
 
       document.getElementById('payoutRequestForm').reset();
+      loadBalance(currentUser);
       loadPayoutSummary();
       loadPayoutHistory();
     } catch (err) {
@@ -1192,7 +1184,7 @@
       showToast('Could not reach the server. Please try again.');
     } finally {
       prSubmitBtn.disabled = false;
-      prSubmitBtn.textContent = 'Request & pay';
+      prSubmitBtn.textContent = 'Withdraw';
     }
   });
 
