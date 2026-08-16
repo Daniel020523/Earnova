@@ -30,6 +30,16 @@
   .pill{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
   .pill-active{ background:rgba(0,150,80,0.15); color:#0a7a4a; }
   .pill-pending{ background:rgba(200,150,0,0.15); color:#8a6400; }
+
+  /* More breathing room on mobile */
+  #walletCard, #createListingCard{ margin-bottom:32px; padding-bottom:8px; }
+  #walletCard h2, #createListingCard h2{ margin-top:32px; }
+  #walletCard > h2:first-child, #createListingCard > h2:first-child{ margin-top:0; }
+  .data-table{ display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; white-space:nowrap; }
+  .data-table thead, .data-table tbody{ display:table; width:100%; min-width:420px; }
+  @media (max-width: 480px){
+    .form-grid{ grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body>
@@ -177,8 +187,8 @@
 
       <h2 style="margin-top:28px;">Your sponsored posts</h2>
       <table class="data-table" id="sp-table">
-        <thead><tr><th>Title</th><th>Brand</th><th>Payout</th><th>Status</th></tr></thead>
-        <tbody id="sp-table-body"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
+        <thead><tr><th>Title</th><th>Brand</th><th>Payout</th><th>Status</th><th></th></tr></thead>
+        <tbody id="sp-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
       </table>
       <button type="button" class="btn btn-ghost" id="sp-see-all-btn" style="display:none; margin-top:8px;">See all</button>
     </div>
@@ -248,8 +258,8 @@
 
       <h2 style="margin-top:28px;">Your job offers</h2>
       <table class="data-table" id="job-table">
-        <thead><tr><th>Title</th><th>Company</th><th>Type</th><th>Status</th></tr></thead>
-        <tbody id="job-table-body"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
+        <thead><tr><th>Title</th><th>Company</th><th>Type</th><th>Status</th><th></th></tr></thead>
+        <tbody id="job-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
       </table>
       <button type="button" class="btn btn-ghost" id="job-see-all-btn" style="display:none; margin-top:8px;">See all</button>
     </div>
@@ -460,7 +470,7 @@
   // ---- Sponsored posts ----
   const sponsoredForm = document.getElementById('sponsoredForm');
   const spSubmitBtn = document.getElementById('sp-submit-btn');
-  const PREVIEW_COUNT = 5;
+  const PREVIEW_COUNT = 1;
   function renderPreviewTable(tbody, seeAllBtn, data, rowFn, colspan, emptyMsg, afterRenderFn) {
     if (!data || !data.length) {
       tbody.innerHTML = `<tr><td colspan="${colspan}" class="empty-row">${emptyMsg}</td></tr>`;
@@ -485,6 +495,50 @@
   }
 
   const spTableBody = document.getElementById('sp-table-body');
+  // Generic delete-with-FK-fallback: tries a hard delete; if it's blocked
+  // by a foreign key (this row has related history elsewhere, e.g. sales
+  // or completions), falls back to deactivating instead so it disappears
+  // from public listings without destroying that history.
+  async function deleteOwnRow(table, id, btn) {
+    if (!currentUser) return false;
+    if (!confirm('Delete this? It will be removed immediately and this cannot be undone.')) return false;
+
+    btn.disabled = true;
+    btn.textContent = 'Deleting…';
+
+    const { error } = await supabaseClient
+      .from(table)
+      .delete()
+      .eq('id', id)
+      .eq('created_by', currentUser.id);
+
+    if (!error) {
+      showToast('Deleted.');
+      return true;
+    }
+
+    if (error.code === '23503') {
+      const { error: deactivateError } = await supabaseClient
+        .from(table)
+        .update({ is_active: false })
+        .eq('id', id)
+        .eq('created_by', currentUser.id);
+
+      if (!deactivateError) {
+        showToast('This has related history, so it was deactivated instead of deleted.');
+        return true;
+      }
+      console.error(`Deactivate ${table} error:`, deactivateError);
+    } else {
+      console.error(`Delete ${table} error:`, error);
+    }
+
+    showToast('Could not delete. Please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Delete';
+    return false;
+  }
+
   const spSeeAllBtn = document.getElementById('sp-see-all-btn');
 
   async function loadSponsoredPosts(user) {
@@ -496,7 +550,7 @@
 
     if (error) {
       console.error('Sponsored posts load error:', error);
-      spTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">Could not load your sponsored posts.</td></tr>';
+      spTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">Could not load your sponsored posts.</td></tr>';
       spSeeAllBtn.style.display = 'none';
       return;
     }
@@ -507,8 +561,15 @@
         <td>${escapeHtml(p.brand)}</td>
         <td>${formatCurrency(p.payout)}</td>
         <td>${statusPill(p.is_active)}</td>
+        <td><button type="button" class="btn btn-ghost" data-delete-sp="${p.id}" style="color:#a40000;">Delete</button></td>
       </tr>
-    `, 4, 'No sponsored posts yet — create one above.');
+    `, 5, 'No sponsored posts yet — create one above.', () => {
+      spTableBody.querySelectorAll('[data-delete-sp]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (await deleteOwnRow('sponsored_posts', btn.dataset.deleteSp, btn)) loadSponsoredPosts(currentUser);
+        });
+      });
+    });
   }
 
   sponsoredForm.addEventListener('submit', async (event) => {
@@ -562,7 +623,7 @@
 
     if (error) {
       console.error('Job offers load error:', error);
-      jobTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">Could not load your job offers.</td></tr>';
+      jobTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">Could not load your job offers.</td></tr>';
       jobSeeAllBtn.style.display = 'none';
       return;
     }
@@ -573,8 +634,15 @@
         <td>${escapeHtml(j.company)}</td>
         <td>${escapeHtml(j.job_type)}</td>
         <td>${statusPill(j.is_active)}</td>
+        <td><button type="button" class="btn btn-ghost" data-delete-job="${j.id}" style="color:#a40000;">Delete</button></td>
       </tr>
-    `, 4, 'No job offers yet — create one above.');
+    `, 5, 'No job offers yet — create one above.', () => {
+      jobTableBody.querySelectorAll('[data-delete-job]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (await deleteOwnRow('jobs', btn.dataset.deleteJob, btn)) loadJobOffers(currentUser);
+        });
+      });
+    });
   }
 
   jobForm.addEventListener('submit', async (event) => {
@@ -741,6 +809,31 @@
       .eq('created_by', currentUser.id);
 
     if (error) {
+      // Postgres 23503 = foreign key violation. This product has sales
+      // history (affiliate_sales references it), so a hard delete is
+      // correctly blocked — that history has to stay intact. Fall back
+      // to deactivating it instead, which is enough to pull it off
+      // affiliate.html (only is_active:true products show there).
+      if (error.code === '23503') {
+        const { error: deactivateError } = await supabaseClient
+          .from('products')
+          .update({ is_active: false })
+          .eq('id', productId)
+          .eq('created_by', currentUser.id);
+
+        if (deactivateError) {
+          console.error('Deactivate affiliate product error:', deactivateError);
+          showToast('Could not remove product. Please try again.');
+          btn.disabled = false;
+          btn.textContent = 'Delete';
+          return;
+        }
+
+        showToast('This product has past sales, so it was taken off the marketplace but kept in your records.');
+        loadAffiliateProducts(currentUser);
+        return;
+      }
+
       console.error('Delete affiliate product error:', error);
       showToast(error.message || 'Could not delete product. Please try again.');
       btn.disabled = false;
