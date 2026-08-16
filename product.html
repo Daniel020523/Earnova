@@ -81,6 +81,20 @@
   .status-icon{ font-size:40px; }
   .status-title{ font-size:20px; font-weight:700; margin-top:12px; }
   .status-body{ font-size:14px; opacity:0.75; margin-top:8px; line-height:1.5; }
+
+  .download-btn{
+    display:inline-block;
+    margin-top:18px;
+    padding:12px 26px;
+    border-radius:6px;
+    background:rgba(0,0,0,0.85);
+    color:#fff;
+    font-weight:600;
+    font-size:14px;
+    text-decoration:none;
+  }
+  .download-btn:hover{ opacity:0.92; }
+  .download-note{ font-size:12px; opacity:0.6; margin-top:10px; }
 </style>
 </head>
 <body>
@@ -137,6 +151,9 @@
     <div class="status-icon">✅</div>
     <div class="status-title">Payment confirmed</div>
     <div class="status-body">Thanks for your purchase — a receipt has been sent to your email.</div>
+    <a id="download-link" class="download-btn" href="#" style="display:none;" target="_blank" rel="noopener">Download your file</a>
+    <div id="download-note" class="download-note" style="display:none;">This link expires in 24 hours. If it stops working, contact support with your payment reference.</div>
+    <div id="no-download-note" class="download-note" style="display:none;">This product has no downloadable file — check your email for delivery details.</div>
   </div>
 
   <div id="status-failed" class="card status-panel" style="display:none;">
@@ -172,6 +189,13 @@
   // affiliate_sales directly — that table controls real commission
   // payouts, so it can only be written from the trusted server side.
   //
+  // File delivery: product-files is a PRIVATE bucket (buyers have no
+  // storage read access). The verify-paystack Edge Function generates
+  // a short-lived signed URL for the product's file_path (only after
+  // confirming payment) using the service role key, and returns it as
+  // `file_url` in its JSON response. This page just displays that link
+  // — it never talks to Storage directly for the product file.
+  //
   // Requires an Edge Function named "verify-paystack" (see the
   // accompanying index.ts) deployed to this Supabase project, plus:
   //   - affiliate_products RLS: anon + authenticated can select active=true
@@ -179,7 +203,7 @@
   // ---------------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
-  const PAYSTACK_PUBLIC_KEY = "pk_live_2958efcbdba4cf15d53ec8ea997dcc8f542505dc";
+  const PAYSTACK_PUBLIC_KEY = "pk_test_REPLACE_WITH_YOUR_PAYSTACK_PUBLIC_KEY";
 
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -299,6 +323,23 @@
     return resp.json();
   }
 
+  function showDownload(fileUrl){
+    const link = document.getElementById('download-link');
+    const note = document.getElementById('download-note');
+    const noFileNote = document.getElementById('no-download-note');
+
+    if (fileUrl) {
+      link.href = fileUrl;
+      link.style.display = 'inline-block';
+      note.style.display = 'block';
+      noFileNote.style.display = 'none';
+    } else {
+      link.style.display = 'none';
+      note.style.display = 'none';
+      noFileNote.style.display = 'block';
+    }
+  }
+
   document.getElementById('pay-btn').addEventListener('click', () => {
     const nameInput = document.getElementById('buyer-name');
     const emailInput = document.getElementById('buyer-email');
@@ -336,6 +377,7 @@
             if (result && result.verified) {
               document.getElementById('page-content').style.display = 'none';
               document.getElementById('status-success').style.display = 'block';
+              showDownload(result.file_url || null);
             } else {
               document.getElementById('status-failed-body').textContent =
                 `We couldn't confirm this payment (ref: ${response.reference}). If you were charged, contact support with this reference.`;
