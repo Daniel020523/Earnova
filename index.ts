@@ -6,19 +6,32 @@
 //   2. Re-verifies the transaction directly with Paystack's server
 //   3. Writes to affiliate_sales / credits balances (via record_sale)
 //   4. Generates the buyer's signed download link for the product file
+//   5. Emails that link to the buyer via Gmail SMTP, so they can find
+//      it later even if they close the tab
 //
 // Deploy with:
 //   supabase functions deploy verify-paystack
 //   supabase secrets set PAYSTACK_SECRET_KEY=sk_live_xxx
+//   supabase secrets set GMAIL_ADDRESS=you@gmail.com
+//   supabase secrets set GMAIL_APP_PASSWORD=xxxxxxxxxxxxxxxx
+//
+// GMAIL_APP_PASSWORD is a Google App Password (not your regular Gmail
+// password) — the same kind used for the OTP email flow. Generate one at
+// https://myaccount.google.com/apppasswords (requires 2-Step Verification
+// on the Gmail account). You can reuse the same Gmail address/app password
+// already set up for OTP, or use a separate one — either works.
 //
 // Env vars available automatically in every Edge Function:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const GMAIL_ADDRESS = Deno.env.get("GMAIL_ADDRESS")!;
+const GMAIL_APP_PASSWORD = Deno.env.get("GMAIL_APP_PASSWORD")!;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -35,6 +48,49 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+async function sendDownloadEmail(
+  buyerName: string,
+  buyerEmail: string,
+  productName: string,
+  fileUrl: string
+) {
+  const client = new SMTPClient({
+    connection: {
+      hostname: "smtp.gmail.com",
+      port: 465,
+      tls: true,
+      auth: {
+        username: GMAIL_ADDRESS,
+        password: GMAIL_APP_PASSWORD,
+      },
+    },
+  });
+
+  try {
+    await client.send({
+      from: `EarnOva <${GMAIL_ADDRESS}>`,
+      to: buyerEmail,
+      subject: `Your download: ${productName}`,
+      content: `Hi ${buyerName},\n\nThanks for your purchase of "${productName}" on EarnOva.\n\nYour download link (valid for 24 hours):\n${fileUrl}\n\nIf the link expires, contact support with your payment reference and we'll issue a new one.\n\n— EarnOva`,
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height:1.6; color:#111;">
+          <p>Hi ${buyerName},</p>
+          <p>Thanks for your purchase of <strong>${productName}</strong> on EarnOva.</p>
+          <p>
+            <a href="${fileUrl}" style="display:inline-block; padding:12px 24px; background:#111; color:#fff; text-decoration:none; border-radius:6px;">
+              Download your file
+            </a>
+          </p>
+          <p style="font-size:13px; color:#666;">This link is valid for 24 hours. If it expires, contact support with your payment reference and we'll issue a new one.</p>
+          <p>— EarnOva</p>
+        </div>
+      `,
+    });
+  } finally {
+    await client.close();
+  }
 }
 
 Deno.serve(async (req) => {
@@ -118,24 +174,40 @@ Deno.serve(async (req) => {
   // service-role client can read it; the signed URL is what lets the
   // buyer's browser download without any Storage RLS access of its own. ---
   let fileUrl: string | null = null;
+  let productName = "your product";
 
   const { data: product, error: productError } = await supabaseAdmin
     .from("products")
-    .select("file_path")
+    .select("name, file_path")
     .eq("id", product_id)
     .single();
 
   if (productError) {
-    console.warn("Could not look up product file_path:", productError.message);
-  } else if (product?.file_path) {
-    const { data: signed, error: signError } = await supabaseAdmin.storage
-      .from(PRODUCT_FILE_BUCKET)
-      .createSignedUrl(product.file_path, FILE_URL_TTL_SECONDS);
+    console.warn("Could not look up product:", productError.message);
+  } else if (product) {
+    productName = product.name || productName;
 
-    if (signError) {
-      console.warn("Could not create signed URL:", signError.message);
-    } else {
-      fileUrl = signed?.signedUrl ?? null;
+    if (product.file_path) {
+      const { data: signed, error: signError } = await supabaseAdmin.storage
+        .from(PRODUCT_FILE_BUCKET)
+        .createSignedUrl(product.file_path, FILE_URL_TTL_SECONDS);
+
+      if (signError) {
+        console.warn("Could not create signed URL:", signError.message);
+      } else {
+        fileUrl = signed?.signedUrl ?? null;
+      }
+    }
+  }
+
+  // --- 4. Best-effort email so the buyer has the link even after they
+  // close this tab. A failed email should never fail the whole request —
+  // the buyer already sees the link on-page if this doesn't go through. ---
+  if (fileUrl) {
+    try {
+      await sendDownloadEmail(buyer_name, buyer_email, productName, fileUrl);
+    } catch (emailErr) {
+      console.error("Download email send error:", emailErr);
     }
   }
 
