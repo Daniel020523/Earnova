@@ -15,17 +15,17 @@
   .tab-btn.active{ background:rgba(0,0,0,0.85); color:#fff; opacity:1; }
   .tab-panel{ display:none; }
   .tab-panel.active{ display:block; }
-  .form-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:12px; }
+  .form-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:20px 16px; margin-top:16px; }
   .form-grid .full{ grid-column:1 / -1; }
-  .field label{ display:block; font-size:13px; font-weight:600; margin-bottom:4px; opacity:0.8; }
+  .field label{ display:block; font-size:13px; font-weight:600; margin-bottom:7px; opacity:0.8; }
   .field input, .field textarea, .field select{
-    width:100%; padding:9px 10px; border:1px solid rgba(0,0,0,0.15);
-    border-radius:6px; font-size:14px; font-family:inherit; background:rgba(0,0,0,0.02);
+    width:100%; padding:13px 14px; border:1px solid rgba(0,0,0,0.15);
+    border-radius:8px; font-size:15px; font-family:inherit; background:rgba(0,0,0,0.02);
   }
-  .field textarea{ resize:vertical; min-height:64px; }
-  .checkbox-field{ display:flex; align-items:center; gap:8px; }
+  .field textarea{ resize:vertical; min-height:80px; }
+  .checkbox-field{ display:flex; align-items:center; gap:10px; }
   .checkbox-field label{ margin-bottom:0; }
-  .field-hint{ font-size:12px; opacity:0.65; margin:4px 0 0 0; }
+  .field-hint{ font-size:12px; opacity:0.65; margin:8px 0 0 0; line-height:1.5; }
   .pill{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
   .pill-active{ background:rgba(0,150,80,0.15); color:#0a7a4a; }
   .pill-pending{ background:rgba(200,150,0,0.15); color:#8a6400; }
@@ -87,6 +87,7 @@
       <button type="button" class="tab-btn active" data-tab="sponsored">Sponsored post</button>
       <button type="button" class="tab-btn" data-tab="job">Job offer</button>
       <button type="button" class="tab-btn" data-tab="affiliate">Affiliate product</button>
+      <button type="button" class="tab-btn" data-tab="payout">Payout</button>
     </div>
 
     <!-- Sponsored post tab -->
@@ -257,8 +258,8 @@
 
       <h2 style="margin-top:28px;">Your affiliate products</h2>
       <table class="data-table" id="af-table">
-        <thead><tr><th>Name</th><th>Price</th><th>Commission</th><th>File</th><th>Status</th></tr></thead>
-        <tbody id="af-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Price</th><th>Commission</th><th>File</th><th>Status</th><th></th></tr></thead>
+        <tbody id="af-table-body"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
       </table>
 
       <h2 style="margin-top:28px;">Your product sales</h2>
@@ -266,6 +267,51 @@
       <table class="data-table" id="sales-table">
         <thead><tr><th>Date</th><th>Product</th><th>Sale amount</th><th>Source</th><th>You earned</th></tr></thead>
         <tbody id="sales-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Payout tab -->
+    <div class="tab-panel" id="tab-payout">
+      <h2>Available to withdraw</h2>
+      <p class="lead"><strong id="payout-available">—</strong></p>
+      <p class="field-hint" id="payout-pending-hint" style="display:none;"></p>
+
+      <h2 style="margin-top:24px;">Payout account</h2>
+      <div id="payout-account-view" style="display:none;">
+        <p class="field-hint">Payouts go to: <strong id="payout-account-summary"></strong></p>
+        <button type="button" class="btn btn-ghost" id="payout-account-change-btn">Change account</button>
+      </div>
+      <form id="payoutAccountForm">
+        <div class="form-grid">
+          <div class="field">
+            <label for="pa-bank">Bank</label>
+            <select id="pa-bank" required><option value="">Loading banks…</option></select>
+          </div>
+          <div class="field">
+            <label for="pa-account-number">Account number</label>
+            <input id="pa-account-number" type="text" inputmode="numeric" maxlength="10" required>
+          </div>
+        </div>
+        <button type="button" class="btn btn-ghost" id="pa-verify-btn" style="margin-top:10px;">Verify account</button>
+        <div id="pa-verify-status" style="font-size:13px; margin-top:8px;"></div>
+        <button type="submit" class="btn btn-solid" id="pa-save-btn" style="margin-top:14px; display:none;">Save payout account</button>
+      </form>
+
+      <h2 style="margin-top:28px;">Request payout</h2>
+      <form id="payoutRequestForm">
+        <div class="form-grid">
+          <div class="field">
+            <label for="pr-amount">Amount (₦)</label>
+            <input id="pr-amount" type="number" min="1" step="1" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-solid" id="pr-submit-btn" style="margin-top:14px;">Request payout</button>
+      </form>
+
+      <h2 style="margin-top:28px;">Payout history</h2>
+      <table class="data-table" id="payout-table">
+        <thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody id="payout-table-body"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -641,12 +687,12 @@
 
     if (error) {
       console.error('Affiliate products load error:', error);
-      afTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">Could not load your affiliate products.</td></tr>';
+      afTableBody.innerHTML = '<tr><td colspan="6" class="empty-row">Could not load your affiliate products.</td></tr>';
       return;
     }
 
     if (!data || !data.length) {
-      afTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">No affiliate products yet — create one above.</td></tr>';
+      afTableBody.innerHTML = '<tr><td colspan="6" class="empty-row">No affiliate products yet — create one above.</td></tr>';
       return;
     }
 
@@ -657,8 +703,46 @@
         <td>${p.commission_rate}%</td>
         <td>${p.file_path ? 'Uploaded' : '<span style="opacity:0.55;">— none</span>'}</td>
         <td>${statusPill(p.is_active)}</td>
+        <td><button type="button" class="btn btn-ghost" data-delete-product="${p.id}" data-file-path="${p.file_path || ''}" style="color:#a40000;">Delete</button></td>
       </tr>
     `).join('');
+
+    afTableBody.querySelectorAll('[data-delete-product]').forEach(btn => {
+      btn.addEventListener('click', () => deleteAffiliateProduct(btn.dataset.deleteProduct, btn.dataset.filePath, btn));
+    });
+  }
+
+  async function deleteAffiliateProduct(productId, filePath, btn) {
+    if (!currentUser) return;
+    if (!confirm('Delete this product? It will be removed from the marketplace immediately and this cannot be undone.')) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Deleting…';
+
+    const { error } = await supabaseClient
+      .from('products')
+      .delete()
+      .eq('id', productId)
+      .eq('created_by', currentUser.id);
+
+    if (error) {
+      console.error('Delete affiliate product error:', error);
+      showToast(error.message || 'Could not delete product. Please try again.');
+      btn.disabled = false;
+      btn.textContent = 'Delete';
+      return;
+    }
+
+    showToast('Product deleted.');
+
+    if (filePath) {
+      // Best-effort — the listing is already gone either way.
+      supabaseClient.storage.from(PRODUCT_FILE_BUCKET).remove([filePath]).then(({ error: removeError }) => {
+        if (removeError) console.warn('Could not remove product file from storage:', removeError.message);
+      });
+    }
+
+    loadAffiliateProducts(currentUser);
   }
 
   affiliateForm.addEventListener('submit', async (event) => {
@@ -846,6 +930,240 @@
     }
   });
 
+  // ---- Payout account & requests ----
+  const paBankSelect = document.getElementById('pa-bank');
+  const paAccountNumberInput = document.getElementById('pa-account-number');
+  const paVerifyBtn = document.getElementById('pa-verify-btn');
+  const paVerifyStatus = document.getElementById('pa-verify-status');
+  const paSaveBtn = document.getElementById('pa-save-btn');
+  const payoutAccountForm = document.getElementById('payoutAccountForm');
+  const payoutAccountView = document.getElementById('payout-account-view');
+  const payoutAccountSummary = document.getElementById('payout-account-summary');
+  const payoutAccountChangeBtn = document.getElementById('payout-account-change-btn');
+  const payoutRequestForm = document.getElementById('payoutRequestForm');
+  const prSubmitBtn = document.getElementById('pr-submit-btn');
+  const payoutAvailableEl = document.getElementById('payout-available');
+  const payoutPendingHint = document.getElementById('payout-pending-hint');
+  const payoutTableBody = document.getElementById('payout-table-body');
+
+  let verifiedAccountName = null; // set only after a successful verify, cleared on any edit
+  let banksLoaded = false;
+
+  async function callPayoutAccountFn(action, extra = {}) {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/payout-account`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session ? session.access_token : ''}`,
+        apikey: SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ action, ...extra })
+    });
+    return resp.json();
+  }
+
+  async function loadBanks() {
+    if (banksLoaded) return;
+    const result = await callPayoutAccountFn('list_banks');
+    if (!result || !result.ok || !Array.isArray(result.banks)) {
+      paBankSelect.innerHTML = '<option value="">Could not load banks — try again</option>';
+      return;
+    }
+    paBankSelect.innerHTML = '<option value="">Select your bank</option>' +
+      result.banks.map(b => `<option value="${b.code}">${escapeHtml(b.name)}</option>`).join('');
+    banksLoaded = true;
+  }
+
+  function resetVerification() {
+    verifiedAccountName = null;
+    paVerifyStatus.textContent = '';
+    paSaveBtn.style.display = 'none';
+  }
+  paBankSelect.addEventListener('change', resetVerification);
+  paAccountNumberInput.addEventListener('input', resetVerification);
+
+  paVerifyBtn.addEventListener('click', async () => {
+    const bankCode = paBankSelect.value;
+    const accountNumber = paAccountNumberInput.value.trim();
+
+    if (!bankCode || accountNumber.length !== 10) {
+      paVerifyStatus.textContent = 'Select a bank and enter a valid 10-digit account number.';
+      paVerifyStatus.style.color = '#a40000';
+      return;
+    }
+
+    paVerifyBtn.disabled = true;
+    paVerifyStatus.style.color = '';
+    paVerifyStatus.textContent = 'Verifying…';
+
+    const result = await callPayoutAccountFn('resolve', { bank_code: bankCode, account_number: accountNumber });
+
+    paVerifyBtn.disabled = false;
+
+    if (!result || !result.ok) {
+      paVerifyStatus.style.color = '#a40000';
+      paVerifyStatus.textContent = result?.error || "Couldn't verify that account — check the details and try again.";
+      paSaveBtn.style.display = 'none';
+      verifiedAccountName = null;
+      return;
+    }
+
+    verifiedAccountName = result.account_name;
+    paVerifyStatus.style.color = '';
+    paVerifyStatus.textContent = `Verified: ${result.account_name}`;
+    paSaveBtn.style.display = 'inline-block';
+  });
+
+  payoutAccountForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!verifiedAccountName) {
+      showToast('Verify the account first.');
+      return;
+    }
+
+    paSaveBtn.disabled = true;
+    paSaveBtn.textContent = 'Saving…';
+
+    const result = await callPayoutAccountFn('save', {
+      bank_code: paBankSelect.value,
+      account_number: paAccountNumberInput.value.trim(),
+      account_name: verifiedAccountName
+    });
+
+    paSaveBtn.disabled = false;
+    paSaveBtn.textContent = 'Save payout account';
+
+    if (!result || !result.ok) {
+      showToast(result?.error || 'Could not save payout account. Please try again.');
+      return;
+    }
+
+    showToast('Payout account saved.');
+    loadPayoutAccount();
+  });
+
+  payoutAccountChangeBtn.addEventListener('click', () => {
+    payoutAccountView.style.display = 'none';
+    payoutAccountForm.style.display = 'block';
+  });
+
+  async function loadPayoutAccount() {
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('payout_bank_name, payout_account_number, payout_account_name')
+      .eq('id', currentUser.id)
+      .single();
+
+    if (error || !data || !data.payout_account_number) {
+      payoutAccountView.style.display = 'none';
+      payoutAccountForm.style.display = 'block';
+      return;
+    }
+
+    payoutAccountSummary.textContent =
+      `${data.payout_account_name} — ${data.payout_bank_name} (${data.payout_account_number})`;
+    payoutAccountView.style.display = 'block';
+    payoutAccountForm.style.display = 'none';
+  }
+
+  function payoutStatusPill(status) {
+    if (status === 'success') return '<span class="pill pill-active">Paid</span>';
+    if (status === 'failed') return '<span class="pill" style="background:rgba(220,38,38,0.12); color:#dc2626;">Failed</span>';
+    return '<span class="pill pill-pending">Processing</span>';
+  }
+
+  async function loadPayoutSummary() {
+    const { data, error } = await supabaseClient.rpc('get_partner_payout_summary');
+    if (error || !data) {
+      payoutAvailableEl.textContent = 'Unavailable';
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    payoutAvailableEl.textContent = formatCurrency(row?.available || 0);
+    if (row?.pending > 0) {
+      payoutPendingHint.style.display = 'block';
+      payoutPendingHint.textContent = `${formatCurrency(row.pending)} is currently processing.`;
+    } else {
+      payoutPendingHint.style.display = 'none';
+    }
+  }
+
+  async function loadPayoutHistory() {
+    const { data, error } = await supabaseClient
+      .from('partner_payouts')
+      .select('created_at, amount, status')
+      .eq('partner_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      payoutTableBody.innerHTML = '<tr><td colspan="3" class="empty-row">Could not load payout history.</td></tr>';
+      return;
+    }
+    if (!data || !data.length) {
+      payoutTableBody.innerHTML = '<tr><td colspan="3" class="empty-row">No payouts requested yet.</td></tr>';
+      return;
+    }
+    payoutTableBody.innerHTML = data.map(p => `
+      <tr>
+        <td>${formatSaleDate(p.created_at)}</td>
+        <td>${formatCurrency(p.amount)}</td>
+        <td>${payoutStatusPill(p.status)}</td>
+      </tr>
+    `).join('');
+  }
+
+  payoutRequestForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const amount = Number(document.getElementById('pr-amount').value);
+    if (!amount || amount <= 0) return;
+
+    prSubmitBtn.disabled = true;
+    prSubmitBtn.textContent = 'Requesting…';
+
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/request-payout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session ? session.access_token : ''}`,
+          apikey: SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ amount })
+      });
+      const result = await resp.json();
+
+      if (!result || !result.ok) {
+        showToast(result?.error || 'Could not request payout. Please try again.');
+      } else if (result.status === 'success') {
+        showToast('Payout sent to your account!');
+      } else if (result.status === 'failed') {
+        showToast(result.failure_reason || 'Payout failed — check your account details and try again.');
+      } else {
+        showToast('Payout requested — processing.');
+      }
+
+      document.getElementById('payoutRequestForm').reset();
+      loadPayoutSummary();
+      loadPayoutHistory();
+    } catch (err) {
+      console.error('Request payout error:', err);
+      showToast('Could not reach the server. Please try again.');
+    } finally {
+      prSubmitBtn.disabled = false;
+      prSubmitBtn.textContent = 'Request payout';
+    }
+  });
+
+  function loadPayoutTab() {
+    loadBanks();
+    loadPayoutAccount();
+    loadPayoutSummary();
+    loadPayoutHistory();
+  }
+
   logoutBtn.addEventListener('click', async (event) => {
     event.preventDefault();
     await supabaseClient.auth.signOut();
@@ -861,6 +1179,7 @@
       loadJobOffers(currentUser);
       loadAffiliateProducts(currentUser);
       loadProductSales(currentUser);
+      loadPayoutTab();
     }
   })();
 </script>
