@@ -228,6 +228,7 @@
                 <th>Category</th>
                 <th>Price</th>
                 <th>Commission</th>
+                <th>File</th>
                 <th>Status</th>
                 <th></th>
               </tr>
@@ -400,6 +401,7 @@
         <td>${p.category ? capitalize(p.category) : '—'}</td>
         <td>${formatNaira(p.price)}</td>
         <td>${p.commission_rate}%</td>
+        <td>${p.file_path ? `<button data-view-file="${p.id}">View file</button>` : '<span style="opacity:0.55;">— none</span>'}</td>
         <td><span class="pill ${p.is_active ? 'pill-active' : 'pill-inactive'}">${p.is_active ? 'Active' : 'Inactive'}</span></td>
         <td>
           <div class="row-actions">
@@ -416,6 +418,26 @@
     document.querySelectorAll('[data-delete]').forEach(btn => {
       btn.addEventListener('click', () => deleteProduct(btn.dataset.delete));
     });
+    document.querySelectorAll('[data-view-file]').forEach(btn => {
+      btn.addEventListener('click', () => viewProductFile(btn.dataset.viewFile));
+    });
+  }
+
+  const PRODUCT_FILE_BUCKET = 'product-files';
+
+  async function viewProductFile(productId) {
+    const p = allProducts.find(x => x.id === productId);
+    if (!p || !p.file_path) return;
+
+    const { data, error } = await supabaseClient.storage
+      .from(PRODUCT_FILE_BUCKET)
+      .createSignedUrl(p.file_path, 300);
+
+    if (error || !data) {
+      showToast("Couldn't open the file — try again.");
+      return;
+    }
+    window.open(data.signedUrl, '_blank');
   }
 
   const PRODUCT_IMAGE_BUCKET = 'product-images';

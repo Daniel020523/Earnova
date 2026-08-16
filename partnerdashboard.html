@@ -241,6 +241,13 @@
             <div id="af-image-status" style="font-size:12px; opacity:0.65; margin-top:6px;"></div>
           </div>
           <div class="field full">
+            <label for="af-file-file">Product file (what the buyer receives)</label>
+            <input type="file" id="af-file-file" accept=".pdf,.zip,.doc,.docx,.mp4,.mp3">
+            <input type="hidden" id="af-file">
+            <div id="af-file-status" style="font-size:12px; opacity:0.65; margin-top:6px;"></div>
+            <p class="field-hint">This file is private — only you and the admin can access it. It's what's delivered after a sale.</p>
+          </div>
+          <div class="field full">
             <label for="af-description">Description</label>
             <textarea id="af-description" rows="3"></textarea>
           </div>
@@ -250,8 +257,8 @@
 
       <h2 style="margin-top:28px;">Your affiliate products</h2>
       <table class="data-table" id="af-table">
-        <thead><tr><th>Name</th><th>Price</th><th>Commission</th><th>Status</th></tr></thead>
-        <tbody id="af-table-body"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Price</th><th>Commission</th><th>File</th><th>Status</th></tr></thead>
+        <tbody id="af-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
       </table>
 
       <h2 style="margin-top:28px;">Your product sales</h2>
@@ -558,7 +565,9 @@
   const afTableBody = document.getElementById('af-table-body');
 
   const PRODUCT_IMAGE_BUCKET = 'product-images';
+  const PRODUCT_FILE_BUCKET = 'product-files';
   let afImageUploading = false;
+  let afFileUploading = false;
 
   document.getElementById('af-image-file').addEventListener('change', async (event) => {
     const file = event.target.files[0];
@@ -594,6 +603,33 @@
     afImageUploading = false;
   });
 
+  document.getElementById('af-file-file').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('af-file-status');
+    statusEl.textContent = 'Uploading…';
+    afFileUploading = true;
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const path = `${currentUser.id}/${Date.now()}-${safeName}`;
+
+    const { error: uploadError } = await supabaseClient.storage
+      .from(PRODUCT_FILE_BUCKET)
+      .upload(path, file, { upsert: false });
+
+    if (uploadError) {
+      statusEl.textContent = "Couldn't upload file — try again.";
+      showToast("Couldn't upload product file");
+      afFileUploading = false;
+      return;
+    }
+
+    document.getElementById('af-file').value = path;
+    statusEl.textContent = `Uploaded: ${file.name}`;
+    afFileUploading = false;
+  });
+
   async function loadAffiliateProducts(user) {
     const { data, error } = await supabaseClient
       .from('products')
@@ -603,12 +639,12 @@
 
     if (error) {
       console.error('Affiliate products load error:', error);
-      afTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">Could not load your affiliate products.</td></tr>';
+      afTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">Could not load your affiliate products.</td></tr>';
       return;
     }
 
     if (!data || !data.length) {
-      afTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">No affiliate products yet — create one above.</td></tr>';
+      afTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">No affiliate products yet — create one above.</td></tr>';
       return;
     }
 
@@ -617,6 +653,7 @@
         <td>${escapeHtml(p.name)}</td>
         <td>${formatCurrency(p.price)}</td>
         <td>${p.commission_rate}%</td>
+        <td>${p.file_path ? 'Uploaded' : '<span style="opacity:0.55;">— none</span>'}</td>
         <td>${statusPill(p.is_active)}</td>
       </tr>
     `).join('');
@@ -630,6 +667,10 @@
       showToast('Wait for the photo to finish uploading.');
       return;
     }
+    if (afFileUploading) {
+      showToast('Wait for the product file to finish uploading.');
+      return;
+    }
 
     const payload = {
       created_by: currentUser.id,
@@ -638,6 +679,7 @@
       price: Number(document.getElementById('af-price').value),
       commission_rate: Number(document.getElementById('af-commission').value),
       image_url: document.getElementById('af-image').value.trim() || null,
+      file_path: document.getElementById('af-file').value.trim() || null,
       description: document.getElementById('af-description').value.trim() || null,
       is_active: false
     };
@@ -654,6 +696,8 @@
       document.getElementById('af-image').value = '';
       document.getElementById('af-image-preview').style.display = 'none';
       document.getElementById('af-image-status').textContent = '';
+      document.getElementById('af-file').value = '';
+      document.getElementById('af-file-status').textContent = '';
       loadAffiliateProducts(currentUser);
     } catch (err) {
       console.error('Affiliate product submit error:', err);
