@@ -5,6 +5,7 @@
 //   1. Holds the Paystack secret key (never sent to the browser)
 //   2. Re-verifies the transaction directly with Paystack's server
 //   3. Writes to affiliate_sales / credits balances (via record_sale)
+//   4. Generates the buyer's signed download link for the product file
 //
 // Deploy with:
 //   supabase functions deploy verify-paystack
@@ -20,6 +21,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+const PRODUCT_FILE_BUCKET = "product-files";
+const FILE_URL_TTL_SECONDS = 60 * 60 * 24; // 24 hours
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -109,11 +113,38 @@ Deno.serve(async (req) => {
 
   const result = Array.isArray(data) ? data[0] : data;
 
+  // --- 3. Payment is confirmed and recorded — now generate the buyer's
+  // download link. product-files is a private bucket, so only this
+  // service-role client can read it; the signed URL is what lets the
+  // buyer's browser download without any Storage RLS access of its own. ---
+  let fileUrl: string | null = null;
+
+  const { data: product, error: productError } = await supabaseAdmin
+    .from("products")
+    .select("file_path")
+    .eq("id", product_id)
+    .single();
+
+  if (productError) {
+    console.warn("Could not look up product file_path:", productError.message);
+  } else if (product?.file_path) {
+    const { data: signed, error: signError } = await supabaseAdmin.storage
+      .from(PRODUCT_FILE_BUCKET)
+      .createSignedUrl(product.file_path, FILE_URL_TTL_SECONDS);
+
+    if (signError) {
+      console.warn("Could not create signed URL:", signError.message);
+    } else {
+      fileUrl = signed?.signedUrl ?? null;
+    }
+  }
+
   return json({
     verified: true,
     already_processed: result?.already_processed ?? false,
     commission_amount: result?.commission_amount,
     partner_amount: result?.partner_amount,
     site_amount: result?.site_amount,
+    file_url: fileUrl,
   });
 });
