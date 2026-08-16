@@ -252,7 +252,7 @@
             <textarea id="af-description" rows="3"></textarea>
           </div>
         </div>
-        <button type="submit" class="btn btn-solid" id="af-submit-btn" style="margin-top:14px;">Submit for review</button>
+        <button type="submit" class="btn btn-solid" id="af-submit-btn" style="margin-top:14px;">Publish product</button>
       </form>
 
       <h2 style="margin-top:28px;">Your affiliate products</h2>
@@ -391,8 +391,10 @@
   // joboffer.html, and affiliateadmin.html. Requires a `created_by`
   // uuid column (referencing auth.users) on all three tables, plus
   // an RLS policy letting partners insert/select their own rows.
-  // New rows are inserted with is_active:false — an admin activates
-  // them from the existing admin panels once reviewed.
+  // New rows are inserted with is_active:false for sponsored posts and
+  // job offers — an admin activates them from the existing admin panels
+  // once reviewed. Affiliate products are inserted with is_active:true
+  // and go live immediately, no admin review.
   // ---------------------------------------------------------
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -681,17 +683,17 @@
       image_url: document.getElementById('af-image').value.trim() || null,
       file_path: document.getElementById('af-file').value.trim() || null,
       description: document.getElementById('af-description').value.trim() || null,
-      is_active: false
+      is_active: true
     };
 
     afSubmitBtn.disabled = true;
-    afSubmitBtn.textContent = 'Submitting…';
+    afSubmitBtn.textContent = 'Publishing…';
 
     try {
       const { error } = await supabaseClient.from('products').insert(payload);
       if (error) throw error;
 
-      showToast('Affiliate product submitted for review!');
+      showToast('Affiliate product published — live now!');
       affiliateForm.reset();
       document.getElementById('af-image').value = '';
       document.getElementById('af-image-preview').style.display = 'none';
@@ -701,10 +703,10 @@
       loadAffiliateProducts(currentUser);
     } catch (err) {
       console.error('Affiliate product submit error:', err);
-      showToast(err.message || 'Could not submit affiliate product. Please try again.');
+      showToast(err.message || 'Could not publish affiliate product. Please try again.');
     } finally {
       afSubmitBtn.disabled = false;
-      afSubmitBtn.textContent = 'Submit for review';
+      afSubmitBtn.textContent = 'Publish product';
     }
   });
 
