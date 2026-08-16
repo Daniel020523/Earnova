@@ -6,6 +6,7 @@
 <title>Partner Dashboard — EarnOva</title>
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
 <style>
   .tab-bar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
   .tab-btn{
@@ -60,18 +61,14 @@
       <div class="form-grid">
         <div class="field">
           <label for="topup-amount">Amount (₦)</label>
-          <input id="topup-amount" type="number" min="1" step="0.01" required>
-        </div>
-        <div class="field">
-          <label for="topup-reference">Payment reference <span class="optional-tag">(optional)</span></label>
-          <input id="topup-reference" type="text" placeholder="Bank transfer ref, receipt no., etc.">
+          <input id="topup-amount" type="number" min="100" step="1" required>
         </div>
       </div>
-      <button type="submit" class="btn btn-solid" id="topup-submit-btn" style="margin-top:14px;">Request top-up</button>
-      <p class="field-hint">Top-up requests are reviewed by an admin before your balance is credited.</p>
+      <button type="submit" class="btn btn-solid" id="topup-submit-btn" style="margin-top:14px;">Pay & top up</button>
+      <p class="field-hint">Pay by card, bank transfer, USSD, or OPay — secured by Paystack. Your balance updates automatically once payment is confirmed.</p>
     </form>
 
-    <h2 style="margin-top:24px;">Your top-up requests</h2>
+    <h2 style="margin-top:24px;">Your top-ups</h2>
     <table class="data-table" id="topup-table">
       <thead><tr><th>Amount</th><th>Reference</th><th>Status</th></tr></thead>
       <tbody id="topup-table-body"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
@@ -336,6 +333,7 @@
   // ---------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const PAYSTACK_PUBLIC_KEY = "pk_test_REPLACE_WITH_YOUR_PAYSTACK_PUBLIC_KEY"; // same key used in product.html
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let toastTimer;
@@ -844,9 +842,9 @@
   const walletBalanceEl = document.getElementById('walletBalance');
 
   function topupStatusPill(status) {
-    if (status === 'approved') return '<span class="pill pill-active">Approved</span>';
-    if (status === 'rejected') return '<span class="pill" style="background:rgba(220,38,38,0.12); color:#dc2626;">Rejected</span>';
-    return '<span class="pill pill-pending">Pending review</span>';
+    if (status === 'approved') return '<span class="pill pill-active">Confirmed</span>';
+    if (status === 'rejected') return '<span class="pill" style="background:rgba(220,38,38,0.12); color:#dc2626;">Failed</span>';
+    return '<span class="pill pill-pending">Processing</span>';
   }
 
   async function loadBalance(user) {
@@ -892,43 +890,70 @@
     `).join('');
   }
 
-  topupForm.addEventListener('submit', async (event) => {
+  topupForm.addEventListener('submit', (event) => {
     event.preventDefault();
     if (!currentUser) return;
 
     const amount = Number(document.getElementById('topup-amount').value);
-    const reference = document.getElementById('topup-reference').value.trim();
-
-    if (!amount || amount <= 0) {
-      showToast('Enter a valid top-up amount.');
+    if (!amount || amount < 100) {
+      showToast('Enter an amount of at least ₦100.');
       return;
     }
 
     topupSubmitBtn.disabled = true;
-    topupSubmitBtn.textContent = 'Submitting…';
+    topupSubmitBtn.textContent = 'Opening Paystack…';
 
-    try {
-      const { error } = await supabaseClient
-        .from('wallet_topups')
-        .insert({
-          partner_id: currentUser.id,
-          amount,
-          reference: reference || null
-        });
+    const handler = PaystackPop.setup({
+      key: PAYSTACK_PUBLIC_KEY,
+      email: currentUser.email,
+      amount: Math.round(amount * 100), // kobo
+      currency: 'NGN',
+      channels: ['card', 'bank', 'bank_transfer', 'ussd', 'mobile_money'],
+      ref: `earnova_topup_${currentUser.id}_${Date.now()}`,
+      metadata: { partner_id: currentUser.id, purpose: 'wallet_topup' },
+      callback: function (response) {
+        topupSubmitBtn.textContent = 'Confirming payment…';
+        verifyTopup(response.reference)
+          .then((result) => {
+            if (result && result.ok) {
+              showToast('Top-up confirmed — balance updated!');
+              topupForm.reset();
+              loadBalance(currentUser);
+              loadTopups(currentUser);
+            } else {
+              showToast(result?.error || `Payment received but not yet confirmed (ref: ${response.reference}). Contact support if your balance doesn't update shortly.`);
+            }
+          })
+          .catch(() => {
+            showToast(`Could not confirm payment (ref: ${response.reference}). If you were charged, contact support with this reference.`);
+          })
+          .finally(() => {
+            topupSubmitBtn.disabled = false;
+            topupSubmitBtn.textContent = 'Pay & top up';
+          });
+      },
+      onClose: function () {
+        topupSubmitBtn.disabled = false;
+        topupSubmitBtn.textContent = 'Pay & top up';
+      }
+    });
 
-      if (error) throw error;
-
-      showToast('Top-up request submitted for review!');
-      topupForm.reset();
-      loadTopups(currentUser);
-    } catch (err) {
-      console.error('Topup submit error:', err);
-      showToast(err.message || 'Could not submit top-up request. Please try again.');
-    } finally {
-      topupSubmitBtn.disabled = false;
-      topupSubmitBtn.textContent = 'Request top-up';
-    }
+    handler.openIframe();
   });
+
+  async function verifyTopup(reference) {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/verify-topup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session ? session.access_token : ''}`,
+        apikey: SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ reference })
+    });
+    return resp.json();
+  }
 
   // ---- Payout account & requests ----
   const paBankSelect = document.getElementById('pa-bank');
