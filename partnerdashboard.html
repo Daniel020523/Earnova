@@ -80,8 +80,8 @@
 
     <h2 style="margin-top:24px;">Your top-ups</h2>
     <table class="data-table" id="topup-table">
-      <thead><tr><th>Amount</th><th>Reference</th><th>Status</th></tr></thead>
-      <tbody id="topup-table-body"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
+      <thead><tr><th>Amount</th><th>Status</th></tr></thead>
+      <tbody id="topup-table-body"><tr><td colspan="2" class="empty-row">Loading…</td></tr></tbody>
     </table>
       <button type="button" class="btn btn-ghost" id="topup-see-all-btn" style="display:none; margin-top:8px;">See all</button>
 
@@ -980,7 +980,7 @@
 
     if (error) {
       console.error('Topups load error:', error);
-      topupTableBody.innerHTML = '<tr><td colspan="3" class="empty-row">Could not load your top-up requests.</td></tr>';
+      topupTableBody.innerHTML = '<tr><td colspan="2" class="empty-row">Could not load your top-up requests.</td></tr>';
       topupSeeAllBtn.style.display = 'none';
       return;
     }
@@ -988,10 +988,9 @@
     renderPreviewTable(topupTableBody, topupSeeAllBtn, data, t => `
       <tr>
         <td>${formatCurrency(t.amount)}</td>
-        <td>${escapeHtml(t.reference || '—')}</td>
         <td>${topupStatusPill(t.status)}</td>
       </tr>
-    `, 3, 'No top-ups yet.');
+    `, 1, 'No top-ups yet.');
   }
 
   topupForm.addEventListener('submit', (event) => {
