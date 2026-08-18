@@ -31,6 +31,21 @@
   .pill-active{ background:rgba(0,150,80,0.15); color:#0a7a4a; }
   .pill-pending{ background:rgba(200,150,0,0.15); color:#8a6400; }
 
+  .action-wrap{ position:relative; display:inline-block; }
+  .action-menu{
+    position:absolute; right:0; top:calc(100% + 4px); min-width:130px;
+    background:#fff; border:1px solid rgba(0,0,0,0.15); border-radius:8px;
+    box-shadow:0 6px 16px rgba(0,0,0,0.12); overflow:hidden; z-index:20;
+    white-space:nowrap;
+  }
+  .action-menu[hidden]{ display:none; }
+  .action-menu-item{
+    display:block; width:100%; text-align:left; padding:10px 14px;
+    background:none; border:none; font-size:13px; font-family:inherit;
+    cursor:pointer;
+  }
+  .action-menu-item:hover{ background:rgba(0,0,0,0.04); }
+
   /* More breathing room on mobile */
   #tab-topup, #createListingCard{ margin-bottom:32px; padding-bottom:8px; }
   #tab-topup h2, #createListingCard h2{ margin-top:32px; }
@@ -87,8 +102,8 @@
 
     <h2 style="margin-top:24px;">Your top-ups</h2>
     <table class="data-table" id="topup-table">
-      <thead><tr><th>Amount</th><th>Status</th><th></th></tr></thead>
-      <tbody id="topup-table-body"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
+      <thead><tr><th>Amount</th><th>Status</th></tr></thead>
+      <tbody id="topup-table-body"><tr><td colspan="2" class="empty-row">Loading…</td></tr></tbody>
     </table>
       <button type="button" class="btn btn-ghost" id="topup-see-all-btn" style="display:none; margin-top:8px;">See all</button>
   </div>
@@ -430,6 +445,42 @@
       : '<span class="pill pill-pending">Pending review</span>';
   }
 
+  // Builds a single "Actions" button + dropdown menu for a table row,
+  // so each row still only ever has one action column (keeps colspans
+  // in sync with the <thead>) no matter how many actions live inside it.
+  const DELETE_DATA_ATTR = { sp: 'data-delete-sp', job: 'data-delete-job', product: 'data-delete-product' };
+  function actionCell(kind, id, filePath) {
+    const attr = DELETE_DATA_ATTR[kind];
+    const fileAttr = filePath !== undefined ? ` data-file-path="${escapeHtml(filePath)}"` : '';
+    return `
+      <div class="action-wrap">
+        <button type="button" class="btn btn-ghost" data-action-toggle>Actions</button>
+        <div class="action-menu" hidden>
+          <button type="button" class="action-menu-item" ${attr}="${id}"${fileAttr} style="color:#a40000;">Delete</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Wires up every "Actions" toggle button inside a freshly-rendered
+  // container. Only one menu is open at a time, and clicking anywhere
+  // outside closes it.
+  function wireActionMenus(container) {
+    container.querySelectorAll('[data-action-toggle]').forEach(toggleBtn => {
+      const menu = toggleBtn.nextElementSibling;
+      toggleBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const isOpen = !menu.hidden;
+        document.querySelectorAll('.action-menu').forEach(m => { m.hidden = true; });
+        menu.hidden = isOpen;
+      });
+    });
+  }
+
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.action-menu').forEach(m => { m.hidden = true; });
+  });
+
   // ---- Sponsored posts ----
   const sponsoredForm = document.getElementById('sponsoredForm');
   const spSubmitBtn = document.getElementById('sp-submit-btn');
@@ -524,9 +575,10 @@
         <td>${escapeHtml(p.brand)}</td>
         <td>${formatCurrency(p.payout)}</td>
         <td>${statusPill(p.is_active)}</td>
-        <td><button type="button" class="btn btn-ghost" data-delete-sp="${p.id}" style="color:#a40000;">Delete</button></td>
+        <td>${actionCell('sp', p.id)}</td>
       </tr>
     `, 5, 'No sponsored posts yet — create one above.', () => {
+      wireActionMenus(spTableBody);
       spTableBody.querySelectorAll('[data-delete-sp]').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (await deleteOwnRow('sponsored_posts', btn.dataset.deleteSp, btn)) loadSponsoredPosts(currentUser);
@@ -597,9 +649,10 @@
         <td>${escapeHtml(j.company)}</td>
         <td>${escapeHtml(j.job_type)}</td>
         <td>${statusPill(j.is_active)}</td>
-        <td><button type="button" class="btn btn-ghost" data-delete-job="${j.id}" style="color:#a40000;">Delete</button></td>
+        <td>${actionCell('job', j.id)}</td>
       </tr>
     `, 5, 'No job offers yet — create one above.', () => {
+      wireActionMenus(jobTableBody);
       jobTableBody.querySelectorAll('[data-delete-job]').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (await deleteOwnRow('jobs', btn.dataset.deleteJob, btn)) loadJobOffers(currentUser);
@@ -749,9 +802,10 @@
         <td>${p.commission_rate}%</td>
         <td>${p.file_path ? 'Uploaded' : '<span style="opacity:0.55;">— none</span>'}</td>
         <td>${statusPill(p.is_active)}</td>
-        <td><button type="button" class="btn btn-ghost" data-delete-product="${p.id}" data-file-path="${p.file_path || ''}" style="color:#a40000;">Delete</button></td>
+        <td>${actionCell('product', p.id, p.file_path || '')}</td>
       </tr>
     `, 6, 'No affiliate products yet — create one above.', () => {
+      wireActionMenus(afTableBody);
       afTableBody.querySelectorAll('[data-delete-product]').forEach(btn => {
         btn.addEventListener('click', () => deleteAffiliateProduct(btn.dataset.deleteProduct, btn.dataset.filePath, btn));
       });
@@ -943,7 +997,7 @@
 
     if (error) {
       console.error('Topups load error:', error);
-      topupTableBody.innerHTML = '<tr><td colspan="3" class="empty-row">Could not load your top-up requests.</td></tr>';
+      topupTableBody.innerHTML = '<tr><td colspan="2" class="empty-row">Could not load your top-up requests.</td></tr>';
       topupSeeAllBtn.style.display = 'none';
       return;
     }
@@ -952,15 +1006,8 @@
       <tr>
         <td>${formatCurrency(t.amount)}</td>
         <td>${topupStatusPill(t.status)}</td>
-        <td><button type="button" class="btn btn-ghost" data-delete-topup="${t.id}" style="color:#a40000;">Delete</button></td>
       </tr>
-    `, 3, 'No top-ups yet.', () => {
-      topupTableBody.querySelectorAll('[data-delete-topup]').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          if (await deleteOwnRow('wallet_topups', btn.dataset.deleteTopup, btn, 'partner_id')) loadTopups(currentUser);
-        });
-      });
-    });
+    `, 2, 'No top-ups yet.');
   }
 
   topupForm.addEventListener('submit', (event) => {
