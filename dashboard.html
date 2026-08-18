@@ -144,10 +144,6 @@
           <div style="font-size:13px; opacity:0.7;">Available balance</div>
           <div style="font-size:24px; font-weight:600;" id="available-balance">₦0.00</div>
         </div>
-        <div>
-          <div style="font-size:13px; opacity:0.7;">Total earned</div>
-          <div style="font-size:24px; font-weight:600;" id="total-earned">₦0.00</div>
-        </div>
       </div>
       <div style="text-align:left;">
         <a class="btn btn-solid" id="payout-btn" href="payout.html" style="display:inline-block; margin-right:auto;">Request payout</a>
@@ -245,7 +241,6 @@
 
   let currentUserId = null;
   let currentAvailableBalance = 0;
-  let currentTotalEarned = 0;
 
   // Holds the full set of transactions fetched from the server, and
   // whether the user has expanded the list to see everything.
@@ -264,8 +259,6 @@
 
     document.getElementById('available-balance').textContent =
       balancesVisible ? formatNaira(currentAvailableBalance) : MASK;
-    document.getElementById('total-earned').textContent =
-      balancesVisible ? formatNaira(currentTotalEarned) : MASK;
 
     eyeOpen.style.display = balancesVisible ? 'block' : 'none';
     eyeClosed.style.display = balancesVisible ? 'none' : 'block';
@@ -467,7 +460,6 @@
       + totalShare - totalShareDeducted + totalShareRestored;
 
     currentAvailableBalance = available;
-    currentTotalEarned = totalEarned + totalReferral + totalReview + totalSurvey + totalChallenge + totalShare;
 
     applyBalanceVisibility();
     document.getElementById('payout-note').textContent = '';
