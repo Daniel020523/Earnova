@@ -87,8 +87,8 @@
 
     <h2 style="margin-top:24px;">Your top-ups</h2>
     <table class="data-table" id="topup-table">
-      <thead><tr><th>Amount</th><th>Status</th></tr></thead>
-      <tbody id="topup-table-body"><tr><td colspan="2" class="empty-row">Loading…</td></tr></tbody>
+      <thead><tr><th>Amount</th><th>Status</th><th></th></tr></thead>
+      <tbody id="topup-table-body"><tr><td colspan="3" class="empty-row">Loading…</td></tr></tbody>
     </table>
       <button type="button" class="btn btn-ghost" id="topup-see-all-btn" style="display:none; margin-top:8px;">See all</button>
   </div>
@@ -462,7 +462,7 @@
   // by a foreign key (this row has related history elsewhere, e.g. sales
   // or completions), falls back to deactivating instead so it disappears
   // from public listings without destroying that history.
-  async function deleteOwnRow(table, id, btn) {
+  async function deleteOwnRow(table, id, btn, ownerColumn = 'created_by') {
     if (!currentUser) return false;
     if (!confirm('Delete this? It will be removed immediately and this cannot be undone.')) return false;
 
@@ -473,7 +473,7 @@
       .from(table)
       .delete()
       .eq('id', id)
-      .eq('created_by', currentUser.id);
+      .eq(ownerColumn, currentUser.id);
 
     if (!error) {
       showToast('Deleted.');
@@ -485,7 +485,7 @@
         .from(table)
         .update({ is_active: false })
         .eq('id', id)
-        .eq('created_by', currentUser.id);
+        .eq(ownerColumn, currentUser.id);
 
       if (!deactivateError) {
         showToast('This has related history, so it was deactivated instead of deleted.');
@@ -943,7 +943,7 @@
 
     if (error) {
       console.error('Topups load error:', error);
-      topupTableBody.innerHTML = '<tr><td colspan="2" class="empty-row">Could not load your top-up requests.</td></tr>';
+      topupTableBody.innerHTML = '<tr><td colspan="3" class="empty-row">Could not load your top-up requests.</td></tr>';
       topupSeeAllBtn.style.display = 'none';
       return;
     }
@@ -952,8 +952,15 @@
       <tr>
         <td>${formatCurrency(t.amount)}</td>
         <td>${topupStatusPill(t.status)}</td>
+        <td><button type="button" class="btn btn-ghost" data-delete-topup="${t.id}" style="color:#a40000;">Delete</button></td>
       </tr>
-    `, 1, 'No top-ups yet.');
+    `, 3, 'No top-ups yet.', () => {
+      topupTableBody.querySelectorAll('[data-delete-topup]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (await deleteOwnRow('wallet_topups', btn.dataset.deleteTopup, btn, 'partner_id')) loadTopups(currentUser);
+        });
+      });
+    });
   }
 
   topupForm.addEventListener('submit', (event) => {
