@@ -121,7 +121,7 @@
   //
   // profiles: needs is_admin boolean not null default false
   //
-  // payout_requests: needs processed_at timestamptz,
+  // partner_payout_requests: needs processed_at timestamptz,
   //   processed_by uuid, rejection_reason text
   //
   // A SECURITY DEFINER function admin_mark_payout_paid(p_payout_id uuid)
@@ -270,7 +270,7 @@
     tbody.innerHTML = '<tr><td colspan="6" class="empty-row">Loading…</td></tr>';
 
     const { data, error } = await supabaseClient
-      .from('payout_requests')
+      .from('partner_payout_requests')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -308,7 +308,7 @@
       btn.disabled = true;
       try {
         const { error } = await supabaseClient
-          .from('payout_requests')
+          .from('partner_payout_requests')
           .update({ status: 'approved', processed_at: new Date().toISOString(), processed_by: currentAdmin.id })
           .eq('id', id)
           .eq('status', 'pending');
@@ -329,7 +329,7 @@
       btn.disabled = true;
       try {
         const { error } = await supabaseClient
-          .from('payout_requests')
+          .from('partner_payout_requests')
           .update({
             status: 'rejected',
             rejection_reason: reason,

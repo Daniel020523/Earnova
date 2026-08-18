@@ -188,7 +188,7 @@
   //   bank_name text, bank_account_number text, bank_account_name text,
   //   payout_pin_hash text
   //
-  // payout_requests (new table):
+  // partner_payout_requests (new table):
   //   id uuid pk default gen_random_uuid(),
   //   partner_id uuid references auth.users, not null,
   //   amount numeric not null,
@@ -196,7 +196,7 @@
   //   status text not null default 'pending',   -- pending | approved | rejected | paid
   //   created_at timestamptz not null default now()
   //
-  // RLS: partners can select/insert their own payout_requests rows
+  // RLS: partners can select/insert their own partner_payout_requests rows
   // (partner_id = auth.uid()); update/status changes are done from an
   // admin page, not here.
   // ---------------------------------------------------------
@@ -491,7 +491,7 @@
 
   async function loadPayoutRequests(user) {
     const { data, error } = await supabaseClient
-      .from('payout_requests')
+      .from('partner_payout_requests')
       .select('*')
       .eq('partner_id', user.id)
       .order('created_at', { ascending: false });
@@ -560,7 +560,7 @@
 
       payoutSubmitBtn.textContent = 'Submitting…';
 
-      const { error } = await supabaseClient.from('payout_requests').insert({
+      const { error } = await supabaseClient.from('partner_payout_requests').insert({
         partner_id: currentUser.id,
         amount: amount,
         bank_name: profile.bank_name,
