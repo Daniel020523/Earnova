@@ -25,6 +25,11 @@
     align-items:center;
     gap:10px;
     margin-bottom:4px;
+    position:sticky;
+    top:0;
+    background:#fff;
+    z-index:1;
+    padding-top:2px;
   }
   .section-header h2{
     margin:0;
@@ -105,6 +110,17 @@
     margin-left:auto;
   }
   .refresh-btn:hover{ opacity:1; }
+  .see-all-btn{
+    background:none;
+    border:none;
+    font-size:13px;
+    font-weight:600;
+    text-decoration:underline;
+    opacity:0.75;
+    cursor:pointer;
+    margin-left:auto;
+  }
+  .see-all-btn:hover{ opacity:1; }
 </style>
 </head>
 <body>
@@ -155,6 +171,7 @@
       <div class="section-header">
         <h2>Pending payouts</h2>
         <span class="count-badge" id="pending-count-badge">0</span>
+        <button class="see-all-btn" id="pending-see-all" data-seeall="pending" style="display:none;">See all</button>
         <button class="refresh-btn" data-refresh="pending">Refresh</button>
       </div>
       <div id="pending-loading" style="font-size:14px; opacity:0.7;">Loading…</div>
@@ -174,6 +191,7 @@
       <div class="section-header">
         <h2>Completed payouts</h2>
         <span class="count-badge" id="paid-count-badge">0</span>
+        <button class="see-all-btn" id="paid-see-all" data-seeall="paid" style="display:none;">See all</button>
         <button class="refresh-btn" data-refresh="paid">Refresh</button>
       </div>
       <div id="paid-loading" style="font-size:14px; opacity:0.7;">Loading…</div>
@@ -193,6 +211,7 @@
       <div class="section-header">
         <h2>Failed payouts</h2>
         <span class="count-badge" id="failed-count-badge">0</span>
+        <button class="see-all-btn" id="failed-see-all" data-seeall="failed" style="display:none;">See all</button>
         <button class="refresh-btn" data-refresh="failed">Refresh</button>
       </div>
       <div id="failed-loading" style="font-size:14px; opacity:0.7;">Loading…</div>
@@ -213,6 +232,7 @@
       <div class="section-header">
         <h2>Earnings</h2>
         <span class="count-badge" id="earning-count-badge">0</span>
+        <button class="see-all-btn" id="earning-see-all" data-seeall="earning" style="display:none;">See all</button>
         <button class="refresh-btn" data-refresh="earning">Refresh</button>
       </div>
       <div id="earning-loading" style="font-size:14px; opacity:0.7;">Loading…</div>
@@ -287,6 +307,47 @@
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   }
 
+  // ---------------- "See all" state ----------------
+  // Each section fetches up to 200 rows at once (already loaded in memory);
+  // by default we only render the first DEFAULT_VISIBLE and let "See all"
+  // toggle to the full set without re-querying Supabase.
+  const DEFAULT_VISIBLE = 1;
+  const sectionState = {
+    pending: { rows: [], showAll: false },
+    paid: { rows: [], showAll: false },
+    failed: { rows: [], showAll: false },
+    earning: { rows: [], showAll: false }
+  };
+
+  function updateSeeAllButton(section){
+    const state = sectionState[section];
+    const btn = document.getElementById(`${section}-see-all`);
+    if (!btn) return;
+    if (state.rows.length <= DEFAULT_VISIBLE) {
+      btn.style.display = 'none';
+      return;
+    }
+    btn.style.display = 'inline';
+    btn.textContent = state.showAll ? 'Show less' : `See all (${state.rows.length})`;
+  }
+
+  function visibleRows(section){
+    const state = sectionState[section];
+    return state.showAll ? state.rows : state.rows.slice(0, DEFAULT_VISIBLE);
+  }
+
+  document.querySelectorAll('[data-seeall]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const section = btn.dataset.seeall;
+      sectionState[section].showAll = !sectionState[section].showAll;
+      updateSeeAllButton(section);
+      if (section === 'pending') renderPendingRows();
+      if (section === 'paid') renderPaidRows();
+      if (section === 'failed') renderFailedRows();
+      if (section === 'earning') renderEarningRows();
+    });
+  });
+
   // NOTE: payout_requests stores the bank destination directly on the
   // row (bank_name, bank_code, account_number, account_name) — there is
   // no linked_accounts foreign key on this table. Pass the payout row
@@ -345,6 +406,8 @@
     }
 
     const rows = data || [];
+    sectionState.pending.rows = rows;
+    sectionState.pending.showAll = false;
     badge.textContent = rows.length;
     document.getElementById('stat-pending-count').textContent = rows.length;
     document.getElementById('stat-pending-amount').textContent =
@@ -352,9 +415,17 @@
 
     if (rows.length === 0) {
       emptyEl.style.display = 'block';
+      updateSeeAllButton('pending');
       return;
     }
 
+    renderPendingRows();
+    updateSeeAllButton('pending');
+  }
+
+  function renderPendingRows(){
+    const tableEl = document.getElementById('pending-table');
+    const rows = visibleRows('pending');
     tableEl.style.display = 'table';
     document.getElementById('pending-body').innerHTML = rows.map(r => `
       <tr>
@@ -441,13 +512,23 @@
     }
 
     const rows = data || [];
+    sectionState.paid.rows = rows;
+    sectionState.paid.showAll = false;
     badge.textContent = rows.length;
 
     if (rows.length === 0) {
       emptyEl.style.display = 'block';
+      updateSeeAllButton('paid');
       return;
     }
 
+    renderPaidRows();
+    updateSeeAllButton('paid');
+  }
+
+  function renderPaidRows(){
+    const tableEl = document.getElementById('paid-table');
+    const rows = visibleRows('paid');
     tableEl.style.display = 'table';
     document.getElementById('paid-body').innerHTML = rows.map(r => `
       <tr>
@@ -493,13 +574,23 @@
     }
 
     const rows = data || [];
+    sectionState.failed.rows = rows;
+    sectionState.failed.showAll = false;
     badge.textContent = rows.length;
 
     if (rows.length === 0) {
       emptyEl.style.display = 'block';
+      updateSeeAllButton('failed');
       return;
     }
 
+    renderFailedRows();
+    updateSeeAllButton('failed');
+  }
+
+  function renderFailedRows(){
+    const tableEl = document.getElementById('failed-table');
+    const rows = visibleRows('failed');
     tableEl.style.display = 'table';
     document.getElementById('failed-body').innerHTML = rows.map(r => `
       <tr>
@@ -542,15 +633,25 @@
     }
 
     const rows = data || [];
+    sectionState.earning.rows = rows;
+    sectionState.earning.showAll = false;
     badge.textContent = rows.length;
     const pendingCount = rows.filter(r => r.status === 'pending').length;
     document.getElementById('stat-earning-pending-count').textContent = pendingCount;
 
     if (rows.length === 0) {
       emptyEl.style.display = 'block';
+      updateSeeAllButton('earning');
       return;
     }
 
+    renderEarningRows();
+    updateSeeAllButton('earning');
+  }
+
+  function renderEarningRows(){
+    const tableEl = document.getElementById('earning-table');
+    const rows = visibleRows('earning');
     tableEl.style.display = 'table';
     document.getElementById('earning-body').innerHTML = rows.map(r => {
       const isPending = r.status === 'pending';
