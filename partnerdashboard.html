@@ -319,12 +319,12 @@
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   let toastTimer;
-  function showToast(msg) {
+  function showToast(msg, durationMs = 2400) {
     const toast = document.getElementById('toast');
     toast.textContent = msg;
     toast.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), durationMs);
   }
 
   function formatCurrency(amount) {
@@ -514,11 +514,12 @@
         return true;
       }
       console.error(`Deactivate ${table} error:`, deactivateError);
+      showToast(`Could not delete or deactivate: ${deactivateError.message || deactivateError.code || 'unknown error'}`, 6000);
     } else {
       console.error(`Delete ${table} error:`, error);
+      showToast(`Could not delete: ${error.message || error.code || 'unknown error'}`, 6000);
     }
 
-    showToast('Could not delete. Please try again.');
     btn.disabled = false;
     btn.textContent = 'Delete';
     return false;
