@@ -66,7 +66,7 @@
       <span>Available to withdraw:</span>
       <span class="amount" id="walletBalance">—</span>
     </div>
-    <p class="field-hint">This is your current EarnOva balance. Payout requests can't exceed this amount, and the minimum payout request is ₦20.</p>
+
   </div>
 
   <!-- Bank account -->
@@ -137,8 +137,8 @@
       <div class="form-grid">
         <div class="field">
           <label for="payout-amount">Amount (₦)</label>
-          <input id="payout-amount" type="number" min="20" step="0.01" required>
-          <p class="field-hint">Minimum payout amount is ₦20.</p>
+          <input id="payout-amount" type="number" min="100" step="0.01" required>
+          <p class="field-hint">Minimum payout amount is ₦100.</p>
         </div>
         <div class="field">
           <label for="payout-pin">Payout PIN</label>
@@ -520,8 +520,8 @@
     const amount = Number(document.getElementById('payout-amount').value);
     const pin = document.getElementById('payout-pin').value;
 
-    if (!(amount >= 20)) {
-      showToast('Minimum payout amount is ₦20.');
+    if (!(amount >= 100)) {
+      showToast('Minimum payout amount is ₦100.');
       return;
     }
     if (amount > currentBalance) {

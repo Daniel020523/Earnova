@@ -53,7 +53,6 @@
       <span class="tag">Think smart. Earn big.</span>
     </a>
     <div class="nav-actions">
-      <a class="btn btn-solid" href="partnerpayout.html">Request payout</a>
       <a class="btn btn-ghost" href="#" id="logoutBtn">Log out</a>
     </div>
   </div>
@@ -76,8 +75,9 @@
     <h2>Wallet balance</h2>
     <p class="lead">Current balance: <strong id="walletBalance">—</strong></p>
     <p class="field-hint">Payouts for completed sponsored posts are deducted from this balance automatically. If it runs too low to cover a campaign's payout, that campaign is hidden from users until you top up.</p>
+    <a class="btn btn-ghost" href="partnerpayout.html" style="margin-top:14px; display:inline-block;">Request payout</a>
 
-    <form id="topupForm" style="margin-top:14px;">
+    <form id="topupForm" style="margin-top:20px;">
       <div class="form-grid">
         <div class="field">
           <label for="topup-amount">Amount (₦)</label>
@@ -128,8 +128,8 @@
           </div>
           <div class="field">
             <label for="sp-payout">Payout (₦)</label>
-            <input id="sp-payout" type="number" step="0.01" min="20" required>
-            <p class="field-hint">Minimum payout amount is ₦20.</p>
+            <input id="sp-payout" type="number" step="0.01" min="100" required>
+            <p class="field-hint">This amount is paid per user who completes the campaign, not a total budget — each user who qualifies is credited this full amount. Minimum payout amount is ₦100.</p>
           </div>
           <div class="field">
             <label for="sp-ends">Campaign ends</label>
@@ -583,8 +583,8 @@
     if (!currentUser) return;
 
     const payout = parseFloat(document.getElementById('sp-payout').value);
-    if (!(payout >= 20)) {
-      showToast('Payout must be at least ₦20.');
+    if (!(payout >= 100)) {
+      showToast('Payout must be at least ₦100.');
       return;
     }
 
