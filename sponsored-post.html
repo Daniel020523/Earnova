@@ -683,6 +683,60 @@
   document.getElementById('searchInput').addEventListener('input', applyFilters);
   document.getElementById('platformFilter').addEventListener('change', applyFilters);
 
+  // Partner-funded campaigns (sponsored_posts.created_by is set) can only
+  // stay live as long as that partner's wallet balance still covers the
+  // payout — otherwise an approved submission couldn't actually be paid
+  // out. Admin-posted campaigns (created_by is null) aren't tied to a
+  // partner wallet, so they're always shown and skip this check.
+  // Any partner post that no longer clears its own payout is hidden here
+  // and flipped to is_active:false, which also makes it disappear from
+  // that partner's own listing in partnerdashboard.html (which only
+  // queries is_active:true rows).
+  async function filterOutUnfundedPartnerPosts(posts){
+    const partnerIds = [...new Set(
+      posts.filter(p => p.created_by).map(p => p.created_by)
+    )];
+    if (partnerIds.length === 0) return posts;
+
+    const { data: partnerProfiles, error } = await supabaseClient
+      .from('profiles')
+      .select('id, balance')
+      .in('id', partnerIds);
+
+    if (error) {
+      console.error('Partner balance check error:', error);
+      return posts; // fail open — don't hide posts just because the check failed
+    }
+
+    const balanceById = {};
+    (partnerProfiles || []).forEach(p => { balanceById[p.id] = Number(p.balance) || 0; });
+
+    const funded = [];
+    const underfundedIds = [];
+
+    posts.forEach(post => {
+      if (!post.created_by) { funded.push(post); return; } // admin-posted, always shown
+      const balance = balanceById[post.created_by] || 0;
+      if (balance >= Number(post.payout || 0)) {
+        funded.push(post);
+      } else {
+        underfundedIds.push(post.id);
+      }
+    });
+
+    if (underfundedIds.length > 0) {
+      const { error: deactivateError } = await supabaseClient
+        .from('sponsored_posts')
+        .update({ is_active: false })
+        .in('id', underfundedIds);
+      if (deactivateError) {
+        console.error('Auto-deactivate underfunded sponsored posts error:', deactivateError);
+      }
+    }
+
+    return funded;
+  }
+
   async function loadPosts(){
     const loadingEl = document.getElementById('posts-loading');
 
@@ -691,7 +745,7 @@
 
     const { data, error } = await supabaseClient
       .from('sponsored_posts')
-      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, is_active, created_at, campaign_ends_at')
+      .select('id, title, brand, platform, payout, summary, requirements, content_guidelines, is_active, created_at, campaign_ends_at, created_by')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
@@ -702,7 +756,7 @@
       return;
     }
 
-    allPosts = data || [];
+    allPosts = await filterOutUnfundedPartnerPosts(data || []);
     await loadMyParticipations();
     applyFilters();
   }

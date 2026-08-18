@@ -127,7 +127,7 @@
           </div>
           <div class="field">
             <label for="sp-payout">Payout (₦)</label>
-            <input id="sp-payout" type="number" step="0.01" min="0" required>
+            <input id="sp-payout" type="number" step="0.01" min="20" required>
           </div>
           <div class="field">
             <label for="sp-ends">Campaign ends</label>
@@ -562,12 +562,18 @@
     event.preventDefault();
     if (!currentUser) return;
 
+    const payout = parseFloat(document.getElementById('sp-payout').value);
+    if (!(payout >= 20)) {
+      showToast('Payout must be at least ₦20.');
+      return;
+    }
+
     const payload = {
       created_by: currentUser.id,
       title: document.getElementById('sp-title').value.trim(),
       brand: document.getElementById('sp-brand').value.trim(),
       platform: document.getElementById('sp-platform').value,
-      payout: parseFloat(document.getElementById('sp-payout').value),
+      payout: payout,
       campaign_ends_at: document.getElementById('sp-ends').value || null,
       summary: document.getElementById('sp-summary').value.trim() || null,
       requirements: document.getElementById('sp-requirements').value.trim() || null,
