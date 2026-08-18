@@ -32,9 +32,9 @@
   .pill-pending{ background:rgba(200,150,0,0.15); color:#8a6400; }
 
   /* More breathing room on mobile */
-  #walletCard, #createListingCard{ margin-bottom:32px; padding-bottom:8px; }
-  #walletCard h2, #createListingCard h2{ margin-top:32px; }
-  #walletCard > h2:first-child, #createListingCard > h2:first-child{ margin-top:0; }
+  #tab-topup, #createListingCard{ margin-bottom:32px; padding-bottom:8px; }
+  #tab-topup h2, #createListingCard h2{ margin-top:32px; }
+  #tab-topup > h2:first-child, #createListingCard > h2:first-child{ margin-top:0; }
   .data-table{ display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; white-space:nowrap; }
   .data-table thead, .data-table tbody{ display:table; width:100%; min-width:420px; }
   @media (max-width: 480px){
@@ -61,8 +61,15 @@
   <h1>Post to EarnOva</h1>
   <p class="lead">Post sponsored posts, job offers, and affiliate products for review.</p>
 
+  <div class="tab-bar">
+    <button type="button" class="tab-btn active" data-tab="sponsored">Sponsored post</button>
+    <button type="button" class="tab-btn" data-tab="job">Job offer</button>
+    <button type="button" class="tab-btn" data-tab="affiliate">Affiliate product</button>
+    <button type="button" class="tab-btn" data-tab="topup">Top up</button>
+  </div>
+
   <!-- Wallet balance -->
-  <div class="card" id="walletCard">
+  <div class="card tab-panel" id="tab-topup">
     <h2>Wallet balance</h2>
     <p class="lead">Current balance: <strong id="walletBalance">—</strong></p>
     <p class="field-hint">Payouts for completed sponsored posts are deducted from this balance automatically. If it runs too low to cover a campaign's payout, that campaign is hidden from users until you top up.</p>
@@ -90,12 +97,6 @@
   <div class="card" id="createListingCard">
     <h2>Post to EarnOva</h2>
     <p class="lead">New listings are saved as inactive until an admin reviews and activates them.</p>
-
-    <div class="tab-bar">
-      <button type="button" class="tab-btn active" data-tab="sponsored">Sponsored post</button>
-      <button type="button" class="tab-btn" data-tab="job">Job offer</button>
-      <button type="button" class="tab-btn" data-tab="affiliate">Affiliate product</button>
-    </div>
 
     <!-- Sponsored post tab -->
     <div class="tab-panel active" id="tab-sponsored">
@@ -409,12 +410,17 @@
   // once reviewed. Affiliate products are inserted with is_active:true
   // and go live immediately, no admin review.
   // ---------------------------------------------------------
+  const createListingCard = document.getElementById('createListingCard');
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+
+      // "Top up" isn't inside the Post to EarnOva card, so hide/show
+      // that whole card depending on whether it's the selected tab.
+      createListingCard.style.display = (btn.dataset.tab === 'topup') ? 'none' : '';
     });
   });
 
