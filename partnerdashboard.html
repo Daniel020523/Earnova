@@ -491,30 +491,47 @@
     btn.disabled = true;
     btn.textContent = 'Deleting…';
 
-    const { error } = await supabaseClient
+    const { data, error } = await supabaseClient
       .from(table)
       .delete()
       .eq('id', id)
-      .eq(ownerColumn, currentUser.id);
+      .eq(ownerColumn, currentUser.id)
+      .select();
 
-    if (!error) {
+    // With RLS, a delete blocked by policy returns no error AND no rows —
+    // it just silently matches nothing. Treat that the same as a failure.
+    if (!error && data && data.length > 0) {
       showToast('Deleted.');
       return true;
     }
 
+    if (!error && (!data || data.length === 0)) {
+      console.error(`Delete ${table} error: 0 rows deleted — likely blocked by an RLS policy (row not owned by you, or DELETE policy missing on '${table}').`);
+      showToast(`Delete didn't go through — check that '${table}' has a DELETE policy for the owner.`, 6000);
+      btn.disabled = false;
+      btn.textContent = 'Delete';
+      return false;
+    }
+
     if (error.code === '23503') {
-      const { error: deactivateError } = await supabaseClient
+      const { data: deactivateData, error: deactivateError } = await supabaseClient
         .from(table)
         .update({ is_active: false })
         .eq('id', id)
-        .eq(ownerColumn, currentUser.id);
+        .eq(ownerColumn, currentUser.id)
+        .select();
 
-      if (!deactivateError) {
+      if (!deactivateError && deactivateData && deactivateData.length > 0) {
         showToast('This has related history, so it was deactivated instead of deleted.');
         return true;
       }
-      console.error(`Deactivate ${table} error:`, deactivateError);
-      showToast(`Could not delete or deactivate: ${deactivateError.message || deactivateError.code || 'unknown error'}`, 6000);
+      if (!deactivateError) {
+        console.error(`Deactivate ${table} error: 0 rows updated — likely blocked by an UPDATE RLS policy.`);
+        showToast(`Deactivate didn't go through — check the UPDATE policy on '${table}'.`, 6000);
+      } else {
+        console.error(`Deactivate ${table} error:`, deactivateError);
+        showToast(`Could not delete or deactivate: ${deactivateError.message || deactivateError.code || 'unknown error'}`, 6000);
+      }
     } else {
       console.error(`Delete ${table} error:`, error);
       showToast(`Could not delete: ${error.message || error.code || 'unknown error'}`, 6000);
