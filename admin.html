@@ -354,8 +354,7 @@
   // itself here, not a joined relation.
   function destinationLabel(row){
     if (!row || !row.bank_name) return '—';
-    const last4 = (row.account_number || '').slice(-4);
-    return `${row.bank_name}${last4 ? ' •••• ' + last4 : ''}`;
+    return row.account_number ? `${row.bank_name} — ${row.account_number}` : row.bank_name;
   }
 
   // NOTE: this assumes a boolean `is_admin` column exists on `profiles`.
