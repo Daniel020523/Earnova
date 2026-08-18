@@ -109,7 +109,15 @@
     <h2>Payout PIN</h2>
     <p class="lead" id="pinLead">Set a 4-digit PIN. You'll enter this every time you request a payout, to confirm it's really you.</p>
 
-    <form id="pinForm">
+    <div id="pinSummary" class="bank-summary" style="display:none;">
+      <div class="details">
+        <b>Payout PIN is set</b>
+        <span>••••</span>
+      </div>
+      <button type="button" class="btn btn-ghost" id="editPinBtn">Edit</button>
+    </div>
+
+    <form id="pinForm" style="display:none;">
       <div class="form-grid">
         <div class="field full" id="currentPinField" style="display:none;">
           <label for="pin-current">Current PIN</label>
@@ -124,7 +132,10 @@
           <input id="pin-confirm" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="4" required>
         </div>
       </div>
-      <button type="submit" class="btn btn-solid" id="pin-submit-btn" style="margin-top:14px;">Save PIN</button>
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button type="submit" class="btn btn-solid" id="pin-submit-btn">Save PIN</button>
+        <button type="button" class="btn btn-ghost" id="pin-cancel-btn" style="display:none;">Cancel</button>
+      </div>
     </form>
   </div>
 
@@ -199,6 +210,12 @@
   // RLS: partners can select/insert their own partner_payout_requests rows
   // (partner_id = auth.uid()); update/status changes are done from an
   // admin page, not here.
+  //
+  // Server-side enforcement: run payout_server_checks.sql once in the
+  // Supabase SQL editor. It adds a CHECK constraint (amount >= 100) and
+  // a BEFORE INSERT trigger that rejects any request over the partner's
+  // current balance — so these rules hold even if a request bypasses
+  // this page entirely.
   // ---------------------------------------------------------
 
   let toastTimer;
@@ -375,8 +392,11 @@
   });
 
   // ---- Payout PIN ----
+  const pinSummary = document.getElementById('pinSummary');
+  const editPinBtn = document.getElementById('editPinBtn');
   const pinForm = document.getElementById('pinForm');
   const pinSubmitBtn = document.getElementById('pin-submit-btn');
+  const pinCancelBtn = document.getElementById('pin-cancel-btn');
   const currentPinField = document.getElementById('currentPinField');
   const pinNewLabel = document.getElementById('pinNewLabel');
   const pinLead = document.getElementById('pinLead');
@@ -386,11 +406,37 @@
     currentPinField.style.display = hasPin ? 'block' : 'none';
     document.getElementById('pin-current').required = hasPin;
     pinNewLabel.textContent = hasPin ? 'New PIN' : 'PIN';
-    pinLead.textContent = hasPin
-      ? "You've set a payout PIN. Enter your current PIN to change it."
-      : "Set a 4-digit PIN. You'll enter this every time you request a payout, to confirm it's really you.";
     pinSubmitBtn.textContent = hasPin ? 'Update PIN' : 'Save PIN';
+
+    if (hasPin) {
+      // Collapse into a summary, same pattern as the bank account section,
+      // with an Edit button to expand the form back out.
+      pinLead.textContent = "You've set a payout PIN. Tap Edit to change it.";
+      pinSummary.style.display = 'flex';
+      pinForm.style.display = 'none';
+      pinCancelBtn.style.display = 'inline-block';
+    } else {
+      pinLead.textContent = "Set a 4-digit PIN. You'll enter this every time you request a payout, to confirm it's really you.";
+      pinSummary.style.display = 'none';
+      pinForm.style.display = 'block';
+      pinCancelBtn.style.display = 'none';
+    }
   }
+
+  editPinBtn.addEventListener('click', () => {
+    pinForm.reset();
+    pinLead.textContent = "You've set a payout PIN. Enter your current PIN to change it.";
+    pinSummary.style.display = 'none';
+    pinForm.style.display = 'block';
+    pinCancelBtn.style.display = 'inline-block';
+  });
+
+  pinCancelBtn.addEventListener('click', () => {
+    if (currentProfile?.payout_pin_hash) {
+      pinForm.reset();
+      renderPinSection(currentProfile);
+    }
+  });
 
   pinForm.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -520,12 +566,16 @@
     const amount = Number(document.getElementById('payout-amount').value);
     const pin = document.getElementById('payout-pin').value;
 
-    if (!(amount >= 100)) {
+    if (!(amount > 0) || !isFinite(amount)) {
+      showToast('Enter a valid payout amount.');
+      return;
+    }
+    if (amount < 100) {
       showToast('Minimum payout amount is ₦100.');
       return;
     }
     if (amount > currentBalance) {
-      showToast(`You can request up to ${formatCurrency(currentBalance)}.`);
+      showToast(`Insufficient balance. You can request up to ${formatCurrency(currentBalance)}.`);
       return;
     }
     if (!/^\d{4}$/.test(pin)) {
@@ -553,8 +603,12 @@
       }
 
       const balance = Number(profile.balance) || 0;
+      if (amount < 100) {
+        showToast('Minimum payout amount is ₦100.');
+        return;
+      }
       if (amount > balance) {
-        showToast(`You can request up to ${formatCurrency(balance)}.`);
+        showToast(`Insufficient balance. You can request up to ${formatCurrency(balance)}.`);
         return;
       }
 
@@ -568,7 +622,19 @@
         bank_account_name: profile.bank_account_name,
         status: 'pending'
       });
-      if (error) throw error;
+      if (error) {
+        // Friendly messages for the DB-level checks (constraint /
+        // trigger) that back up the client-side validation above.
+        if (error.code === '23514' || /payout_min_amount/i.test(error.message || '')) {
+          showToast('Minimum payout amount is ₦100.');
+          return;
+        }
+        if (error.code === 'P0001' && /balance/i.test(error.message || '')) {
+          showToast('Insufficient balance for this payout amount.');
+          return;
+        }
+        throw error;
+      }
 
       showToast('Payout requested — we\'ll process it shortly.');
       payoutForm.reset();
