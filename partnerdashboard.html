@@ -31,7 +31,7 @@
   .pill-active{ background:rgba(0,150,80,0.15); color:#0a7a4a; }
   .pill-pending{ background:rgba(200,150,0,0.15); color:#8a6400; }
 
-  .action-wrap{ position:relative; display:inline-block; }
+  .action-wrap{ position:relative; display:inline-block; margin-left:8px; vertical-align:middle; }
   .action-menu{
     position:absolute; right:0; top:calc(100% + 4px); min-width:130px;
     background:#fff; border:1px solid rgba(0,0,0,0.15); border-radius:8px;
@@ -162,8 +162,8 @@
 
       <h2 style="margin-top:28px;">Your sponsored posts</h2>
       <table class="data-table" id="sp-table">
-        <thead><tr><th>Title</th><th>Brand</th><th>Payout</th><th>Status</th><th></th></tr></thead>
-        <tbody id="sp-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
+        <thead><tr><th>Title</th><th>Brand</th><th>Payout</th><th>Status</th></tr></thead>
+        <tbody id="sp-table-body"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
       </table>
       <button type="button" class="btn btn-ghost" id="sp-see-all-btn" style="display:none; margin-top:8px;">See all</button>
     </div>
@@ -233,8 +233,8 @@
 
       <h2 style="margin-top:28px;">Your job offers</h2>
       <table class="data-table" id="job-table">
-        <thead><tr><th>Title</th><th>Company</th><th>Type</th><th>Status</th><th></th></tr></thead>
-        <tbody id="job-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
+        <thead><tr><th>Title</th><th>Company</th><th>Type</th><th>Status</th></tr></thead>
+        <tbody id="job-table-body"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
       </table>
       <button type="button" class="btn btn-ghost" id="job-see-all-btn" style="display:none; margin-top:8px;">See all</button>
     </div>
@@ -283,8 +283,8 @@
 
       <h2 style="margin-top:28px;">Your affiliate products</h2>
       <table class="data-table" id="af-table">
-        <thead><tr><th>Name</th><th>Price</th><th>Commission</th><th>File</th><th>Status</th><th></th></tr></thead>
-        <tbody id="af-table-body"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
+        <thead><tr><th>Name</th><th>Price</th><th>Commission</th><th>File</th><th>Status</th></tr></thead>
+        <tbody id="af-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
       </table>
       <button type="button" class="btn btn-ghost" id="af-see-all-btn" style="display:none; margin-top:8px;">See all</button>
 
@@ -564,7 +564,7 @@
 
     if (error) {
       console.error('Sponsored posts load error:', error);
-      spTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">Could not load your sponsored posts.</td></tr>';
+      spTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">Could not load your sponsored posts.</td></tr>';
       spSeeAllBtn.style.display = 'none';
       return;
     }
@@ -574,10 +574,9 @@
         <td>${escapeHtml(p.title)}</td>
         <td>${escapeHtml(p.brand)}</td>
         <td>${formatCurrency(p.payout)}</td>
-        <td>${statusPill(p.is_active)}</td>
-        <td>${actionCell('sp', p.id)}</td>
+        <td>${statusPill(p.is_active)}${actionCell('sp', p.id)}</td>
       </tr>
-    `, 5, 'No sponsored posts yet — create one above.', () => {
+    `, 4, 'No sponsored posts yet — create one above.', () => {
       wireActionMenus(spTableBody);
       spTableBody.querySelectorAll('[data-delete-sp]').forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -638,7 +637,7 @@
 
     if (error) {
       console.error('Job offers load error:', error);
-      jobTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">Could not load your job offers.</td></tr>';
+      jobTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">Could not load your job offers.</td></tr>';
       jobSeeAllBtn.style.display = 'none';
       return;
     }
@@ -648,10 +647,9 @@
         <td>${escapeHtml(j.title)}</td>
         <td>${escapeHtml(j.company)}</td>
         <td>${escapeHtml(j.job_type)}</td>
-        <td>${statusPill(j.is_active)}</td>
-        <td>${actionCell('job', j.id)}</td>
+        <td>${statusPill(j.is_active)}${actionCell('job', j.id)}</td>
       </tr>
-    `, 5, 'No job offers yet — create one above.', () => {
+    `, 4, 'No job offers yet — create one above.', () => {
       wireActionMenus(jobTableBody);
       jobTableBody.querySelectorAll('[data-delete-job]').forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -790,7 +788,7 @@
 
     if (error) {
       console.error('Affiliate products load error:', error);
-      afTableBody.innerHTML = '<tr><td colspan="6" class="empty-row">Could not load your affiliate products.</td></tr>';
+      afTableBody.innerHTML = '<tr><td colspan="5" class="empty-row">Could not load your affiliate products.</td></tr>';
       afSeeAllBtn.style.display = 'none';
       return;
     }
@@ -801,10 +799,9 @@
         <td>${formatCurrency(p.price)}</td>
         <td>${p.commission_rate}%</td>
         <td>${p.file_path ? 'Uploaded' : '<span style="opacity:0.55;">— none</span>'}</td>
-        <td>${statusPill(p.is_active)}</td>
-        <td>${actionCell('product', p.id, p.file_path || '')}</td>
+        <td>${statusPill(p.is_active)}${actionCell('product', p.id, p.file_path || '')}</td>
       </tr>
-    `, 6, 'No affiliate products yet — create one above.', () => {
+    `, 5, 'No affiliate products yet — create one above.', () => {
       wireActionMenus(afTableBody);
       afTableBody.querySelectorAll('[data-delete-product]').forEach(btn => {
         btn.addEventListener('click', () => deleteAffiliateProduct(btn.dataset.deleteProduct, btn.dataset.filePath, btn));
