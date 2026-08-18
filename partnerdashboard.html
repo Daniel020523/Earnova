@@ -35,8 +35,10 @@
   #tab-topup, #createListingCard{ margin-bottom:32px; padding-bottom:8px; }
   #tab-topup h2, #createListingCard h2{ margin-top:32px; }
   #tab-topup > h2:first-child, #createListingCard > h2:first-child{ margin-top:0; }
-  .data-table{ display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; white-space:nowrap; }
-  .data-table thead, .data-table tbody{ display:table; width:100%; min-width:420px; }
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .data-table{ width:100%; min-width:420px; border-collapse:collapse; white-space:nowrap; }
+  .data-table th, .data-table td{ padding:12px 16px; text-align:left; border-bottom:1px solid rgba(0,0,0,0.08); }
+  .data-table th{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; font-weight:600; }
   @media (max-width: 480px){
     .form-grid{ grid-template-columns:1fr; }
   }
@@ -86,10 +88,12 @@
     </form>
 
     <h2 style="margin-top:24px;">Your top-ups</h2>
+    <div class="table-scroll">
     <table class="data-table" id="topup-table">
       <thead><tr><th>Amount</th><th>Status</th></tr></thead>
       <tbody id="topup-table-body"><tr><td colspan="2" class="empty-row">Loading…</td></tr></tbody>
     </table>
+    </div>
       <button type="button" class="btn btn-ghost" id="topup-see-all-btn" style="display:none; margin-top:8px;">See all</button>
   </div>
 
@@ -146,10 +150,12 @@
       </form>
 
       <h2 style="margin-top:28px;">Your sponsored posts</h2>
+      <div class="table-scroll">
       <table class="data-table" id="sp-table">
         <thead><tr><th>Title</th><th>Brand</th><th>Payout</th><th>Status</th><th>Action</th></tr></thead>
         <tbody id="sp-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
       </table>
+      </div>
       <button type="button" class="btn btn-ghost" id="sp-see-all-btn" style="display:none; margin-top:8px;">See all</button>
     </div>
 
@@ -217,10 +223,12 @@
       </form>
 
       <h2 style="margin-top:28px;">Your job offers</h2>
+      <div class="table-scroll">
       <table class="data-table" id="job-table">
         <thead><tr><th>Title</th><th>Company</th><th>Type</th><th>Status</th><th>Action</th></tr></thead>
         <tbody id="job-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
       </table>
+      </div>
       <button type="button" class="btn btn-ghost" id="job-see-all-btn" style="display:none; margin-top:8px;">See all</button>
     </div>
 
@@ -267,18 +275,22 @@
       </form>
 
       <h2 style="margin-top:28px;">Your affiliate products</h2>
+      <div class="table-scroll">
       <table class="data-table" id="af-table">
         <thead><tr><th>Name</th><th>Price</th><th>Commission</th><th>File</th><th>Status</th><th>Action</th></tr></thead>
         <tbody id="af-table-body"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
       </table>
+      </div>
       <button type="button" class="btn btn-ghost" id="af-see-all-btn" style="display:none; margin-top:8px;">See all</button>
 
       <h2 style="margin-top:28px;">Your product sales</h2>
       <p class="field-hint">The website keeps 10% of every sale. Direct sales (no referral link) pay you the other 90%; sales through an affiliate's link pay them their commission first, and you get the rest.</p>
+      <div class="table-scroll">
       <table class="data-table" id="sales-table">
         <thead><tr><th>Date</th><th>Product</th><th>Sale amount</th><th>Source</th><th>You earned</th></tr></thead>
         <tbody id="sales-table-body"><tr><td colspan="5" class="empty-row">Loading…</td></tr></tbody>
       </table>
+      </div>
       <button type="button" class="btn btn-ghost" id="sales-see-all-btn" style="display:none; margin-top:8px;">See all</button>
     </div>
   </div>
