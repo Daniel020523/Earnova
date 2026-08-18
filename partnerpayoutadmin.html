@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payout Requests — Admin — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  .tab-bar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .tab-btn{
+    border:1px solid rgba(0,0,0,0.15); border-radius:999px; padding:8px 16px;
+    font-size:13px; font-weight:600; background:none; cursor:pointer; opacity:0.75;
+  }
+  .tab-btn.active{ background:rgba(0,0,0,0.85); color:#fff; opacity:1; }
+  .pill{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+  .pill-active{ background:rgba(0,150,80,0.15); color:#0a7a4a; }
+  .pill-pending{ background:rgba(200,150,0,0.15); color:#8a6400; }
+  .pill-rejected{ background:rgba(220,38,38,0.12); color:#dc2626; }
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .data-table{ width:100%; min-width:720px; border-collapse:collapse; white-space:nowrap; }
+  .data-table th, .data-table td{ padding:12px 16px; text-align:left; border-bottom:1px solid rgba(0,0,0,0.08); }
+  .data-table th{ font-size:12px; text-transform:uppercase; letter-spacing:0.03em; opacity:0.6; font-weight:600; }
+  .empty-row{ opacity:0.6; }
+  .stat-row{ display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; }
+  .stat-box{ flex:1 1 160px; padding:16px 18px; border-radius:12px; background:rgba(0,0,0,0.04); }
+  .stat-box .label{ font-size:12px; opacity:0.65; font-weight:600; text-transform:uppercase; letter-spacing:0.03em; }
+  .stat-box .value{ font-size:22px; font-weight:700; margin-top:6px; }
+  .row-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .row-actions button{ font-size:12px; padding:7px 12px; }
+  .btn-danger{ background:none; border:1px solid rgba(220,38,38,0.4); color:#dc2626; border-radius:8px; cursor:pointer; }
+  .btn-approve{ background:rgba(0,150,80,0.9); border:none; color:#fff; border-radius:8px; cursor:pointer; }
+  .btn-paid{ background:rgba(0,0,0,0.85); border:none; color:#fff; border-radius:8px; cursor:pointer; }
+  .mono{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12.5px; opacity:0.8; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="index.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="#" id="logoutBtn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Admin</div>
+  <h1>Payout requests</h1>
+  <p class="lead">Review, approve, and pay out partner payout requests.</p>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="label">Pending</div>
+      <div class="value" id="stat-pending">—</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">Approved (awaiting payment)</div>
+      <div class="value" id="stat-approved">—</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">Paid out (all time)</div>
+      <div class="value" id="stat-paid">—</div>
+    </div>
+  </div>
+
+  <div class="tab-bar" style="margin-top:24px;">
+    <button type="button" class="tab-btn active" data-filter="pending">Pending</button>
+    <button type="button" class="tab-btn" data-filter="approved">Approved</button>
+    <button type="button" class="tab-btn" data-filter="paid">Paid</button>
+    <button type="button" class="tab-btn" data-filter="rejected">Rejected</button>
+    <button type="button" class="tab-btn" data-filter="all">All</button>
+    <button type="button" class="btn btn-ghost" id="refreshBtn" style="margin-left:auto;">Refresh</button>
+  </div>
+
+  <div class="card">
+    <div class="table-scroll">
+      <table class="data-table" id="payout-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Partner</th>
+            <th>Amount</th>
+            <th>Bank</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="payout-table-body"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+<script>
+  // ---------------------------------------------------------
+  // Supabase setup — replace with your project's real values
+  // (Project Settings > API in the Supabase dashboard)
+  // ---------------------------------------------------------
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---------------------------------------------------------
+  // Schema this page expects (see partnerpayoutadmin.sql for the
+  // full script):
+  //
+  // profiles: needs is_admin boolean not null default false
+  //
+  // payout_requests: needs processed_at timestamptz,
+  //   processed_by uuid, rejection_reason text
+  //
+  // A SECURITY DEFINER function admin_mark_payout_paid(p_payout_id uuid)
+  // handles the "mark as paid" transition atomically: it verifies the
+  // caller is an admin, checks the request is 'approved', deducts the
+  // amount from the partner's balance, and flips the request to 'paid'
+  // — all in one transaction, so a partner's balance can never go out
+  // of sync with their payout history.
+  //
+  // Approve/Reject are simpler status-only updates and go through RLS
+  // directly (no balance change involved).
+  // ---------------------------------------------------------
+
+  let toastTimer;
+  function showToast(msg, durationMs = 2600) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), durationMs);
+  }
+
+  function formatCurrency(amount) {
+    const value = Number(amount) || 0;
+    return '₦' + value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str ?? '';
+    return div.innerHTML;
+  }
+
+  function formatDate(iso) {
+    return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function shortId(id) {
+    return id ? id.slice(0, 8) : '—';
+  }
+
+  const logoutBtn = document.getElementById('logoutBtn');
+  logoutBtn.addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  let currentAdmin = null;
+  let allRequests = [];
+  let activeFilter = 'pending';
+
+  async function requireAdminSession() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+      window.location.href = 'login.html';
+      return null;
+    }
+
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Profile check error:', profileError);
+      showToast('Could not verify your account. Please try again.');
+      window.location.href = 'dashboard.html';
+      return null;
+    }
+
+    if (profile?.is_admin === true) {
+      return session.user;
+    }
+
+    showToast('This page is only available to admin accounts.');
+    window.location.href = 'dashboard.html';
+    return null;
+  }
+
+  function payoutStatusPill(status) {
+    if (status === 'paid') return '<span class="pill pill-active">Paid</span>';
+    if (status === 'approved') return '<span class="pill pill-active">Approved</span>';
+    if (status === 'rejected') return '<span class="pill pill-rejected">Rejected</span>';
+    return '<span class="pill pill-pending">Pending</span>';
+  }
+
+  function actionButtons(request) {
+    if (request.status === 'pending') {
+      return `
+        <div class="row-actions">
+          <button type="button" class="btn-approve" data-action="approve" data-id="${request.id}">Approve</button>
+          <button type="button" class="btn-danger" data-action="reject" data-id="${request.id}">Reject</button>
+        </div>`;
+    }
+    if (request.status === 'approved') {
+      return `
+        <div class="row-actions">
+          <button type="button" class="btn-paid" data-action="paid" data-id="${request.id}">Mark paid</button>
+          <button type="button" class="btn-danger" data-action="reject" data-id="${request.id}">Reject</button>
+        </div>`;
+    }
+    return '<span style="opacity:0.5; font-size:12px;">—</span>';
+  }
+
+  function renderStats() {
+    const pending = allRequests.filter(r => r.status === 'pending');
+    const approved = allRequests.filter(r => r.status === 'approved');
+    const paid = allRequests.filter(r => r.status === 'paid');
+    const sum = arr => arr.reduce((total, r) => total + (Number(r.amount) || 0), 0);
+
+    document.getElementById('stat-pending').textContent = `${pending.length} • ${formatCurrency(sum(pending))}`;
+    document.getElementById('stat-approved').textContent = `${approved.length} • ${formatCurrency(sum(approved))}`;
+    document.getElementById('stat-paid').textContent = formatCurrency(sum(paid));
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('payout-table-body');
+    const rows = activeFilter === 'all'
+      ? allRequests
+      : allRequests.filter(r => r.status === activeFilter);
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-row">No ${activeFilter === 'all' ? '' : activeFilter + ' '}payout requests.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${formatDate(r.created_at)}</td>
+        <td>
+          <div>${escapeHtml(r.bank_account_name || '—')}</div>
+          <div class="mono">${shortId(r.partner_id)}</div>
+        </td>
+        <td>${formatCurrency(r.amount)}</td>
+        <td>${escapeHtml(r.bank_name)} • ${escapeHtml(r.bank_account_number)}</td>
+        <td>${payoutStatusPill(r.status)}${r.status === 'rejected' && r.rejection_reason ? `<div class="field-hint" style="margin-top:4px;">${escapeHtml(r.rejection_reason)}</div>` : ''}</td>
+        <td>${actionButtons(r)}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadPayoutRequests() {
+    const tbody = document.getElementById('payout-table-body');
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-row">Loading…</td></tr>';
+
+    const { data, error } = await supabaseClient
+      .from('payout_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Payout requests load error:', error);
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-row">Could not load payout requests.</td></tr>';
+      return;
+    }
+
+    allRequests = data || [];
+    renderStats();
+    renderTable();
+  }
+
+  document.querySelectorAll('.tab-btn[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn[data-filter]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeFilter = btn.dataset.filter;
+      renderTable();
+    });
+  });
+
+  document.getElementById('refreshBtn').addEventListener('click', loadPayoutRequests);
+
+  document.getElementById('payout-table-body').addEventListener('click', async (event) => {
+    const btn = event.target.closest('button[data-action]');
+    if (!btn || !currentAdmin) return;
+
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+
+    if (action === 'approve') {
+      if (!confirm('Approve this payout request?')) return;
+      btn.disabled = true;
+      try {
+        const { error } = await supabaseClient
+          .from('payout_requests')
+          .update({ status: 'approved', processed_at: new Date().toISOString(), processed_by: currentAdmin.id })
+          .eq('id', id)
+          .eq('status', 'pending');
+        if (error) throw error;
+        showToast('Payout approved.');
+        await loadPayoutRequests();
+      } catch (err) {
+        console.error('Approve error:', err);
+        showToast(err.message || 'Could not approve payout.');
+        btn.disabled = false;
+      }
+      return;
+    }
+
+    if (action === 'reject') {
+      const reason = prompt('Reason for rejecting this payout (optional):') || null;
+      if (reason === null && !confirm('Reject this payout request without a reason?')) return;
+      btn.disabled = true;
+      try {
+        const { error } = await supabaseClient
+          .from('payout_requests')
+          .update({
+            status: 'rejected',
+            rejection_reason: reason,
+            processed_at: new Date().toISOString(),
+            processed_by: currentAdmin.id
+          })
+          .eq('id', id)
+          .in('status', ['pending', 'approved']);
+        if (error) throw error;
+        showToast('Payout rejected.');
+        await loadPayoutRequests();
+      } catch (err) {
+        console.error('Reject error:', err);
+        showToast(err.message || 'Could not reject payout.');
+        btn.disabled = false;
+      }
+      return;
+    }
+
+    if (action === 'paid') {
+      if (!confirm('Mark this payout as paid? This will deduct the amount from the partner\'s balance.')) return;
+      btn.disabled = true;
+      try {
+        const { error } = await supabaseClient.rpc('admin_mark_payout_paid', { p_payout_id: id });
+        if (error) throw error;
+        showToast('Payout marked as paid.');
+        await loadPayoutRequests();
+      } catch (err) {
+        console.error('Mark paid error:', err);
+        showToast(err.message || 'Could not mark payout as paid.');
+        btn.disabled = false;
+      }
+      return;
+    }
+  });
+
+  (async function init() {
+    currentAdmin = await requireAdminSession();
+    if (currentAdmin) {
+      await loadPayoutRequests();
+    }
+  })();
+</script>
+
+</body>
+</html>
