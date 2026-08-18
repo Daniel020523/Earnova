@@ -287,10 +287,14 @@
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
   }
 
-  function destinationLabel(account){
-    if (!account || !account.bank_name) return '—';
-    const last4 = (account.account_number || '').slice(-4);
-    return `${account.bank_name}${last4 ? ' •••• ' + last4 : ''}`;
+  // NOTE: payout_requests stores the bank destination directly on the
+  // row (bank_name, bank_code, account_number, account_name) — there is
+  // no linked_accounts foreign key on this table. Pass the payout row
+  // itself here, not a joined relation.
+  function destinationLabel(row){
+    if (!row || !row.bank_name) return '—';
+    const last4 = (row.account_number || '').slice(-4);
+    return `${row.bank_name}${last4 ? ' •••• ' + last4 : ''}`;
   }
 
   // NOTE: this assumes a boolean `is_admin` column exists on `profiles`.
@@ -318,15 +322,17 @@
     tableEl.style.display = 'none';
     emptyEl.style.display = 'none';
 
+    // NOTE: payout_requests has no FK to linked_accounts — bank details
+    // live directly on this table. Also uses requested_at, not created_at.
     const { data, error } = await supabaseClient
       .from('payout_requests')
       .select(`
-        id, user_id, amount, status, created_at,
-        profiles ( full_name ),
-        linked_accounts ( bank_name, account_number )
+        id, user_id, amount, status, requested_at,
+        bank_name, bank_code, account_number, account_name,
+        profiles ( full_name )
       `)
       .eq('status', 'pending')
-      .order('created_at', { ascending: true })
+      .order('requested_at', { ascending: true })
       .limit(200);
 
     loadingEl.style.display = 'none';
@@ -352,9 +358,9 @@
     tableEl.style.display = 'table';
     document.getElementById('pending-body').innerHTML = rows.map(r => `
       <tr>
-        <td>${formatDate(r.created_at)}</td>
+        <td>${formatDate(r.requested_at)}</td>
         <td>${(r.profiles && r.profiles.full_name) || r.user_id}</td>
-        <td>${destinationLabel(r.linked_accounts)}</td>
+        <td>${destinationLabel(r)}</td>
         <td>${formatNaira(Number(r.amount || 0))}</td>
         <td><span class="status-pill status-pending">Pending</span></td>
         <td>
@@ -417,9 +423,9 @@
     const { data, error } = await supabaseClient
       .from('payout_requests')
       .select(`
-        id, user_id, amount, status, created_at, paid_at,
-        profiles ( full_name ),
-        linked_accounts ( bank_name, account_number )
+        id, user_id, amount, status, requested_at, paid_at,
+        bank_name, bank_code, account_number, account_name,
+        profiles ( full_name )
       `)
       .eq('status', 'paid')
       .order('paid_at', { ascending: false })
@@ -445,9 +451,9 @@
     tableEl.style.display = 'table';
     document.getElementById('paid-body').innerHTML = rows.map(r => `
       <tr>
-        <td>${formatDate(r.created_at)}</td>
+        <td>${formatDate(r.requested_at)}</td>
         <td>${(r.profiles && r.profiles.full_name) || r.user_id}</td>
-        <td>${destinationLabel(r.linked_accounts)}</td>
+        <td>${destinationLabel(r)}</td>
         <td>${formatNaira(Number(r.amount || 0))}</td>
         <td>${formatDate(r.paid_at)}</td>
         <td><span class="status-pill status-paid">Paid</span></td>
@@ -469,12 +475,12 @@
     const { data, error } = await supabaseClient
       .from('payout_requests')
       .select(`
-        id, user_id, amount, status, created_at,
-        profiles ( full_name ),
-        linked_accounts ( bank_name, account_number )
+        id, user_id, amount, status, requested_at,
+        bank_name, bank_code, account_number, account_name,
+        profiles ( full_name )
       `)
       .eq('status', 'failed')
-      .order('created_at', { ascending: false })
+      .order('requested_at', { ascending: false })
       .limit(200);
 
     loadingEl.style.display = 'none';
@@ -497,9 +503,9 @@
     tableEl.style.display = 'table';
     document.getElementById('failed-body').innerHTML = rows.map(r => `
       <tr>
-        <td>${formatDate(r.created_at)}</td>
+        <td>${formatDate(r.requested_at)}</td>
         <td>${(r.profiles && r.profiles.full_name) || r.user_id}</td>
-        <td>${destinationLabel(r.linked_accounts)}</td>
+        <td>${destinationLabel(r)}</td>
         <td>${formatNaira(Number(r.amount || 0))}</td>
         <td><span class="status-pill status-failed">Failed</span></td>
       </tr>`).join('');
