@@ -100,7 +100,7 @@
   <!-- Create a listing -->
   <div class="card" id="createListingCard">
     <h2>Post to EarnOva</h2>
-    <p class="lead">New listings are saved as inactive until an admin reviews and activates them.</p>
+    <p class="lead">New listings go live immediately.</p>
 
     <!-- Sponsored post tab -->
     <div class="tab-panel active" id="tab-sponsored">
@@ -146,7 +146,7 @@
             <textarea id="sp-guidelines" rows="3"></textarea>
           </div>
         </div>
-        <button type="submit" class="btn btn-solid" id="sp-submit-btn" style="margin-top:14px;">Submit for review</button>
+        <button type="submit" class="btn btn-solid" id="sp-submit-btn" style="margin-top:14px;">Post listing</button>
       </form>
 
       <h2 style="margin-top:28px;">Your sponsored posts</h2>
@@ -219,7 +219,7 @@
           </div>
         </div>
         <p class="field-hint">Provide either an apply link or an apply email.</p>
-        <button type="submit" class="btn btn-solid" id="job-submit-btn" style="margin-top:14px;">Submit for review</button>
+        <button type="submit" class="btn btn-solid" id="job-submit-btn" style="margin-top:14px;">Post job</button>
       </form>
 
       <h2 style="margin-top:28px;">Your job offers</h2>
@@ -417,10 +417,9 @@
   // joboffer.html, and affiliateadmin.html. Requires a `created_by`
   // uuid column (referencing auth.users) on all three tables, plus
   // an RLS policy letting partners insert/select their own rows.
-  // New rows are inserted with is_active:false for sponsored posts and
-  // job offers — an admin activates them from the existing admin panels
-  // once reviewed. Affiliate products are inserted with is_active:true
-  // and go live immediately, no admin review.
+  // All three — sponsored posts, job offers, and affiliate products —
+  // are inserted with is_active:true and go live immediately, no
+  // admin review.
   // ---------------------------------------------------------
   const createListingCard = document.getElementById('createListingCard');
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -532,6 +531,7 @@
       .from('sponsored_posts')
       .select('*')
       .eq('created_by', user.id)
+      .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -572,7 +572,7 @@
       summary: document.getElementById('sp-summary').value.trim() || null,
       requirements: document.getElementById('sp-requirements').value.trim() || null,
       content_guidelines: document.getElementById('sp-guidelines').value.trim() || null,
-      is_active: false
+      is_active: true
     };
 
     spSubmitBtn.disabled = true;
@@ -582,7 +582,7 @@
       const { error } = await supabaseClient.from('sponsored_posts').insert(payload);
       if (error) throw error;
 
-      showToast('Sponsored post submitted for review!');
+      showToast('Sponsored post posted!');
       sponsoredForm.reset();
       loadSponsoredPosts(currentUser);
     } catch (err) {
@@ -590,7 +590,7 @@
       showToast(err.message || 'Could not submit sponsored post. Please try again.');
     } finally {
       spSubmitBtn.disabled = false;
-      spSubmitBtn.textContent = 'Submit for review';
+      spSubmitBtn.textContent = 'Post listing';
     }
   });
 
@@ -605,6 +605,7 @@
       .from('jobs')
       .select('*')
       .eq('created_by', user.id)
+      .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -657,7 +658,7 @@
       responsibilities: document.getElementById('job-responsibilities').value.trim() || null,
       work_schedule: document.getElementById('job-schedule').value.trim() || null,
       rules: document.getElementById('job-rules').value.trim() || null,
-      is_active: false
+      is_active: true
     };
 
     jobSubmitBtn.disabled = true;
@@ -667,7 +668,7 @@
       const { error } = await supabaseClient.from('jobs').insert(payload);
       if (error) throw error;
 
-      showToast('Job offer submitted for review!');
+      showToast('Job offer posted!');
       jobForm.reset();
       loadJobOffers(currentUser);
     } catch (err) {
@@ -675,7 +676,7 @@
       showToast(err.message || 'Could not submit job offer. Please try again.');
     } finally {
       jobSubmitBtn.disabled = false;
-      jobSubmitBtn.textContent = 'Submit for review';
+      jobSubmitBtn.textContent = 'Post job';
     }
   });
 
@@ -756,6 +757,7 @@
       .from('products')
       .select('*')
       .eq('created_by', user.id)
+      .eq('is_active', true)
       .order('created_at', { ascending: false });
 
     if (error) {
