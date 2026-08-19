@@ -169,21 +169,11 @@
   // reverse the credit with a 'review_deduction' transaction (a
   // positive amount that's subtracted from the balance, the same
   // pattern as payout/refund already use) if they don't hold up.
-  //
-  // The popunder only fires here, inside the "Continue" click handler
-  // — a single, real user gesture — never on page load.
   // ---------------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
 
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  function firePopunder(){
-    const s = document.createElement('script');
-    s.dataset.zone = '11474995';
-    s.src = 'https://al5sm.com/tag.min.js';
-    document.body.appendChild(s);
-  }
 
   let toastTimer;
   function showToast(msg){
@@ -208,6 +198,7 @@
 
   const params = new URLSearchParams(window.location.search);
   const targetUrl = params.get('url') || '';
+  const verificationCode = params.get('code') || '';
 
   document.getElementById('continue-btn').addEventListener('click', async () => {
     const activityEl = document.getElementById('answer-activity');
@@ -224,17 +215,14 @@
     }
     errorEl.style.display = 'none';
 
-    // Fire immediately, synchronously, inside this click — this is
-    // the one real user gesture, so it's the only place this happens.
-    firePopunder();
-
     btn.disabled = true;
     btn.textContent = 'Submitting…';
 
     const { data, error } = await supabaseClient.rpc('submit_review_and_claim', {
       p_target_url: targetUrl,
       p_answer_activity: activity,
-      p_answer_about: about
+      p_answer_about: about,
+      p_verification_code: verificationCode
     });
 
     if (error) {
@@ -247,11 +235,15 @@
     const result = Array.isArray(data) ? data[0] : data;
 
     if (!result || !result.claimed) {
-      showToast(
-        result?.reason === 'daily_limit_reached'
-          ? "You've hit today's review limit."
-          : "Couldn't submit this review."
-      );
+      let msg = "Couldn't submit this review.";
+      if (result?.reason === 'daily_limit_reached') {
+        msg = "You've hit today's review limit.";
+      } else if (result?.reason === 'invalid_or_used_code') {
+        msg = "This review link has expired — start a new review from the task page.";
+      } else if (result?.reason === 'too_fast') {
+        msg = "Give it a little more time on the site before claiming.";
+      }
+      showToast(msg);
       btn.disabled = false;
       btn.textContent = 'Continue';
       return;
@@ -274,7 +266,7 @@
       return;
     }
 
-    if (!targetUrl) {
+    if (!targetUrl || !verificationCode) {
       showPageError('Missing review link — start a review from the Review website page first.');
       return;
     }

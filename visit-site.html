@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visit site — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .visit-card{ max-width:560px; margin:0 auto; }
+  .visit-steps{ margin:16px 0 0; padding-left:20px; }
+  .visit-steps li{ margin-bottom:8px; font-size:14px; line-height:1.5; }
+  .disclosure-box{
+    border:1px solid rgba(0,0,0,0.12);
+    background:rgba(0,0,0,0.03);
+    border-radius:8px;
+    padding:14px 16px;
+    font-size:13px;
+    line-height:1.5;
+    opacity:0.85;
+    margin:20px 0;
+  }
+  .visit-actions{ margin-top:20px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .review-btn{
+    padding:14px 28px;
+    border-radius:8px;
+    border:none;
+    background:rgba(0,0,0,0.85);
+    color:#fff;
+    font-weight:600;
+    font-size:15px;
+    cursor:pointer;
+  }
+  .review-btn:hover{ opacity:0.92; }
+  .review-btn:disabled{ opacity:0.45; cursor:not-allowed; }
+  .visit-status{ font-size:13px; opacity:0.7; }
+  .site-link{ word-break:break-all; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="dashboard.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="dashboard.html">Dashboard</a>
+      <a class="btn btn-ghost" href="profile.html">Profile</a>
+      <a class="btn btn-ghost" href="#" id="logout-btn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Earn more</div>
+  <h1>Visit site</h1>
+
+  <div class="card visit-card">
+    <ol class="visit-steps">
+      <li>Open the site below in a new tab and spend a little time looking around.</li>
+      <li>Come back to this tab.</li>
+      <li>Click "Review" to confirm you've visited, then head back to the task page to claim your reward.</li>
+    </ol>
+
+    <p style="margin-top:16px;">
+      Site to visit: <a class="site-link" id="site-link" href="#" target="_blank" rel="noopener">Loading…</a>
+    </p>
+
+    <p style="margin-top:12px; font-size:13px; opacity:0.75;">
+      Your verification code: <strong id="verification-code">—</strong> (carried automatically to the next step)
+    </p>
+
+    <div class="disclosure-box">
+      <strong>Before you continue:</strong> clicking "Review" below loads an advertisement from our ad partner
+      (quge5.com). Displaying that ad is how this reward is funded, so it runs as part of completing this task.
+    </div>
+
+    <div class="visit-actions">
+      <button class="review-btn" id="review-confirm-btn">Review</button>
+      <span class="visit-status" id="visit-status"></span>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ---------------------------------------------------------------
+  // Disclosed ad step. The ad-partner script is only injected after
+  // the user clicks "Review", and the disclosure box above tells
+  // them that's what the click does before they click it. Once the
+  // script has loaded, we unlock claiming on review-website.html
+  // and send the user back there.
+  // ---------------------------------------------------------------
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const UNLOCK_KEY = "earnova_review_unlocked";
+
+  const params = new URLSearchParams(window.location.search);
+  const targetUrl = params.get('url') || '';
+  const verificationCode = params.get('code') || '';
+
+  const siteLink = document.getElementById('site-link');
+  if (targetUrl) {
+    siteLink.href = targetUrl;
+    siteLink.textContent = targetUrl;
+  } else {
+    siteLink.textContent = 'No site specified';
+  }
+
+  document.getElementById('verification-code').textContent = verificationCode || 'missing — go back and start again';
+
+  document.getElementById('review-confirm-btn').addEventListener('click', function handleReview(){
+    const btn = document.getElementById('review-confirm-btn');
+    const statusEl = document.getElementById('visit-status');
+
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+    statusEl.textContent = '';
+
+    // Visibly load the disclosed ad-partner script.
+    const adScript = document.createElement('script');
+    adScript.src = 'https://quge5.com/88/tag.min.js';
+    adScript.setAttribute('data-zone', '271291');
+    adScript.async = true;
+    adScript.setAttribute('data-cfasync', 'false');
+
+    function proceed(){
+      if (targetUrl) {
+        localStorage.setItem(UNLOCK_KEY, targetUrl);
+        localStorage.setItem(UNLOCK_KEY + '_code', verificationCode);
+      }
+      statusEl.textContent = "Done — taking you back to the task page in 10 seconds…";
+      setTimeout(() => { window.location.href = 'review-website.html'; }, 10000);
+    }
+
+    adScript.onload = proceed;
+    adScript.onerror = proceed; // don't strand the user if the ad network fails to respond
+    document.body.appendChild(adScript);
+  });
+
+  supabaseClient.auth.getSession().then(({ data: { session } }) => {
+    if (!session) window.location.href = 'login.html';
+  });
+
+  document.getElementById('logout-btn').addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+</script>
+
+</body>
+</html>

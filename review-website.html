@@ -110,7 +110,7 @@
         </div>
         <div style="text-align:right;">
           <button class="review-btn" id="review-btn">Start review</button>
-          <button class="claim-btn" id="claim-btn" style="display:none;">Claim reward</button>
+          <button class="claim-btn" id="claim-btn" style="display:none;" disabled>Claim reward</button>
           <div class="claim-status" id="claim-status"></div>
         </div>
       </div>
@@ -157,11 +157,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
   // ---------------------------------------------------------------
-  // Flow: click "Start review" -> TARGET_URL opens in a new tab and
-  // "Claim reward" becomes available right away. Clicking "Claim
-  // reward" hands off to claim.html, which asks a couple of
-  // verification questions, credits the reward, and is where the
-  // popunder actually fires — nothing ad-related happens on this page.
+  // Flow: click "Start review" -> user is sent to visit-site.html,
+  // which discloses and loads the ad-network script when the user
+  // clicks "Review" there, then unlocks claiming and sends them
+  // back here. "Claim reward" only becomes clickable once that
+  // unlock flag is present.
   // ---------------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
@@ -171,6 +171,7 @@
   const TARGET_URL = "https://omg10.com/4/11475054";
   const REWARD_DISPLAY = 50;      // must match v_reward in claim_review_task's SQL
   const DAILY_LIMIT_DISPLAY = 5;  // must match v_daily_limit in claim_review_task's SQL
+  const UNLOCK_KEY = "earnova_review_unlocked"; // set by visit-site.html once disclosed ad step completes
 
   let toastTimer;
   function showToast(msg){
@@ -203,7 +204,6 @@
 
   let currentUserId = null;
   let claims = [];
-  let reviewOpen = false;
 
   function claimsToday(){
     const today = new Date();
@@ -215,6 +215,14 @@
     }).length;
   }
 
+  function isUnlocked(){
+    return localStorage.getItem(UNLOCK_KEY) === TARGET_URL;
+  }
+
+  function clearUnlock(){
+    localStorage.removeItem(UNLOCK_KEY);
+  }
+
   function updateReviewUI(){
     const used = claimsToday();
     const remaining = Math.max(0, DAILY_LIMIT_DISPLAY - used);
@@ -222,34 +230,74 @@
       remaining > 0 ? `${remaining} of ${DAILY_LIMIT_DISPLAY} reviews left today` : "You've hit today's review limit.";
 
     const reviewBtn = document.getElementById('review-btn');
+    const claimBtn = document.getElementById('claim-btn');
+    const statusEl = document.getElementById('claim-status');
+
     if (remaining <= 0) {
       reviewBtn.disabled = true;
       reviewBtn.textContent = 'Limit reached for today';
-    } else if (!reviewOpen) {
+      claimBtn.style.display = 'none';
+      statusEl.textContent = '';
+      return;
+    }
+
+    if (isUnlocked()) {
+      reviewBtn.style.display = 'none';
+      claimBtn.style.display = 'inline-block';
+      claimBtn.disabled = false;
+      claimBtn.textContent = 'Claim reward';
+      statusEl.textContent = "You've completed the review step — claim your reward below.";
+    } else {
+      reviewBtn.style.display = 'inline-block';
       reviewBtn.disabled = false;
       reviewBtn.textContent = 'Start review';
+      claimBtn.style.display = 'none';
+      statusEl.textContent = '';
     }
   }
 
-  document.getElementById('review-btn').addEventListener('click', () => {
+  document.getElementById('review-btn').addEventListener('click', async () => {
     if (claimsToday() >= DAILY_LIMIT_DISPLAY) return;
-
-    window.open(TARGET_URL, '_blank', 'noopener');
-    reviewOpen = true;
+    clearUnlock();
 
     const reviewBtn = document.getElementById('review-btn');
-    const claimBtn = document.getElementById('claim-btn');
-
     reviewBtn.disabled = true;
-    reviewBtn.textContent = 'Review in progress…';
-    claimBtn.style.display = 'inline-block';
-    claimBtn.disabled = false;
-    claimBtn.textContent = 'Claim reward';
+    reviewBtn.textContent = 'Starting…';
+
+    const { data, error } = await supabaseClient.rpc('start_review_task', {
+      p_target_url: TARGET_URL
+    });
+
+    if (error) {
+      showToast("Couldn't start review — try again");
+      reviewBtn.disabled = false;
+      reviewBtn.textContent = 'Start review';
+      return;
+    }
+
+    const result = Array.isArray(data) ? data[0] : data;
+
+    if (!result || !result.verification_code) {
+      showToast(
+        result?.reason === 'daily_limit_reached'
+          ? "You've hit today's review limit."
+          : "Couldn't start review — try again"
+      );
+      reviewBtn.disabled = false;
+      reviewBtn.textContent = 'Start review';
+      return;
+    }
+
+    window.location.href =
+      `visit-site.html?url=${encodeURIComponent(TARGET_URL)}&code=${encodeURIComponent(result.verification_code)}`;
   });
 
   document.getElementById('claim-btn').addEventListener('click', () => {
     if (claimsToday() >= DAILY_LIMIT_DISPLAY) return;
-    window.location.href = `claim.html?url=${encodeURIComponent(TARGET_URL)}`;
+    if (!isUnlocked()) return;
+    const code = localStorage.getItem(UNLOCK_KEY + '_code') || '';
+    window.location.href =
+      `claim.html?url=${encodeURIComponent(TARGET_URL)}&code=${encodeURIComponent(code)}`;
   });
 
   function renderClaimsTable(){
