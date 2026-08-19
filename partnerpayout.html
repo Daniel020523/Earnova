@@ -159,23 +159,14 @@
         </div>
       </div>
       <button type="submit" class="btn btn-solid" id="payout-submit-btn" style="margin-top:14px;">Request payout</button>
-      <p class="field-hint">The amount is deducted from your balance as soon as you submit. If the request is rejected, it's refunded automatically.</p>
+      <p class="field-hint">The amount is deducted from your balance as soon as you submit. If the request is rejected, it's refunded automatically. Track its status below under Transaction history.</p>
     </form>
-
-    <h2 style="margin-top:28px;">Your payout requests</h2>
-    <div class="table-scroll">
-    <table class="data-table" id="payout-table">
-      <thead><tr><th>Date</th><th>Amount</th><th>Bank</th><th>Status</th></tr></thead>
-      <tbody id="payout-table-body"><tr><td colspan="4" class="empty-row">Loading…</td></tr></tbody>
-    </table>
-    </div>
-    <button type="button" class="btn btn-ghost" id="payout-see-all-btn" style="display:none; margin-top:8px;">See all</button>
   </div>
 
   <!-- Transaction history -->
   <div class="card" id="transactionsCard">
     <h2>Transaction history</h2>
-    <p class="lead">Every debit and refund affecting your wallet balance.</p>
+    <p class="lead">Every payout request, refund, and balance change — this is where you track the status of your requests.</p>
     <div class="table-scroll">
     <table class="data-table" id="transactions-table">
       <thead><tr><th>Date</th><th>Amount</th><th>Status</th><th>Description</th></tr></thead>
@@ -230,9 +221,11 @@
   //   type text ('debit' | 'credit'), amount numeric, description text,
   //   created_at timestamptz
   //
-  // RLS: partners can select/insert their own partner_payout_requests rows
-  // (partner_id = auth.uid()); update/status changes are done from an
-  // admin page, not here. Partners can only select (never write) their
+  // RLS: partners can insert their own partner_payout_requests rows
+  // (partner_id = auth.uid()); this page no longer reads that table
+  // directly — the transaction history (below) is the single source
+  // of truth for a partner's payout activity. Status changes are done
+  // from the admin page. Partners can only select (never write) their
   // own partner_wallet_transactions rows.
   //
   // Server-side enforcement: run payout_lifecycle_and_transactions.sql
@@ -533,9 +526,7 @@
   const requestGate = document.getElementById('requestGate');
   const payoutForm = document.getElementById('payoutForm');
   const payoutSubmitBtn = document.getElementById('payout-submit-btn');
-  const payoutTableBody = document.getElementById('payout-table-body');
-  const payoutSeeAllBtn = document.getElementById('payout-see-all-btn');
-  const PREVIEW_COUNT = 5;
+  const PREVIEW_COUNT = 1;
 
   function renderRequestGate() {
     const hasBank = !!(currentProfile?.bank_name && currentProfile?.bank_account_number);
@@ -547,12 +538,6 @@
       requestGate.style.display = 'block';
       payoutForm.style.display = 'none';
     }
-  }
-
-  function payoutStatusPill(status) {
-    if (status === 'paid' || status === 'approved') return '<span class="pill pill-active">' + (status === 'paid' ? 'Paid' : 'Approved') + '</span>';
-    if (status === 'rejected') return '<span class="pill" style="background:rgba(220,38,38,0.12); color:#dc2626;">Rejected</span>';
-    return '<span class="pill pill-pending">Pending</span>';
   }
 
   function renderPreviewTable(tbody, seeAllBtn, data, rowFn, colspan, emptyMsg) {
@@ -575,30 +560,6 @@
       seeAllBtn.dataset.expanded = expanded ? 'false' : 'true';
       renderPreviewTable(tbody, seeAllBtn, data, rowFn, colspan, emptyMsg);
     };
-  }
-
-  async function loadPayoutRequests(user) {
-    const { data, error } = await supabaseClient
-      .from('partner_payout_requests')
-      .select('*')
-      .eq('partner_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Payout requests load error:', error);
-      payoutTableBody.innerHTML = '<tr><td colspan="4" class="empty-row">Could not load your payout requests.</td></tr>';
-      payoutSeeAllBtn.style.display = 'none';
-      return;
-    }
-
-    renderPreviewTable(payoutTableBody, payoutSeeAllBtn, data, p => `
-      <tr>
-        <td>${formatDate(p.created_at)}</td>
-        <td>${formatCurrency(p.amount)}</td>
-        <td>${escapeHtml(p.bank_name)} • ${escapeHtml(p.bank_account_number)}</td>
-        <td>${payoutStatusPill(p.status)}</td>
-      </tr>
-    `, 4, 'No payout requests yet.');
   }
 
   // ---- Transaction history ----
@@ -720,10 +681,7 @@
       showToast(`Payout of ${formatCurrency(amount)} requested — the amount has been deducted from your balance and will be refunded automatically if the request is rejected.`, 4200);
       payoutForm.reset();
       await loadProfile(currentUser);
-      await Promise.all([
-        loadPayoutRequests(currentUser),
-        loadTransactions(currentUser)
-      ]);
+      await loadTransactions(currentUser);
     } catch (err) {
       console.error('Payout request error:', err);
       showToast(err.message || 'Could not submit payout request. Please try again.');
@@ -737,7 +695,6 @@
     currentUser = await requireSession();
     if (currentUser) {
       await loadProfile(currentUser);
-      loadPayoutRequests(currentUser);
       loadTransactions(currentUser);
     }
   })();

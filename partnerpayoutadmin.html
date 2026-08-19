@@ -66,8 +66,8 @@
       <div class="value" id="stat-pending">—</div>
     </div>
     <div class="stat-box">
-      <div class="label">Approved (legacy, awaiting payment)</div>
-      <div class="value" id="stat-approved">—</div>
+      <div class="label">Rejected</div>
+      <div class="value" id="stat-rejected">—</div>
     </div>
     <div class="stat-box">
       <div class="label">Paid out (all time)</div>
@@ -100,6 +100,7 @@
         <tbody id="payout-table-body"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
       </table>
     </div>
+    <button type="button" class="btn btn-ghost" id="payout-table-see-all-btn" style="display:none; margin-top:8px;">See all</button>
   </div>
 </main>
 
@@ -303,27 +304,34 @@
 
   function renderStats() {
     const pending = allRequests.filter(r => r.status === 'pending');
-    const approved = allRequests.filter(r => r.status === 'approved');
+    const rejected = allRequests.filter(r => r.status === 'rejected');
     const paid = allRequests.filter(r => r.status === 'paid');
     const sum = arr => arr.reduce((total, r) => total + (Number(r.amount) || 0), 0);
 
     document.getElementById('stat-pending').textContent = `${pending.length} • ${formatCurrency(sum(pending))}`;
-    document.getElementById('stat-approved').textContent = `${approved.length} • ${formatCurrency(sum(approved))}`;
+    document.getElementById('stat-rejected').textContent = `${rejected.length} • ${formatCurrency(sum(rejected))}`;
     document.getElementById('stat-paid').textContent = formatCurrency(sum(paid));
   }
 
+  const PAYOUT_TABLE_PREVIEW_COUNT = 1;
+  let payoutTableExpanded = false;
+
   function renderTable() {
     const tbody = document.getElementById('payout-table-body');
+    const seeAllBtn = document.getElementById('payout-table-see-all-btn');
     const rows = activeFilter === 'all'
       ? allRequests
       : allRequests.filter(r => r.status === activeFilter);
 
     if (!rows.length) {
       tbody.innerHTML = `<tr><td colspan="6" class="empty-row">No ${activeFilter === 'all' ? '' : activeFilter + ' '}payout requests.</td></tr>`;
+      seeAllBtn.style.display = 'none';
       return;
     }
 
-    tbody.innerHTML = rows.map(r => `
+    const visibleRows = payoutTableExpanded ? rows : rows.slice(0, PAYOUT_TABLE_PREVIEW_COUNT);
+
+    tbody.innerHTML = visibleRows.map(r => `
       <tr>
         <td>${formatDate(r.created_at)}</td>
         <td>
@@ -336,7 +344,19 @@
         <td>${actionButtons(r)}</td>
       </tr>
     `).join('');
+
+    if (rows.length > PAYOUT_TABLE_PREVIEW_COUNT) {
+      seeAllBtn.style.display = 'inline-block';
+      seeAllBtn.textContent = payoutTableExpanded ? 'Show less' : `See all (${rows.length})`;
+    } else {
+      seeAllBtn.style.display = 'none';
+    }
   }
+
+  document.getElementById('payout-table-see-all-btn').addEventListener('click', () => {
+    payoutTableExpanded = !payoutTableExpanded;
+    renderTable();
+  });
 
   async function loadPayoutRequests() {
     const tbody = document.getElementById('payout-table-body');
@@ -363,6 +383,7 @@
       document.querySelectorAll('.tab-btn[data-filter]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       activeFilter = btn.dataset.filter;
+      payoutTableExpanded = false;
       renderTable();
     });
   });
