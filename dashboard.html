@@ -163,7 +163,6 @@
         <a class="task-tile" href="affiliate.html">Affiliate</a>
         <a class="task-tile" href="sponsored-post.html">Sponsored post</a>
         <a class="task-tile" href="job-offer.html">Job offer</a>
-        <a class="task-tile" href="review-website.html">Review website</a>
         <a class="task-tile" href="survey.html">Survey</a>
         <a class="task-tile" href="challenge.html">Weekly challenge</a>
         <a class="task-tile" href="share-earn.html">Share & earn</a>
@@ -319,39 +318,8 @@
       .eq('type', 'referral')
       .eq('status', 'completed');
 
-    // Sum completed review-website task rewards.
-    const { data: reviewRows, error: reviewError } = await supabaseClient
-      .from('transactions')
-      .select('amount')
-      .eq('user_id', userId)
-      .eq('type', 'review')
-      .eq('status', 'completed');
-
-    // Sum completed review deductions — admin revoked a review claim
-    // after crediting it (see reviewadmin.html). Positive amounts,
-    // subtracted here the same way payout is.
-    const { data: reviewDeductionRows, error: reviewDeductionError } = await supabaseClient
-      .from('transactions')
-      .select('amount')
-      .eq('user_id', userId)
-      .eq('type', 'review_deduction')
-      .eq('status', 'completed');
-
-    // Sum completed review restores — admin reversed an earlier
-    // deduction. This only restores available balance, the same way
-    // 'refund' restores what 'payout' subtracted — it must NOT also
-    // add to totalEarned, since the original 'review' credit that
-    // this is un-deducting is still counted there.
-    const { data: reviewRestoreRows, error: reviewRestoreError } = await supabaseClient
-      .from('transactions')
-      .select('amount')
-      .eq('user_id', userId)
-      .eq('type', 'review_restore')
-      .eq('status', 'completed');
-
     // Sum completed earning deductions — admin revoked a daily task
     // claim after it was auto-credited (see dailytaskadmin.html).
-    // Same shape as review_deduction: positive amounts, subtracted.
     const { data: earningDeductionRows, error: earningDeductionError } = await supabaseClient
       .from('transactions')
       .select('amount')
@@ -360,9 +328,9 @@
       .eq('status', 'completed');
 
     // Sum completed earning restores — admin reversed an earlier daily
-    // task deduction. Only restores available balance, same as
-    // review_restore — the original 'earning' credit it un-deducts is
-    // still counted in totalEarned, so it must NOT be added again here.
+    // task deduction. Only restores available balance — the original
+    // 'earning' credit it un-deducts is still counted in totalEarned,
+    // so it must NOT be added again here.
     const { data: earningRestoreRows, error: earningRestoreError } = await supabaseClient
       .from('transactions')
       .select('amount')
@@ -430,7 +398,7 @@
       .eq('type', 'share_restore')
       .eq('status', 'completed');
 
-    if (earningError || payoutError || refundError || referralError || reviewError || reviewDeductionError || reviewRestoreError || earningDeductionError || earningRestoreError
+    if (earningError || payoutError || refundError || referralError || earningDeductionError || earningRestoreError
         || surveyError || surveyDeductionError || surveyRestoreError
         || challengeError || challengeDeductionError || challengeRestoreError
         || shareError || shareDeductionError || shareRestoreError) {
@@ -455,19 +423,16 @@
     const totalPaidOut = (payoutRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalRefunded = (refundRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalReferral = (referralRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const totalReview = (reviewRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const totalReviewDeducted = (reviewDeductionRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const totalReviewRestored = (reviewRestoreRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalEarningDeducted = (earningDeductionRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     const totalEarningRestored = (earningRestoreRows || []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
-    const available = totalEarned - totalPaidOut + totalRefunded + totalReferral + totalReview
-      - totalReviewDeducted + totalReviewRestored - totalEarningDeducted + totalEarningRestored
+    const available = totalEarned - totalPaidOut + totalRefunded + totalReferral
+      - totalEarningDeducted + totalEarningRestored
       + totalSurvey - totalSurveyDeducted + totalSurveyRestored
       + totalChallenge - totalChallengeDeducted + totalChallengeRestored
       + totalShare - totalShareDeducted + totalShareRestored;
 
     currentAvailableBalance = available;
-    currentTotalEarned = totalEarned + totalReferral + totalReview + totalSurvey + totalChallenge + totalShare;
+    currentTotalEarned = totalEarned + totalReferral + totalSurvey + totalChallenge + totalShare;
 
     applyBalanceVisibility();
     document.getElementById('payout-note').textContent = '';
@@ -484,7 +449,7 @@
   function renderTransactionRows(rows){
     const bodyEl = document.getElementById('history-body');
     bodyEl.innerHTML = rows.map(row => {
-      const sign = (row.type === 'payout' || row.type === 'review_deduction' || row.type === 'earning_deduction'
+      const sign = (row.type === 'payout' || row.type === 'earning_deduction'
         || row.type === 'survey_deduction' || row.type === 'challenge_deduction' || row.type === 'share_deduction') ? '-' : '+';
       const amountText = `${sign}${formatNaira(Math.abs(Number(row.amount || 0)))}`;
       const displayAmount = balancesVisible ? amountText : MASK;
