@@ -148,7 +148,7 @@
     <div class="modal-icon">✅</div>
     <div class="modal-title">Reward credited</div>
     <div class="modal-body" id="reward-modal-body"></div>
-    <button class="modal-done-btn" id="modal-done-btn">Back to dashboard</button>
+    <button class="modal-done-btn" id="modal-done-btn">Back to review tasks</button>
   </div>
 </div>
 
@@ -236,6 +236,8 @@
         msg = "You've hit today's review limit.";
       } else if (result?.reason === 'invalid_or_used_code') {
         msg = "This review link has expired — start a new review from the task page.";
+        localStorage.removeItem('earnova_review_unlocked');
+        localStorage.removeItem('earnova_review_unlocked_code');
       } else if (result?.reason === 'too_fast') {
         msg = "Give it a little more time on the site before claiming.";
       }
@@ -245,13 +247,19 @@
       return;
     }
 
+    // Clear the unlock flag so review-website.html resets to "Start
+    // review" for the next task instead of showing a stale, already-
+    // used "Claim reward" state.
+    localStorage.removeItem('earnova_review_unlocked');
+    localStorage.removeItem('earnova_review_unlocked_code');
+
     document.getElementById('reward-modal-body').textContent =
       `${formatNaira(result.amount)} has been added to your balance. Your answers may still be reviewed.`;
     document.getElementById('reward-modal-overlay').classList.add('open');
   });
 
   document.getElementById('modal-done-btn').addEventListener('click', () => {
-    window.location.href = 'dashboard.html';
+    window.location.href = 'review-website.html';
   });
 
   async function loadPage(){
