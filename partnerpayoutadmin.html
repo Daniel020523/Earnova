@@ -59,7 +59,7 @@
       <div class="value" id="stat-pending">—</div>
     </div>
     <div class="stat-box">
-      <div class="label">Approved (awaiting payment)</div>
+      <div class="label">Approved (legacy, awaiting payment)</div>
       <div class="value" id="stat-approved">—</div>
     </div>
     <div class="stat-box">
@@ -116,23 +116,32 @@
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // ---------------------------------------------------------
-  // Schema this page expects (see partnerpayoutadmin.sql for the
-  // full script):
+  // Schema this page expects (see payout_lifecycle_and_transactions.sql
+  // for the full script):
   //
   // profiles: needs is_admin boolean not null default false
   //
   // partner_payout_requests: needs processed_at timestamptz,
   //   processed_by uuid, rejection_reason text
   //
-  // A SECURITY DEFINER function admin_mark_payout_paid(p_payout_id uuid)
-  // handles the "mark as paid" transition atomically: it verifies the
-  // caller is an admin, checks the request is 'approved', deducts the
-  // amount from the partner's balance, and flips the request to 'paid'
-  // — all in one transaction, so a partner's balance can never go out
-  // of sync with their payout history.
-  //
-  // Approve/Reject are simpler status-only updates and go through RLS
-  // directly (no balance change involved).
+  // Balance handling has moved earlier in the lifecycle than it used
+  // to be, and the admin flow is now two-stage instead of three:
+  //   - The partner's balance is deducted the moment they submit a
+  //     payout request (a DB trigger on partner_payout_requests),
+  //     not when an admin approves or pays it out.
+  //   - "Approve & pay" calls the SECURITY DEFINER function
+  //     admin_mark_payout_paid(p_payout_id uuid), which verifies the
+  //     caller is an admin and flips a 'pending' request straight to
+  //     'paid'. It does NOT touch the balance — that already happened
+  //     at request time.
+  //   - "Reject" is a plain status update (pending -> rejected), but a
+  //     DB trigger automatically refunds the amount back to the
+  //     partner's balance and logs a credit transaction whenever a
+  //     request's status becomes 'rejected'. This page doesn't need to
+  //     do anything extra for the refund to happen.
+  //   - The 'approved' status and its "Mark paid" button are kept
+  //     around only to handle any rows created before this change —
+  //     new requests never pass through 'approved' anymore.
   // ---------------------------------------------------------
 
   let toastTimer;
@@ -214,11 +223,12 @@
     if (request.status === 'pending') {
       return `
         <div class="row-actions">
-          <button type="button" class="btn-approve" data-action="approve" data-id="${request.id}">Approve</button>
+          <button type="button" class="btn-approve" data-action="approve" data-id="${request.id}">Approve &amp; pay</button>
           <button type="button" class="btn-danger" data-action="reject" data-id="${request.id}">Reject</button>
         </div>`;
     }
     if (request.status === 'approved') {
+      // Legacy rows only — new requests go straight from pending to paid.
       return `
         <div class="row-actions">
           <button type="button" class="btn-paid" data-action="paid" data-id="${request.id}">Mark paid</button>
@@ -304,16 +314,12 @@
     const action = btn.dataset.action;
 
     if (action === 'approve') {
-      if (!confirm('Approve this payout request?')) return;
+      if (!confirm('Approve and mark this payout as paid? The balance was already deducted when the partner requested it — this just confirms the transfer has been sent.')) return;
       btn.disabled = true;
       try {
-        const { error } = await supabaseClient
-          .from('partner_payout_requests')
-          .update({ status: 'approved', processed_at: new Date().toISOString(), processed_by: currentAdmin.id })
-          .eq('id', id)
-          .eq('status', 'pending');
+        const { error } = await supabaseClient.rpc('admin_mark_payout_paid', { p_payout_id: id });
         if (error) throw error;
-        showToast('Payout approved.');
+        showToast('Payout approved and marked as paid.');
         await loadPayoutRequests();
       } catch (err) {
         console.error('Approve error:', err);
@@ -324,8 +330,8 @@
     }
 
     if (action === 'reject') {
-      const reason = prompt('Reason for rejecting this payout (optional):') || null;
-      if (reason === null && !confirm('Reject this payout request without a reason?')) return;
+      const reason = prompt('Reason for rejecting this payout (optional). The amount will be refunded to the partner\'s balance automatically:') || null;
+      if (reason === null && !confirm('Reject this payout request without a reason? The amount will be refunded to the partner automatically.')) return;
       btn.disabled = true;
       try {
         const { error } = await supabaseClient
@@ -339,7 +345,7 @@
           .eq('id', id)
           .in('status', ['pending', 'approved']);
         if (error) throw error;
-        showToast('Payout rejected.');
+        showToast('Payout rejected and refunded to the partner.');
         await loadPayoutRequests();
       } catch (err) {
         console.error('Reject error:', err);
@@ -350,7 +356,7 @@
     }
 
     if (action === 'paid') {
-      if (!confirm('Mark this payout as paid? This will deduct the amount from the partner\'s balance.')) return;
+      if (!confirm('Mark this payout as paid? The balance was already deducted when the partner requested it, so this just records that the transfer was completed.')) return;
       btn.disabled = true;
       try {
         const { error } = await supabaseClient.rpc('admin_mark_payout_paid', { p_payout_id: id });
