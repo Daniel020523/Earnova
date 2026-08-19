@@ -256,6 +256,19 @@
     toastTimer = setTimeout(() => toast.classList.remove('show'), durationMs);
   }
 
+  // On mobile there's no easy way to open a dev console, so surface any
+  // otherwise-silent JS error as an on-screen toast instead of letting
+  // it vanish silently.
+  window.addEventListener('error', (event) => {
+    console.error('Uncaught error:', event.error || event.message);
+    showToast('JS error: ' + (event.message || 'see details'), 6000);
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+    const msg = (event.reason && event.reason.message) ? event.reason.message : String(event.reason);
+    showToast('Error: ' + msg, 6000);
+  });
+
   function formatCurrency(amount) {
     const value = Number(amount) || 0;
     return '₦' + value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

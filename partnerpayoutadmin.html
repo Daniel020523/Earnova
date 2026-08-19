@@ -32,6 +32,13 @@
   .btn-approve{ background:rgba(0,150,80,0.9); border:none; color:#fff; border-radius:8px; cursor:pointer; }
   .btn-paid{ background:rgba(0,0,0,0.85); border:none; color:#fff; border-radius:8px; cursor:pointer; }
   .mono{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12.5px; opacity:0.8; }
+  .modal-overlay{ position:fixed; inset:0; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index:1000; padding:20px; }
+  .modal-box{ background:#fff; border-radius:14px; padding:22px; max-width:380px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,0.25); }
+  .modal-box h3{ margin:0 0 10px 0; font-size:17px; }
+  .modal-box p{ margin:0 0 16px 0; font-size:14px; opacity:0.8; line-height:1.5; }
+  .modal-box textarea{ width:100%; padding:10px 12px; border:1px solid rgba(0,0,0,0.15); border-radius:8px; font-size:14px; font-family:inherit; margin-bottom:16px; resize:vertical; }
+  .modal-actions{ display:flex; gap:10px; justify-content:flex-end; }
+  .modal-actions button{ font-size:13px; padding:9px 16px; border-radius:8px; }
 </style>
 </head>
 <body>
@@ -153,6 +160,20 @@
     toastTimer = setTimeout(() => toast.classList.remove('show'), durationMs);
   }
 
+  // On mobile there's no easy way to open a dev console, so surface any
+  // otherwise-silent JS error as an on-screen toast instead of letting
+  // it vanish. This is what will tell us exactly what's failing if a
+  // button still appears to "do nothing" after tapping it.
+  window.addEventListener('error', (event) => {
+    console.error('Uncaught error:', event.error || event.message);
+    showToast('JS error: ' + (event.message || 'see details'), 6000);
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+    const msg = (event.reason && event.reason.message) ? event.reason.message : String(event.reason);
+    showToast('Error: ' + msg, 6000);
+  });
+
   function formatCurrency(amount) {
     const value = Number(amount) || 0;
     return '₦' + value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -162,6 +183,44 @@
     const div = document.createElement('div');
     div.textContent = str ?? '';
     return div.innerHTML;
+  }
+
+  // Custom confirmation modal — deliberately does NOT use window.confirm()
+  // or window.prompt(). Native dialogs like those are frequently blocked
+  // or silently no-op inside sandboxed webviews / embedded previews,
+  // which makes buttons that depend on them look like they "do nothing"
+  // when clicked. This works everywhere because it's just DOM + CSS.
+  function showConfirmModal({ title, message, confirmLabel = 'Confirm', danger = false, withReason = false }) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.innerHTML = `
+        <div class="modal-box">
+          <h3>${escapeHtml(title)}</h3>
+          <p>${escapeHtml(message)}</p>
+          ${withReason ? `<textarea id="modal-reason-input" rows="2" placeholder="Reason (optional)"></textarea>` : ''}
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" id="modal-cancel-btn">Cancel</button>
+            <button type="button" class="${danger ? 'btn-danger' : 'btn-approve'}" id="modal-confirm-btn">${escapeHtml(confirmLabel)}</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+
+      const cleanup = (result) => {
+        overlay.remove();
+        resolve(result);
+      };
+
+      overlay.querySelector('#modal-cancel-btn').addEventListener('click', () => cleanup({ confirmed: false, reason: null }));
+      overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) cleanup({ confirmed: false, reason: null });
+      });
+      overlay.querySelector('#modal-confirm-btn').addEventListener('click', () => {
+        const reasonInput = overlay.querySelector('#modal-reason-input');
+        const reason = reasonInput ? (reasonInput.value.trim() || null) : null;
+        cleanup({ confirmed: true, reason });
+      });
+    });
   }
 
   function formatDate(iso) {
@@ -313,62 +372,89 @@
     const id = btn.dataset.id;
     const action = btn.dataset.action;
 
-    if (action === 'approve') {
-      if (!confirm('Approve and mark this payout as paid? The balance was already deducted when the partner requested it — this just confirms the transfer has been sent.')) return;
-      btn.disabled = true;
-      try {
-        const { error } = await supabaseClient.rpc('admin_mark_payout_paid', { p_payout_id: id });
-        if (error) throw error;
-        showToast('Payout approved and marked as paid.');
-        await loadPayoutRequests();
-      } catch (err) {
-        console.error('Approve error:', err);
-        showToast(err.message || 'Could not approve payout.');
-        btn.disabled = false;
-      }
-      return;
-    }
+    try {
+      if (action === 'approve') {
+        const { confirmed } = await showConfirmModal({
+          title: 'Approve & pay this payout?',
+          message: "The balance was already deducted when the partner requested it — this confirms the transfer has been sent.",
+          confirmLabel: 'Approve & pay'
+        });
+        if (!confirmed) return;
 
-    if (action === 'reject') {
-      const reason = prompt('Reason for rejecting this payout (optional). The amount will be refunded to the partner\'s balance automatically:') || null;
-      if (reason === null && !confirm('Reject this payout request without a reason? The amount will be refunded to the partner automatically.')) return;
-      btn.disabled = true;
-      try {
-        const { error } = await supabaseClient
-          .from('partner_payout_requests')
-          .update({
-            status: 'rejected',
-            rejection_reason: reason,
-            processed_at: new Date().toISOString(),
-            processed_by: currentAdmin.id
-          })
-          .eq('id', id)
-          .in('status', ['pending', 'approved']);
-        if (error) throw error;
-        showToast('Payout rejected and refunded to the partner.');
-        await loadPayoutRequests();
-      } catch (err) {
-        console.error('Reject error:', err);
-        showToast(err.message || 'Could not reject payout.');
-        btn.disabled = false;
+        btn.disabled = true;
+        try {
+          const { error } = await supabaseClient.rpc('admin_mark_payout_paid', { p_payout_id: id });
+          if (error) throw error;
+          showToast('Payout approved and marked as paid.');
+          await loadPayoutRequests();
+        } catch (err) {
+          console.error('Approve error:', err);
+          showToast(err.message || 'Could not approve payout.');
+          btn.disabled = false;
+        }
+        return;
       }
-      return;
-    }
 
-    if (action === 'paid') {
-      if (!confirm('Mark this payout as paid? The balance was already deducted when the partner requested it, so this just records that the transfer was completed.')) return;
-      btn.disabled = true;
-      try {
-        const { error } = await supabaseClient.rpc('admin_mark_payout_paid', { p_payout_id: id });
-        if (error) throw error;
-        showToast('Payout marked as paid.');
-        await loadPayoutRequests();
-      } catch (err) {
-        console.error('Mark paid error:', err);
-        showToast(err.message || 'Could not mark payout as paid.');
-        btn.disabled = false;
+      if (action === 'reject') {
+        const { confirmed, reason } = await showConfirmModal({
+          title: 'Reject this payout?',
+          message: "The amount will be refunded to the partner's balance automatically.",
+          confirmLabel: 'Reject payout',
+          danger: true,
+          withReason: true
+        });
+        if (!confirmed) return;
+
+        btn.disabled = true;
+        try {
+          const { error } = await supabaseClient
+            .from('partner_payout_requests')
+            .update({
+              status: 'rejected',
+              rejection_reason: reason,
+              processed_at: new Date().toISOString(),
+              processed_by: currentAdmin.id
+            })
+            .eq('id', id)
+            .in('status', ['pending', 'approved']);
+          if (error) throw error;
+          showToast('Payout rejected and refunded to the partner.');
+          await loadPayoutRequests();
+        } catch (err) {
+          console.error('Reject error:', err);
+          showToast(err.message || 'Could not reject payout.');
+          btn.disabled = false;
+        }
+        return;
       }
-      return;
+
+      if (action === 'paid') {
+        const { confirmed } = await showConfirmModal({
+          title: 'Mark as paid?',
+          message: "The balance was already deducted when the partner requested it, so this just records that the transfer was completed.",
+          confirmLabel: 'Mark paid'
+        });
+        if (!confirmed) return;
+
+        btn.disabled = true;
+        try {
+          const { error } = await supabaseClient.rpc('admin_mark_payout_paid', { p_payout_id: id });
+          if (error) throw error;
+          showToast('Payout marked as paid.');
+          await loadPayoutRequests();
+        } catch (err) {
+          console.error('Mark paid error:', err);
+          showToast(err.message || 'Could not mark payout as paid.');
+          btn.disabled = false;
+        }
+        return;
+      }
+    } catch (err) {
+      // Catches anything unexpected (e.g. a problem building/showing the
+      // modal itself) so a click never fails completely silently.
+      console.error('Payout action error:', err);
+      showToast('Something went wrong. Please try again.');
+      btn.disabled = false;
     }
   });
 
