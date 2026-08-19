@@ -99,6 +99,77 @@
   @media (max-width:420px){
     #history-table{ font-size:13px; }
   }
+  .partner-cta{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-top:12px;
+    padding:14px 16px;
+    border-radius:8px;
+    border:1px dashed rgba(59,91,219,0.4);
+    background:rgba(59,91,219,0.06);
+  }
+  .partner-cta-text{
+    font-size:14px;
+  }
+  .partner-cta-text strong{
+    display:block;
+    font-size:15px;
+    margin-bottom:2px;
+  }
+  .modal-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.45);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+    z-index:1000;
+  }
+  .modal-overlay.show{
+    display:flex;
+  }
+  .modal-box{
+    background:#fff;
+    border-radius:12px;
+    max-width:420px;
+    width:100%;
+    padding:24px;
+    position:relative;
+  }
+  .modal-close{
+    position:absolute;
+    top:12px;
+    right:12px;
+    background:none;
+    border:none;
+    font-size:20px;
+    line-height:1;
+    cursor:pointer;
+    opacity:0.6;
+    padding:4px;
+  }
+  .modal-close:hover{
+    opacity:1;
+  }
+  .modal-box h2{
+    margin:0 0 8px 0;
+    font-size:19px;
+  }
+  .modal-box ul{
+    margin:12px 0 20px 0;
+    padding-left:20px;
+    font-size:14px;
+    line-height:1.6;
+  }
+  .modal-box .btn{
+    width:100%;
+    text-align:center;
+    box-sizing:border-box;
+  }
 </style>
 </head>
 <body>
@@ -167,6 +238,13 @@
         <a class="task-tile" href="challenge.html">Weekly challenge</a>
         <a class="task-tile" href="share-earn.html">Share & earn</a>
       </div>
+      <div class="partner-cta">
+        <div class="partner-cta-text">
+          <strong>Have something to promote?</strong>
+          Get our users to earn by promoting it for you.
+        </div>
+        <button type="button" class="btn btn-solid" id="become-partner-btn">Become a partner</button>
+      </div>
     </div>
 
     <div class="card">
@@ -208,6 +286,20 @@
   </div>
   <div class="copyright">© EarnOva. All rights reserved. 2026</div>
 </footer>
+
+<div class="modal-overlay" id="partner-modal">
+  <div class="modal-box">
+    <button type="button" class="modal-close" id="partner-modal-close" aria-label="Close">&times;</button>
+    <h2>Become a partner</h2>
+    <p style="font-size:14px; opacity:0.85; margin:0;">Join our partner list and get our users to promote you. You can:</p>
+    <ul>
+      <li>Post a digital product for our affiliates to sell</li>
+      <li>Run a sponsored post</li>
+      <li>List a remote job opportunity</li>
+    </ul>
+    <a class="btn btn-solid" href="partner.html">Join now</a>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -566,6 +658,17 @@
     document.getElementById('dashboard-loading').style.display = 'none';
     document.getElementById('dashboard-content').style.display = 'block';
   }
+
+  const partnerModal = document.getElementById('partner-modal');
+  document.getElementById('become-partner-btn').addEventListener('click', () => {
+    partnerModal.classList.add('show');
+  });
+  document.getElementById('partner-modal-close').addEventListener('click', () => {
+    partnerModal.classList.remove('show');
+  });
+  partnerModal.addEventListener('click', (event) => {
+    if (event.target === partnerModal) partnerModal.classList.remove('show');
+  });
 
   document.getElementById('logout-btn').addEventListener('click', async (event) => {
     event.preventDefault();
