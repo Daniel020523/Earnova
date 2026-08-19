@@ -170,7 +170,10 @@
     </div>
 
     <div class="card">
-      <h2>Transaction history</h2>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <h2 style="margin:0;">Transaction history</h2>
+        <button class="see-all-btn" id="see-all-btn" style="display:none;">See all</button>
+      </div>
       <div id="history-loading" style="font-size:14px; opacity:0.7;">Loading transactions…</div>
       <div id="history-empty" style="font-size:14px; opacity:0.7; display:none;">No transactions yet.</div>
       <div class="table-scroll">
@@ -186,7 +189,6 @@
           <tbody id="history-body"></tbody>
         </table>
       </div>
-      <button class="see-all-btn" id="see-all-btn" style="display:none;">See all</button>
     </div>
 
   </div>
