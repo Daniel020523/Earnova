@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Partner Settings — EarnOva</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  .form-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:20px 16px; margin-top:16px; }
+  .form-grid .full{ grid-column:1 / -1; }
+  .field label{ display:block; font-size:13px; font-weight:600; margin-bottom:7px; opacity:0.8; }
+  .field input, .field textarea, .field select{
+    width:100%; padding:13px 14px; border:1px solid rgba(0,0,0,0.15);
+    border-radius:8px; font-size:15px; font-family:inherit; background:rgba(0,0,0,0.02);
+  }
+  .field-hint{ font-size:12px; opacity:0.65; margin:8px 0 0 0; line-height:1.5; }
+  .card{ margin-bottom:24px; }
+  .bank-summary{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    padding:14px 16px; border-radius:10px; border:1px solid rgba(0,0,0,0.1); margin-top:14px;
+  }
+  .bank-summary .details{ font-size:14px; line-height:1.6; }
+  .bank-summary .details b{ display:block; font-size:15px; }
+  @media (max-width: 480px){
+    .form-grid{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a href="index.html" class="logo">
+      <span class="name"><span class="earn">Earn</span><span class="ova">Ova</span></span>
+      <span class="tag">Think smart. Earn big.</span>
+    </a>
+    <div class="nav-actions">
+      <a class="btn btn-ghost" href="partnerpayout.html">Back to payout</a>
+      <a class="btn btn-ghost" href="partnerdashboard.html">Back to dashboard</a>
+      <a class="btn btn-ghost" href="#" id="logoutBtn">Log out</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <div class="kicker">Partner dashboard</div>
+  <h1>Partner settings</h1>
+  <p class="lead">Manage the bank account your payouts are sent to and the PIN used to confirm payout requests.</p>
+
+  <!-- Bank account -->
+  <div class="card" id="bankCard">
+    <h2>Bank account</h2>
+    <p class="lead">This is the account your payouts are sent to.</p>
+
+    <div id="bankSummary" class="bank-summary" style="display:none;">
+      <div class="details">
+        <b id="bankSummaryName"></b>
+        <span id="bankSummaryAccount"></span>
+      </div>
+      <button type="button" class="btn btn-ghost" id="editBankBtn">Edit</button>
+    </div>
+
+    <form id="bankForm" style="display:none;">
+      <div class="form-grid">
+        <div class="field">
+          <label for="bank-name">Bank name</label>
+          <input id="bank-name" type="text" required>
+        </div>
+        <div class="field">
+          <label for="bank-account-number">Account number</label>
+          <input id="bank-account-number" type="text" inputmode="numeric" pattern="[0-9]*" minlength="10" maxlength="10" required>
+        </div>
+        <div class="field full">
+          <label for="bank-account-name">Account name</label>
+          <input id="bank-account-name" type="text" placeholder="Name on the account" required>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button type="submit" class="btn btn-solid" id="bank-submit-btn">Save bank account</button>
+        <button type="button" class="btn btn-ghost" id="bank-cancel-btn" style="display:none;">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Payout PIN -->
+  <div class="card" id="pinCard">
+    <h2>Payout PIN</h2>
+    <p class="lead" id="pinLead">Set a 4-digit PIN. You'll enter this every time you request a payout, to confirm it's really you.</p>
+
+    <div id="pinSummary" class="bank-summary" style="display:none;">
+      <div class="details">
+        <b>Payout PIN is set</b>
+        <span>••••</span>
+      </div>
+      <button type="button" class="btn btn-ghost" id="editPinBtn">Edit</button>
+    </div>
+
+    <form id="pinForm" style="display:none;">
+      <div class="form-grid">
+        <div class="field full" id="currentPinField" style="display:none;">
+          <label for="pin-current">Current PIN</label>
+          <input id="pin-current" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="4">
+        </div>
+        <div class="field">
+          <label for="pin-new" id="pinNewLabel">PIN</label>
+          <input id="pin-new" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="4" required>
+        </div>
+        <div class="field">
+          <label for="pin-confirm">Confirm PIN</label>
+          <input id="pin-confirm" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="4" required>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button type="submit" class="btn btn-solid" id="pin-submit-btn">Save PIN</button>
+        <button type="button" class="btn btn-ghost" id="pin-cancel-btn" style="display:none;">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="switch-line">Ready to withdraw? <a href="partnerpayout.html">Request a payout</a></div>
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="support.html">Support</a>
+    <a href="faq.html">FAQ</a>
+    <a href="contact.html">Contact us</a>
+  </div>
+  <div class="copyright">© EarnOva. All rights reserved. 2026</div>
+</footer>
+
+<div class="toast" id="toast"></div>
+<script>
+  // ---------------------------------------------------------
+  // Supabase setup — replace with your project's real values
+  // (Project Settings > API in the Supabase dashboard)
+  // ---------------------------------------------------------
+  const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ---------------------------------------------------------
+  // Schema this page expects:
+  //
+  // profiles: existing table, needs these extra columns —
+  //   bank_name text, bank_account_number text, bank_account_name text,
+  //   payout_pin_hash text
+  //
+  // This is the ONLY page that writes bank_name/bank_account_number/
+  // bank_account_name/payout_pin_hash. partnerpayout.html only reads
+  // them (to gate the request form and to verify the PIN at request
+  // time) — it no longer has its own edit UI for either.
+  // ---------------------------------------------------------
+
+  let toastTimer;
+  function showToast(msg, durationMs = 2400) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), durationMs);
+  }
+
+  // On mobile there's no easy way to open a dev console, so surface any
+  // otherwise-silent JS error as an on-screen toast instead of letting
+  // it vanish silently.
+  window.addEventListener('error', (event) => {
+    console.error('Uncaught error:', event.error || event.message);
+    showToast('JS error: ' + (event.message || 'see details'), 6000);
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+    const msg = (event.reason && event.reason.message) ? event.reason.message : String(event.reason);
+    showToast('Error: ' + msg, 6000);
+  });
+
+  // PIN is never stored or sent in plain text — only its SHA-256 hash.
+  async function hashPin(pin) {
+    const bytes = new TextEncoder().encode(pin);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  const logoutBtn = document.getElementById('logoutBtn');
+  logoutBtn.addEventListener('click', async (event) => {
+    event.preventDefault();
+    await supabaseClient.auth.signOut();
+    window.location.href = 'login.html';
+  });
+
+  let currentUser = null;
+  let currentProfile = null;
+
+  async function requireSession() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) {
+      window.location.href = 'login.html';
+      return null;
+    }
+
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('is_partner')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Profile check error:', profileError);
+      showToast('Could not verify your account. Please try again.');
+      window.location.href = 'dashboard.html';
+      return null;
+    }
+
+    if (profile?.is_partner === true) {
+      return session.user;
+    }
+
+    showToast('This page is only available to partner accounts.');
+    window.location.href = 'dashboard.html';
+    return null;
+  }
+
+  async function loadProfile(user) {
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('bank_name, bank_account_number, bank_account_name, payout_pin_hash')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.error('Profile load error:', error);
+      showToast('Could not load your settings. Please refresh.');
+      return null;
+    }
+
+    currentProfile = data;
+    renderBankSection(data);
+    renderPinSection(data);
+    return data;
+  }
+
+  // ---- Bank account ----
+  const bankSummary = document.getElementById('bankSummary');
+  const bankSummaryName = document.getElementById('bankSummaryName');
+  const bankSummaryAccount = document.getElementById('bankSummaryAccount');
+  const bankForm = document.getElementById('bankForm');
+  const bankSubmitBtn = document.getElementById('bank-submit-btn');
+  const bankCancelBtn = document.getElementById('bank-cancel-btn');
+  const editBankBtn = document.getElementById('editBankBtn');
+
+  function renderBankSection(profile) {
+    const hasBank = !!(profile?.bank_name && profile?.bank_account_number && profile?.bank_account_name);
+    if (hasBank) {
+      bankSummaryName.textContent = profile.bank_account_name;
+      bankSummaryAccount.textContent = `${profile.bank_name} • ${profile.bank_account_number}`;
+      bankSummary.style.display = 'flex';
+      bankForm.style.display = 'none';
+      bankCancelBtn.style.display = 'inline-block';
+    } else {
+      bankSummary.style.display = 'none';
+      bankForm.style.display = 'block';
+      bankCancelBtn.style.display = 'none';
+    }
+  }
+
+  editBankBtn.addEventListener('click', () => {
+    document.getElementById('bank-name').value = currentProfile?.bank_name || '';
+    document.getElementById('bank-account-number').value = currentProfile?.bank_account_number || '';
+    document.getElementById('bank-account-name').value = currentProfile?.bank_account_name || '';
+    bankSummary.style.display = 'none';
+    bankForm.style.display = 'block';
+    bankCancelBtn.style.display = 'inline-block';
+  });
+
+  bankCancelBtn.addEventListener('click', () => {
+    if (currentProfile?.bank_name) {
+      renderBankSection(currentProfile);
+    }
+  });
+
+  bankForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!currentUser) return;
+
+    const accountNumber = document.getElementById('bank-account-number').value.trim();
+    if (!/^\d{10}$/.test(accountNumber)) {
+      showToast('Enter a valid 10-digit account number.');
+      return;
+    }
+
+    const payload = {
+      bank_name: document.getElementById('bank-name').value.trim(),
+      bank_account_number: accountNumber,
+      bank_account_name: document.getElementById('bank-account-name').value.trim()
+    };
+
+    bankSubmitBtn.disabled = true;
+    bankSubmitBtn.textContent = 'Saving…';
+
+    try {
+      const { error } = await supabaseClient
+        .from('profiles')
+        .update(payload)
+        .eq('id', currentUser.id);
+      if (error) throw error;
+
+      showToast('Bank account saved.');
+      await loadProfile(currentUser);
+    } catch (err) {
+      console.error('Bank account save error:', err);
+      showToast(err.message || 'Could not save bank account. Please try again.');
+    } finally {
+      bankSubmitBtn.disabled = false;
+      bankSubmitBtn.textContent = 'Save bank account';
+    }
+  });
+
+  // ---- Payout PIN ----
+  const pinSummary = document.getElementById('pinSummary');
+  const editPinBtn = document.getElementById('editPinBtn');
+  const pinForm = document.getElementById('pinForm');
+  const pinSubmitBtn = document.getElementById('pin-submit-btn');
+  const pinCancelBtn = document.getElementById('pin-cancel-btn');
+  const currentPinField = document.getElementById('currentPinField');
+  const pinNewLabel = document.getElementById('pinNewLabel');
+  const pinLead = document.getElementById('pinLead');
+
+  function renderPinSection(profile) {
+    const hasPin = !!profile?.payout_pin_hash;
+    currentPinField.style.display = hasPin ? 'block' : 'none';
+    document.getElementById('pin-current').required = hasPin;
+    pinNewLabel.textContent = hasPin ? 'New PIN' : 'PIN';
+    pinSubmitBtn.textContent = hasPin ? 'Update PIN' : 'Save PIN';
+
+    if (hasPin) {
+      // Collapse into a summary, same pattern as the bank account section,
+      // with an Edit button to expand the form back out.
+      pinLead.textContent = "You've set a payout PIN. Tap Edit to change it.";
+      pinSummary.style.display = 'flex';
+      pinForm.style.display = 'none';
+      pinCancelBtn.style.display = 'inline-block';
+    } else {
+      pinLead.textContent = "Set a 4-digit PIN. You'll enter this every time you request a payout, to confirm it's really you.";
+      pinSummary.style.display = 'none';
+      pinForm.style.display = 'block';
+      pinCancelBtn.style.display = 'none';
+    }
+  }
+
+  editPinBtn.addEventListener('click', () => {
+    pinForm.reset();
+    pinLead.textContent = "You've set a payout PIN. Enter your current PIN to change it.";
+    pinSummary.style.display = 'none';
+    pinForm.style.display = 'block';
+    pinCancelBtn.style.display = 'inline-block';
+  });
+
+  pinCancelBtn.addEventListener('click', () => {
+    if (currentProfile?.payout_pin_hash) {
+      pinForm.reset();
+      renderPinSection(currentProfile);
+    }
+  });
+
+  pinForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!currentUser) return;
+
+    const hasPin = !!currentProfile?.payout_pin_hash;
+    const newPin = document.getElementById('pin-new').value;
+    const confirmPin = document.getElementById('pin-confirm').value;
+
+    if (!/^\d{4}$/.test(newPin)) {
+      showToast('PIN must be exactly 4 digits.');
+      return;
+    }
+    if (newPin !== confirmPin) {
+      showToast("PINs don't match.");
+      return;
+    }
+
+    if (hasPin) {
+      const currentPin = document.getElementById('pin-current').value;
+      const currentHash = await hashPin(currentPin);
+      if (currentHash !== currentProfile.payout_pin_hash) {
+        showToast('Current PIN is incorrect.');
+        return;
+      }
+    }
+
+    pinSubmitBtn.disabled = true;
+    pinSubmitBtn.textContent = 'Saving…';
+
+    try {
+      const newHash = await hashPin(newPin);
+      const { error } = await supabaseClient
+        .from('profiles')
+        .update({ payout_pin_hash: newHash })
+        .eq('id', currentUser.id);
+      if (error) throw error;
+
+      showToast('Payout PIN saved.');
+      pinForm.reset();
+      await loadProfile(currentUser);
+    } catch (err) {
+      console.error('PIN save error:', err);
+      showToast(err.message || 'Could not save PIN. Please try again.');
+    } finally {
+      pinSubmitBtn.disabled = false;
+      renderPinSection(currentProfile);
+    }
+  });
+
+  (async function init() {
+    currentUser = await requireSession();
+    if (currentUser) {
+      await loadProfile(currentUser);
+    }
+  })();
+</script>
+
+</body>
+</html>

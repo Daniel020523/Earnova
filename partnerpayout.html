@@ -30,12 +30,6 @@
     padding:18px 20px; border-radius:12px; background:rgba(0,0,0,0.04); margin-top:10px;
   }
   .balance-hero .amount{ font-size:28px; font-weight:700; }
-  .bank-summary{
-    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
-    padding:14px 16px; border-radius:10px; border:1px solid rgba(0,0,0,0.1); margin-top:14px;
-  }
-  .bank-summary .details{ font-size:14px; line-height:1.6; }
-  .bank-summary .details b{ display:block; font-size:15px; }
   @media (max-width: 480px){
     .form-grid{ grid-template-columns:1fr; }
   }
@@ -71,80 +65,10 @@
 
   </div>
 
-  <!-- Bank account -->
-  <div class="card" id="bankCard">
-    <h2>Bank account</h2>
-    <p class="lead">This is the account your payouts are sent to.</p>
-
-    <div id="bankSummary" class="bank-summary" style="display:none;">
-      <div class="details">
-        <b id="bankSummaryName"></b>
-        <span id="bankSummaryAccount"></span>
-      </div>
-      <button type="button" class="btn btn-ghost" id="editBankBtn">Edit</button>
-    </div>
-
-    <form id="bankForm" style="display:none;">
-      <div class="form-grid">
-        <div class="field">
-          <label for="bank-name">Bank name</label>
-          <input id="bank-name" type="text" required>
-        </div>
-        <div class="field">
-          <label for="bank-account-number">Account number</label>
-          <input id="bank-account-number" type="text" inputmode="numeric" pattern="[0-9]*" minlength="10" maxlength="10" required>
-        </div>
-        <div class="field full">
-          <label for="bank-account-name">Account name</label>
-          <input id="bank-account-name" type="text" placeholder="Name on the account" required>
-        </div>
-      </div>
-      <div style="display:flex; gap:10px; margin-top:14px;">
-        <button type="submit" class="btn btn-solid" id="bank-submit-btn">Save bank account</button>
-        <button type="button" class="btn btn-ghost" id="bank-cancel-btn" style="display:none;">Cancel</button>
-      </div>
-    </form>
-  </div>
-
-  <!-- Payout PIN -->
-  <div class="card" id="pinCard">
-    <h2>Payout PIN</h2>
-    <p class="lead" id="pinLead">Set a 4-digit PIN. You'll enter this every time you request a payout, to confirm it's really you.</p>
-
-    <div id="pinSummary" class="bank-summary" style="display:none;">
-      <div class="details">
-        <b>Payout PIN is set</b>
-        <span>••••</span>
-      </div>
-      <button type="button" class="btn btn-ghost" id="editPinBtn">Edit</button>
-    </div>
-
-    <form id="pinForm" style="display:none;">
-      <div class="form-grid">
-        <div class="field full" id="currentPinField" style="display:none;">
-          <label for="pin-current">Current PIN</label>
-          <input id="pin-current" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="4">
-        </div>
-        <div class="field">
-          <label for="pin-new" id="pinNewLabel">PIN</label>
-          <input id="pin-new" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="4" required>
-        </div>
-        <div class="field">
-          <label for="pin-confirm">Confirm PIN</label>
-          <input id="pin-confirm" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="4" required>
-        </div>
-      </div>
-      <div style="display:flex; gap:10px; margin-top:14px;">
-        <button type="submit" class="btn btn-solid" id="pin-submit-btn">Save PIN</button>
-        <button type="button" class="btn btn-ghost" id="pin-cancel-btn" style="display:none;">Cancel</button>
-      </div>
-    </form>
-  </div>
-
   <!-- Request payout -->
   <div class="card" id="requestCard">
     <h2>Request a payout</h2>
-    <p class="field-hint" id="requestGate">Add a bank account and set a PIN above before you can request a payout.</p>
+    <p class="field-hint" id="requestGate">Add a bank account and set a payout PIN in <a href="partner-settings.html">Partner settings</a> before you can request a payout.</p>
 
     <form id="payoutForm" style="display:none;">
       <div class="form-grid">
@@ -176,7 +100,7 @@
     <button type="button" class="btn btn-ghost" id="transactions-see-all-btn" style="display:none; margin-top:8px;">See all</button>
   </div>
 
-  <div class="switch-line">Need to update your business info? <a href="partner-settings.html">Partner settings</a></div>
+  <div class="switch-line">Manage your bank account and payout PIN in <a href="partner-settings.html">Partner settings</a></div>
 </main>
 
 <footer>
@@ -204,6 +128,8 @@
   // profiles: existing table, needs these extra columns —
   //   bank_name text, bank_account_number text, bank_account_name text,
   //   payout_pin_hash text
+  //   (this page only READS these — they're managed on
+  //   partner-settings.html, which is the only page that writes them)
   //
   // partner_payout_requests (new table):
   //   id uuid pk default gen_random_uuid(),
@@ -344,183 +270,9 @@
     currentProfile = data;
     currentBalance = Number(data?.balance) || 0;
     walletBalanceEl.textContent = formatCurrency(currentBalance);
-    renderBankSection(data);
-    renderPinSection(data);
     renderRequestGate();
     return data;
   }
-
-  // ---- Bank account ----
-  const bankSummary = document.getElementById('bankSummary');
-  const bankSummaryName = document.getElementById('bankSummaryName');
-  const bankSummaryAccount = document.getElementById('bankSummaryAccount');
-  const bankForm = document.getElementById('bankForm');
-  const bankSubmitBtn = document.getElementById('bank-submit-btn');
-  const bankCancelBtn = document.getElementById('bank-cancel-btn');
-  const editBankBtn = document.getElementById('editBankBtn');
-
-  function renderBankSection(profile) {
-    const hasBank = !!(profile?.bank_name && profile?.bank_account_number && profile?.bank_account_name);
-    if (hasBank) {
-      bankSummaryName.textContent = profile.bank_account_name;
-      bankSummaryAccount.textContent = `${profile.bank_name} • ${profile.bank_account_number}`;
-      bankSummary.style.display = 'flex';
-      bankForm.style.display = 'none';
-      bankCancelBtn.style.display = 'inline-block';
-    } else {
-      bankSummary.style.display = 'none';
-      bankForm.style.display = 'block';
-      bankCancelBtn.style.display = 'none';
-    }
-  }
-
-  editBankBtn.addEventListener('click', () => {
-    document.getElementById('bank-name').value = currentProfile?.bank_name || '';
-    document.getElementById('bank-account-number').value = currentProfile?.bank_account_number || '';
-    document.getElementById('bank-account-name').value = currentProfile?.bank_account_name || '';
-    bankSummary.style.display = 'none';
-    bankForm.style.display = 'block';
-    bankCancelBtn.style.display = 'inline-block';
-  });
-
-  bankCancelBtn.addEventListener('click', () => {
-    if (currentProfile?.bank_name) {
-      renderBankSection(currentProfile);
-    }
-  });
-
-  bankForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    if (!currentUser) return;
-
-    const accountNumber = document.getElementById('bank-account-number').value.trim();
-    if (!/^\d{10}$/.test(accountNumber)) {
-      showToast('Enter a valid 10-digit account number.');
-      return;
-    }
-
-    const payload = {
-      bank_name: document.getElementById('bank-name').value.trim(),
-      bank_account_number: accountNumber,
-      bank_account_name: document.getElementById('bank-account-name').value.trim()
-    };
-
-    bankSubmitBtn.disabled = true;
-    bankSubmitBtn.textContent = 'Saving…';
-
-    try {
-      const { error } = await supabaseClient
-        .from('profiles')
-        .update(payload)
-        .eq('id', currentUser.id);
-      if (error) throw error;
-
-      showToast('Bank account saved.');
-      await loadProfile(currentUser);
-    } catch (err) {
-      console.error('Bank account save error:', err);
-      showToast(err.message || 'Could not save bank account. Please try again.');
-    } finally {
-      bankSubmitBtn.disabled = false;
-      bankSubmitBtn.textContent = 'Save bank account';
-    }
-  });
-
-  // ---- Payout PIN ----
-  const pinSummary = document.getElementById('pinSummary');
-  const editPinBtn = document.getElementById('editPinBtn');
-  const pinForm = document.getElementById('pinForm');
-  const pinSubmitBtn = document.getElementById('pin-submit-btn');
-  const pinCancelBtn = document.getElementById('pin-cancel-btn');
-  const currentPinField = document.getElementById('currentPinField');
-  const pinNewLabel = document.getElementById('pinNewLabel');
-  const pinLead = document.getElementById('pinLead');
-
-  function renderPinSection(profile) {
-    const hasPin = !!profile?.payout_pin_hash;
-    currentPinField.style.display = hasPin ? 'block' : 'none';
-    document.getElementById('pin-current').required = hasPin;
-    pinNewLabel.textContent = hasPin ? 'New PIN' : 'PIN';
-    pinSubmitBtn.textContent = hasPin ? 'Update PIN' : 'Save PIN';
-
-    if (hasPin) {
-      // Collapse into a summary, same pattern as the bank account section,
-      // with an Edit button to expand the form back out.
-      pinLead.textContent = "You've set a payout PIN. Tap Edit to change it.";
-      pinSummary.style.display = 'flex';
-      pinForm.style.display = 'none';
-      pinCancelBtn.style.display = 'inline-block';
-    } else {
-      pinLead.textContent = "Set a 4-digit PIN. You'll enter this every time you request a payout, to confirm it's really you.";
-      pinSummary.style.display = 'none';
-      pinForm.style.display = 'block';
-      pinCancelBtn.style.display = 'none';
-    }
-  }
-
-  editPinBtn.addEventListener('click', () => {
-    pinForm.reset();
-    pinLead.textContent = "You've set a payout PIN. Enter your current PIN to change it.";
-    pinSummary.style.display = 'none';
-    pinForm.style.display = 'block';
-    pinCancelBtn.style.display = 'inline-block';
-  });
-
-  pinCancelBtn.addEventListener('click', () => {
-    if (currentProfile?.payout_pin_hash) {
-      pinForm.reset();
-      renderPinSection(currentProfile);
-    }
-  });
-
-  pinForm.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    if (!currentUser) return;
-
-    const hasPin = !!currentProfile?.payout_pin_hash;
-    const newPin = document.getElementById('pin-new').value;
-    const confirmPin = document.getElementById('pin-confirm').value;
-
-    if (!/^\d{4}$/.test(newPin)) {
-      showToast('PIN must be exactly 4 digits.');
-      return;
-    }
-    if (newPin !== confirmPin) {
-      showToast("PINs don't match.");
-      return;
-    }
-
-    if (hasPin) {
-      const currentPin = document.getElementById('pin-current').value;
-      const currentHash = await hashPin(currentPin);
-      if (currentHash !== currentProfile.payout_pin_hash) {
-        showToast('Current PIN is incorrect.');
-        return;
-      }
-    }
-
-    pinSubmitBtn.disabled = true;
-    pinSubmitBtn.textContent = 'Saving…';
-
-    try {
-      const newHash = await hashPin(newPin);
-      const { error } = await supabaseClient
-        .from('profiles')
-        .update({ payout_pin_hash: newHash })
-        .eq('id', currentUser.id);
-      if (error) throw error;
-
-      showToast('Payout PIN saved.');
-      pinForm.reset();
-      await loadProfile(currentUser);
-    } catch (err) {
-      console.error('PIN save error:', err);
-      showToast(err.message || 'Could not save PIN. Please try again.');
-    } finally {
-      pinSubmitBtn.disabled = false;
-      renderPinSection(currentProfile);
-    }
-  });
 
   // ---- Request payout ----
   const requestGate = document.getElementById('requestGate');
