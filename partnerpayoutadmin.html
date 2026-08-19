@@ -141,8 +141,12 @@
   //     caller is an admin and flips a 'pending' request straight to
   //     'paid'. It does NOT touch the balance — that already happened
   //     at request time.
-  //   - "Reject" is a plain status update (pending -> rejected), but a
-  //     DB trigger automatically refunds the amount back to the
+  //   - "Reject" calls the SECURITY DEFINER function
+  //     admin_reject_payout(p_payout_id uuid, p_reason text). Using an
+  //     RPC (not a plain client-side .update()) means it isn't at the
+  //     mercy of whatever RLS UPDATE policies do or don't exist —
+  //     that's what fixed rejections silently doing nothing.
+  //   - A DB trigger automatically refunds the amount back to the
   //     partner's balance and logs a credit transaction whenever a
   //     request's status becomes 'rejected'. This page doesn't need to
   //     do anything extra for the refund to happen.
@@ -407,16 +411,10 @@
 
         btn.disabled = true;
         try {
-          const { error } = await supabaseClient
-            .from('partner_payout_requests')
-            .update({
-              status: 'rejected',
-              rejection_reason: reason,
-              processed_at: new Date().toISOString(),
-              processed_by: currentAdmin.id
-            })
-            .eq('id', id)
-            .in('status', ['pending', 'approved']);
+          const { error } = await supabaseClient.rpc('admin_reject_payout', {
+            p_payout_id: id,
+            p_reason: reason
+          });
           if (error) throw error;
           showToast('Payout rejected and refunded to the partner.');
           await loadPayoutRequests();

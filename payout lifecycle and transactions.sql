@@ -223,6 +223,57 @@ create trigger trg_refund_rejected_payout
 revoke all on function public.refund_rejected_payout() from public, anon, authenticated;
 
 -- ============================================================
+-- 5b) admin_reject_payout: a SECURITY DEFINER RPC for rejecting a
+--     payout, mirroring admin_mark_payout_paid. This exists because a
+--     plain client-side .update() to 'rejected' depends on an RLS
+--     UPDATE policy existing for admins — if that policy is missing
+--     or misconfigured, Supabase silently returns success with zero
+--     rows changed (no error), which looks exactly like "the button
+--     did nothing." Routing through this function sidesteps RLS
+--     entirely, the same way admin_mark_payout_paid already does.
+--     The existing trg_refund_rejected_payout trigger still fires
+--     normally on the UPDATE this function performs, so the refund
+--     and transaction-history sync keep working unchanged.
+-- ============================================================
+create or replace function public.admin_reject_payout(p_payout_id uuid, p_reason text default null)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  is_caller_admin boolean;
+  req record;
+begin
+  select is_admin into is_caller_admin from public.profiles where id = auth.uid();
+  if not coalesce(is_caller_admin, false) then
+    raise exception 'Not authorized.' using errcode = 'P0001';
+  end if;
+
+  select * into req from public.partner_payout_requests where id = p_payout_id for update;
+  if req is null then
+    raise exception 'Payout request not found.' using errcode = 'P0001';
+  end if;
+  if req.status not in ('pending', 'approved') then
+    raise exception 'Only pending or approved payouts can be rejected.' using errcode = 'P0001';
+  end if;
+
+  update public.partner_payout_requests
+  set status = 'rejected',
+      rejection_reason = p_reason,
+      processed_at = now(),
+      processed_by = auth.uid()
+  where id = p_payout_id;
+end;
+$$;
+
+revoke all on function public.admin_reject_payout(uuid, text) from public, anon, authenticated;
+grant execute on function public.admin_reject_payout(uuid, text) to authenticated;
+-- (same pattern as admin_mark_payout_paid: granting execute to all
+-- authenticated users is safe because the is_admin check inside the
+-- function is what actually gates who can successfully call it)
+
+-- ============================================================
 -- 6) Updated admin_mark_payout_paid: balance was already deducted
 --    at request time, so this now only verifies admin + a valid
 --    starting status ('pending' or 'approved', to also cover any
