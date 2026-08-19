@@ -20,6 +20,62 @@
     max-width:460px;
     margin:0 auto 12px;
   }
+  .challenge-custom-rules{
+    font-size:13px;
+    max-width:460px;
+    margin:0 auto 16px;
+    text-align:left;
+    background:rgba(59,91,219,0.06);
+    border:1px solid rgba(59,91,219,0.2);
+    border-radius:8px;
+    padding:10px 14px;
+    white-space:pre-wrap;
+  }
+  .challenge-custom-rules strong{
+    display:block;
+    margin-bottom:4px;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    opacity:0.8;
+  }
+  .rules-recap{
+    max-width:460px;
+    margin:0 auto 16px;
+    text-align:left;
+    background:rgba(0,0,0,0.03);
+    border-radius:8px;
+    padding:14px 16px;
+    font-size:13px;
+  }
+  .rules-recap h3{
+    font-size:13px;
+    margin:0 0 8px;
+  }
+  .rules-recap ul{
+    margin:0;
+    padding-left:18px;
+  }
+  .rules-recap li{
+    margin-bottom:4px;
+  }
+  .rules-recap .custom-rules{
+    opacity:0.8;
+    border-top:1px solid rgba(0,0,0,0.08);
+    padding-top:10px;
+    margin-top:10px;
+    white-space:pre-wrap;
+  }
+  .confirm-row{
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    font-size:13px;
+    max-width:460px;
+    margin:0 auto 14px;
+    text-align:left;
+  }
+  .confirm-row input{ margin-top:3px; }
   .countdown-badge{
     display:inline-block;
     font-size:13px;
@@ -65,13 +121,6 @@
   }
   .rules-panel li{
     margin-bottom:4px;
-  }
-  .rules-panel .custom-rules{
-    opacity:0.75;
-    border-top:1px solid rgba(0,0,0,0.08);
-    padding-top:10px;
-    margin-top:10px;
-    white-space:pre-wrap;
   }
   .tier-grid{
     display:grid;
@@ -300,6 +349,11 @@
     <div class="challenge-reward" id="challenge-reward"></div>
     <p class="challenge-desc" id="challenge-desc"></p>
 
+    <div class="challenge-custom-rules" id="challenge-custom-rules-desc" style="display:none;">
+      <strong>Extra rules for this challenge</strong>
+      <span id="challenge-custom-rules-text"></span>
+    </div>
+
     <div id="countdown-badge" class="countdown-badge">--</div>
     <br>
     <button class="rules-btn" id="rules-btn">View rules</button>
@@ -308,6 +362,7 @@
     <div class="rules-panel" id="rules-panel">
       <h3>Required rules</h3>
       <ul>
+        <li>Your video must be posted on the <strong>same TikTok account</strong> you register with this challenge — videos posted from a different account will not be scored.</li>
         <li>Your video must be posted <strong>after</strong> this campaign started — videos posted before the campaign began don't count.</li>
         <li>You must use <strong>all</strong> of the required hashtags for this challenge.</li>
         <li>Your video and account must stay <strong>public</strong> for the full duration of the campaign — private, deleted, or restricted videos cannot be scored.</li>
@@ -316,7 +371,6 @@
         <li>Content must comply with TikTok's Community Guidelines. Entries that violate them may be removed at any time.</li>
         <li>All scoring and eligibility decisions made by the EarnOva team are final.</li>
       </ul>
-      <div class="custom-rules" id="custom-rules" style="display:none;"></div>
     </div>
 
     <div class="rules-panel" id="score-info-panel">
@@ -442,10 +496,27 @@
 
     <!-- Step 2: video link -->
     <div id="step-2" style="display:none;">
+      <div class="rules-recap" id="rules-recap">
+        <h3>Before you submit, double-check your video</h3>
+        <ul>
+          <li>Posted on <strong id="recap-account-url"></strong> — the same account you just entered. Videos from a different account won't be scored.</li>
+          <li>Posted <strong>after</strong> this campaign started.</li>
+          <li>Uses <strong>all</strong> of the required hashtags.</li>
+          <li>Video and account are <strong>public</strong> for the whole campaign.</li>
+          <li>No bots, engagement pods, or purchased engagement.</li>
+          <li>Follows TikTok's Community Guidelines.</li>
+        </ul>
+        <div class="custom-rules" id="recap-custom-rules" style="display:none;"></div>
+      </div>
+
       <div class="form-field">
         <label for="video-url-input">Link to your challenge video</label>
         <input type="url" id="video-url-input" placeholder="https://www.tiktok.com/@yourhandle/video/...">
       </div>
+      <label class="confirm-row" for="confirm-rules-checkbox">
+        <input type="checkbox" id="confirm-rules-checkbox">
+        <span>I confirm this video meets all the rules above, including being posted on the account I entered.</span>
+      </label>
       <p class="warning-text">By submitting, you confirm this video follows the challenge rules. Admin may review it afterward — if it breaks the rules, it may be taken down and your entry disqualified.</p>
       <button class="btn btn-solid" id="finish-join-btn">Submit & join</button>
       <button class="btn btn-ghost" id="back-btn" style="margin-left:8px;">Back</button>
@@ -558,6 +629,16 @@
       return u.hostname.includes('tiktok.com');
     } catch (e) {
       return false;
+    }
+  }
+
+  function extractTikTokHandle(url){
+    try {
+      const u = new URL(url);
+      const match = u.pathname.match(/@([^/]+)/);
+      return match ? match[1].toLowerCase() : null;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -691,6 +772,21 @@
   function showStep2(){
     document.getElementById('step-1').style.display = 'none';
     document.getElementById('step-2').style.display = 'block';
+
+    document.getElementById('recap-account-url').textContent = pendingAccountUrl || '';
+
+    const recapCustom = document.getElementById('recap-custom-rules');
+    if (currentChallenge && currentChallenge.rules){
+      recapCustom.textContent = 'Extra rules for this challenge: ' + currentChallenge.rules;
+      recapCustom.style.display = 'block';
+    } else {
+      recapCustom.style.display = 'none';
+    }
+
+    const checkbox = document.getElementById('confirm-rules-checkbox');
+    checkbox.checked = false;
+    document.getElementById('video-url-input').value = '';
+    document.getElementById('step2-status').textContent = '';
   }
 
   async function loadWinners(challengeId){
@@ -869,10 +965,12 @@
     document.getElementById('challenge-desc').textContent =
       currentChallenge.description || 'Post a new TikTok video for this week\'s challenge.';
 
+    const customRulesBox = document.getElementById('challenge-custom-rules-desc');
     if (currentChallenge.rules){
-      const customEl = document.getElementById('custom-rules');
-      customEl.textContent = currentChallenge.rules;
-      customEl.style.display = 'block';
+      document.getElementById('challenge-custom-rules-text').textContent = currentChallenge.rules;
+      customRulesBox.style.display = 'block';
+    } else {
+      customRulesBox.style.display = 'none';
     }
 
     document.getElementById('challenge-content').style.display = 'block';
@@ -940,6 +1038,18 @@
 
     if (!isTikTokUrl(videoUrl)){
       statusEl.textContent = 'Please enter a valid TikTok video link.';
+      return;
+    }
+
+    const accountHandle = extractTikTokHandle(pendingAccountUrl);
+    const videoHandle = extractTikTokHandle(videoUrl);
+    if (accountHandle && videoHandle && accountHandle !== videoHandle){
+      statusEl.textContent = `This video looks like it's from @${videoHandle}, not @${accountHandle} — please post it on the account you entered, or go back and update your account link.`;
+      return;
+    }
+
+    if (!document.getElementById('confirm-rules-checkbox').checked){
+      statusEl.textContent = 'Please confirm your video meets the rules above before submitting.';
       return;
     }
 
