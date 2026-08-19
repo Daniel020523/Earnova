@@ -308,6 +308,7 @@
           <div class="stat-value" id="stat-paid">₦0.00</div>
         </div>
       </div>
+      <button class="btn btn-solid" id="my-sales-btn" style="margin-top:12px;">My sales</button>
     </div>
 
     <div class="card">
@@ -315,29 +316,6 @@
       <div id="products-loading" style="font-size:14px; opacity:0.7; margin-top:8px;">Loading products…</div>
       <div id="products-empty" style="font-size:14px; opacity:0.7; display:none; margin-top:8px;">No products available right now.</div>
       <div class="product-grid" id="product-grid"></div>
-    </div>
-
-    <div class="card">
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-        <h2 style="margin:0;">Your sales</h2>
-        <button class="see-all-btn" id="see-all-sales-btn" style="display:none;">See all</button>
-      </div>
-      <div id="sales-loading" style="font-size:14px; opacity:0.7;">Loading your sales…</div>
-      <div id="sales-empty" style="font-size:14px; opacity:0.7; display:none;">No sales yet — share a product link to get started.</div>
-      <div class="table-scroll">
-        <table id="sales-table" style="display:none;">
-          <thead>
-            <tr>
-              <th style="text-align:left; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Date</th>
-              <th style="text-align:left; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Product</th>
-              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Sale amount</th>
-              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Commission</th>
-              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Status</th>
-            </tr>
-          </thead>
-          <tbody id="sales-body"></tbody>
-        </table>
-      </div>
     </div>
 
   </div>
@@ -361,6 +339,34 @@
         <div class="product-commission" id="modal-commission"></div>
       </div>
       <button class="modal-get-link-btn" id="modal-get-link-btn">Get affiliate link</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="sales-modal-overlay">
+  <div class="modal-box" style="max-width:720px;">
+    <button class="modal-close" id="sales-modal-close" aria-label="Close">✕</button>
+    <div class="modal-body">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <h2 style="margin:0;">Your sales</h2>
+        <button class="see-all-btn" id="see-all-sales-btn" style="display:none;">See all</button>
+      </div>
+      <div id="sales-loading" style="font-size:14px; opacity:0.7; margin-top:8px;">Loading your sales…</div>
+      <div id="sales-empty" style="font-size:14px; opacity:0.7; display:none; margin-top:8px;">No sales yet — share a product link to get started.</div>
+      <div class="table-scroll">
+        <table id="sales-table" style="display:none;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Date</th>
+              <th style="text-align:left; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Product</th>
+              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Sale amount</th>
+              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Commission</th>
+              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="sales-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -575,6 +581,14 @@
     document.getElementById('product-modal-overlay').classList.remove('open');
   }
 
+  function openSalesModal(){
+    document.getElementById('sales-modal-overlay').classList.add('open');
+  }
+
+  function closeSalesModal(){
+    document.getElementById('sales-modal-overlay').classList.remove('open');
+  }
+
   function openImageLightbox(src, alt){
     document.getElementById('image-lightbox-img').src = src;
     document.getElementById('image-lightbox-img').alt = alt;
@@ -599,10 +613,18 @@
   document.getElementById('product-modal-overlay').addEventListener('click', (event) => {
     if (event.target.id === 'product-modal-overlay') closeProductModal();
   });
+
+  document.getElementById('my-sales-btn').addEventListener('click', openSalesModal);
+  document.getElementById('sales-modal-close').addEventListener('click', closeSalesModal);
+  document.getElementById('sales-modal-overlay').addEventListener('click', (event) => {
+    if (event.target.id === 'sales-modal-overlay') closeSalesModal();
+  });
+
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape'){
       closeImageLightbox();
       closeProductModal();
+      closeSalesModal();
     }
   });
 
