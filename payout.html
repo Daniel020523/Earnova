@@ -89,6 +89,15 @@
   .setup-notice a:hover{
     text-decoration:underline;
   }
+  .schedule-notice{
+    background:#eef2ff;
+    border:1px solid #c7d2fe;
+    border-radius:8px;
+    padding:12px 14px;
+    font-size:13px;
+    margin-bottom:16px;
+    line-height:1.5;
+  }
 </style>
 </head>
 <body>
@@ -120,6 +129,10 @@
     <div class="balance-row">
       <span class="balance-label">Available balance</span>
       <span class="balance-value" id="available-balance">₦0.00</span>
+    </div>
+
+    <div class="schedule-notice">
+      All payout requests are processed on the 28th of every month. Requests submitted before that date will be included in the next scheduled payout run.
     </div>
 
     <div id="setup-notice" class="setup-notice" style="display:none;">
@@ -386,8 +399,8 @@
       return;
     }
 
-    showToast('Payout request submitted!');
-    setTimeout(() => { window.location.href = 'dashboard.html'; }, 900);
+    showToast('Payout request submitted! It will be processed on the 28th.');
+    setTimeout(() => { window.location.href = 'dashboard.html'; }, 1400);
   });
 
   document.getElementById('pin-input').addEventListener('input', (e) => {
