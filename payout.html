@@ -168,6 +168,7 @@
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
   const VERIFY_PIN_URL = `${SUPABASE_URL}/functions/v1/verify-withdrawal-pin`;
+  const MIN_WITHDRAWAL = 200;
 
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -300,6 +301,10 @@
       showFormError("You don't have any available balance to withdraw yet.");
       submitBtn.disabled = true;
       document.getElementById('pin-input').disabled = true;
+    } else if (currentAvailableBalance < MIN_WITHDRAWAL) {
+      showFormError(`Minimum withdrawal is ${formatNaira(MIN_WITHDRAWAL)}. Your available balance is ${formatNaira(currentAvailableBalance)}.`);
+      submitBtn.disabled = true;
+      document.getElementById('pin-input').disabled = true;
     }
 
     document.getElementById('payout-loading').style.display = 'none';
@@ -314,6 +319,11 @@
 
     if (currentAvailableBalance <= 0) {
       showFormError("You don't have any available balance to withdraw yet.");
+      return;
+    }
+
+    if (currentAvailableBalance < MIN_WITHDRAWAL) {
+      showFormError(`Minimum withdrawal is ${formatNaira(MIN_WITHDRAWAL)}. Your available balance is ${formatNaira(currentAvailableBalance)}.`);
       return;
     }
 
