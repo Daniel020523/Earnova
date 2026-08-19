@@ -648,10 +648,10 @@
       seeAllBtn.style.display = 'none';
       return;
     }
-    const rowsToShow = salesExpanded ? allSales : allSales.slice(0, 5);
+    const rowsToShow = salesExpanded ? allSales : allSales.slice(0, 1);
     renderSalesRows(rowsToShow);
 
-    if (allSales.length > 5) {
+    if (allSales.length > 1) {
       seeAllBtn.style.display = 'inline-block';
       seeAllBtn.textContent = salesExpanded ? 'Show less' : 'See all';
     } else {
