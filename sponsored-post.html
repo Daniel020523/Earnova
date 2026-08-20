@@ -181,6 +181,10 @@
       <h4>Campaign ends</h4>
       <p id="modalCampaignEnds"></p>
     </div>
+    <div class="modal-section">
+      <h4>Review timeline</h4>
+      <p id="modalReviewTimeline"></p>
+    </div>
 
     <div class="modal-section">
       <h4>Your participation</h4>
@@ -194,7 +198,7 @@
   <div class="modal-box">
     <button class="modal-close" id="participateCloseBtn" aria-label="Close">&times;</button>
     <h2 style="margin:4px 0 8px 0;">Join this campaign</h2>
-    <p class="job-summary" style="margin-bottom:14px;">Add the link to the social profile you'll be posting from. Once you're in, post your content, then come back and submit your video link from "My participation".</p>
+    <p class="job-summary" style="margin-bottom:14px;">Add the link to the social profile you'll be posting from. Once you're in, post your content, then come back and submit your video link from "My participation". Review closes 3 days after you submit, and approved payouts are credited within 3 days after that.</p>
     <div class="participation-box">
       <label for="participateHandleUrl">Your social handle URL</label>
       <input id="participateHandleUrl" type="url" placeholder="https://instagram.com/yourhandle" required>
@@ -255,6 +259,10 @@
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Submissions are reviewed within this many days of being submitted, and
+  // approved payouts are credited within this many days of approval.
+  const REVIEW_WINDOW_DAYS = 3;
 
   let toastTimer;
   function showToast(msg){
@@ -318,7 +326,10 @@
     listEl.querySelectorAll('.participate-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        openParticipateModal(btn.getAttribute('data-post-id'));
+        // Show full campaign details first, rather than jumping straight into
+        // the join flow. The "Participate" button inside that detail view is
+        // what actually opens the join-campaign modal.
+        openModal(btn.getAttribute('data-post-id'));
       });
     });
     listEl.querySelectorAll('.my-participation-btn').forEach(btn => {
@@ -372,6 +383,9 @@
     } else {
       campaignEndsSection.style.display = 'none';
     }
+
+    document.getElementById('modalReviewTimeline').textContent =
+      `Once you submit your video, review closes after ${REVIEW_WINDOW_DAYS} days. If approved, your payout is credited within ${REVIEW_WINDOW_DAYS} days after that.`;
 
     renderParticipationArea(post);
 
@@ -498,12 +512,12 @@
     } else if (part.status === 'submitted') {
       body = `
         <p class="job-summary" style="margin:0 0 6px 0;"><strong>Video submitted:</strong> <a href="${escapeHtml(part.video_url)}" target="_blank" rel="noopener">${escapeHtml(part.video_url)}</a></p>
-        <p class="job-summary" style="margin:0;">An admin is reviewing your submission${post && post.campaign_ends_at ? ` (submissions for this campaign are typically reviewed after it ends on ${formatDate(post.campaign_ends_at)})` : ''}. You'll be notified once it's approved.</p>
+        <p class="job-summary" style="margin:0;">An admin is reviewing your submission. Review closes ${REVIEW_WINDOW_DAYS} days after you submitted. You'll be notified once it's approved.</p>
       `;
     } else if (part.status === 'approved') {
       body = `
         <p class="job-summary" style="margin:0 0 6px 0;"><strong>Video:</strong> <a href="${escapeHtml(part.video_url)}" target="_blank" rel="noopener">${escapeHtml(part.video_url)}</a></p>
-        <p class="job-summary" style="margin:0;">Your submission has been approved. Your payout will be credited once the admin marks it complete.</p>
+        <p class="job-summary" style="margin:0;">Your submission has been approved. Your payout will be credited within ${REVIEW_WINDOW_DAYS} days.</p>
       `;
     } else if (part.status === 'rejected') {
       const attemptsUsed = part.attempt_number || 1;
