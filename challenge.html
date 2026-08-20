@@ -143,9 +143,30 @@
     border-color:#3b5bdb;
     background:rgba(59,91,219,0.06);
   }
+  .tier-option.full{
+    opacity:0.5;
+    cursor:not-allowed;
+    background:rgba(0,0,0,0.03);
+  }
   .tier-option input{ margin:0; }
-  .tier-option-label{ font-size:14px; }
+  .tier-option-label{ font-size:14px; flex:1; }
   .tier-option-label strong{ display:block; }
+  .tier-count{
+    font-size:12px;
+    opacity:0.65;
+  }
+  .tier-count.full-count{
+    color:#c0392b;
+    font-weight:700;
+    opacity:1;
+  }
+  .join-fee-note{
+    font-size:13px;
+    font-weight:600;
+    max-width:460px;
+    margin:0 auto 12px;
+    text-align:center;
+  }
   .form-field{
     max-width:460px;
     margin:0 auto 16px;
@@ -466,22 +487,27 @@
         <label class="tier-option" data-tier="1">
           <input type="radio" name="tier" value="1">
           <span class="tier-option-label"><strong>Tier 1</strong>0 – 1,000 followers</span>
+          <span class="tier-count" id="tier-count-1"></span>
         </label>
         <label class="tier-option" data-tier="2">
           <input type="radio" name="tier" value="2">
           <span class="tier-option-label"><strong>Tier 2</strong>1,000 – 5,000 followers</span>
+          <span class="tier-count" id="tier-count-2"></span>
         </label>
         <label class="tier-option" data-tier="3">
           <input type="radio" name="tier" value="3">
           <span class="tier-option-label"><strong>Tier 3</strong>5,000 – 10,000 followers</span>
+          <span class="tier-count" id="tier-count-3"></span>
         </label>
         <label class="tier-option" data-tier="4">
           <input type="radio" name="tier" value="4">
           <span class="tier-option-label"><strong>Tier 4</strong>10,000 – 20,000 followers</span>
+          <span class="tier-count" id="tier-count-4"></span>
         </label>
         <label class="tier-option" data-tier="5">
           <input type="radio" name="tier" value="5">
           <span class="tier-option-label"><strong>Tier 5</strong>20,000 – 50,000 followers</span>
+          <span class="tier-count" id="tier-count-5"></span>
         </label>
       </div>
 
@@ -490,7 +516,7 @@
         <input type="url" id="account-url-input" placeholder="https://www.tiktok.com/@yourhandle">
       </div>
 
-      <button class="btn btn-solid" id="join-btn">Join challenge</button>
+      <button class="btn btn-solid" id="join-btn">Continue</button>
       <p class="task-status" id="step1-status" style="font-size:13px; opacity:0.7; margin-top:10px;"></p>
     </div>
 
@@ -518,7 +544,8 @@
         <span>I confirm this video meets all the rules above, including being posted on the account I entered.</span>
       </label>
       <p class="warning-text">By submitting, you confirm this video follows the challenge rules. Admin may review it afterward — if it breaks the rules, it may be taken down and your entry disqualified.</p>
-      <button class="btn btn-solid" id="finish-join-btn">Submit & join</button>
+      <p class="join-fee-note" id="join-fee-note">A one-time ₦1,000 entry fee applies to join this challenge.</p>
+      <button class="btn btn-solid" id="finish-join-btn">Pay ₦1,000 & join</button>
       <button class="btn btn-ghost" id="back-btn" style="margin-left:8px;">Back</button>
       <p class="task-status" id="step2-status" style="font-size:13px; opacity:0.7; margin-top:10px;"></p>
     </div>
@@ -583,10 +610,16 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://js.paystack.co/v1/inline.js"></script>
 <script>
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // TODO: replace with your real Paystack public key (starts with pk_live_ or pk_test_)
+  const PAYSTACK_PUBLIC_KEY = "pk_test_REPLACE_WITH_YOUR_PAYSTACK_PUBLIC_KEY";
+  const JOIN_FEE_NAIRA = 1000;
+  const TIER_CAPACITY = 500;
 
   const TIER_LABELS = {
     1: 'Tier 1 (0 – 1,000 followers)',
@@ -643,20 +676,65 @@
   }
 
   let currentUserId = null;
+  let currentUserEmail = null;
   let currentChallenge = null;
   let selectedTier = null;
   let pendingAccountUrl = null;
   let campaignEnded = false;
   let countdownTimer;
   let upcomingTimer;
+  let tierCounts = {};
 
   document.querySelectorAll('.tier-option').forEach(label => {
-    label.addEventListener('click', () => {
+    label.addEventListener('click', (event) => {
+      if (label.classList.contains('full')){
+        event.preventDefault();
+        showToast('That tier is full — please pick another one.');
+        return;
+      }
       document.querySelectorAll('.tier-option').forEach(l => l.classList.remove('selected'));
       label.classList.add('selected');
       selectedTier = label.getAttribute('data-tier');
     });
   });
+
+  // Fetches how many non-removed entries exist per tier for a challenge,
+  // and disables any tier that has hit the 500-participant cap.
+  async function refreshTierAvailability(challengeId){
+    const { data: rows, error } = await supabaseClient
+      .from('challenge_submissions')
+      .select('tier')
+      .eq('challenge_id', challengeId)
+      .eq('is_removed', false);
+
+    tierCounts = {};
+    if (!error && rows){
+      rows.forEach(r => {
+        tierCounts[r.tier] = (tierCounts[r.tier] || 0) + 1;
+      });
+    }
+
+    document.querySelectorAll('.tier-option').forEach(label => {
+      const tier = label.getAttribute('data-tier');
+      const count = tierCounts[tier] || 0;
+      const countEl = document.getElementById(`tier-count-${tier}`);
+      const isFull = count >= TIER_CAPACITY;
+
+      if (countEl){
+        countEl.textContent = isFull ? 'Full' : `${count} / ${TIER_CAPACITY} joined`;
+        countEl.classList.toggle('full-count', isFull);
+      }
+
+      label.classList.toggle('full', isFull);
+      const radio = label.querySelector('input[type="radio"]');
+      if (radio) radio.disabled = isFull;
+
+      if (isFull && selectedTier === tier){
+        selectedTier = null;
+        label.classList.remove('selected');
+      }
+    });
+  }
 
   document.getElementById('rules-btn').addEventListener('click', () => {
     document.getElementById('score-info-panel').style.display = 'none';
@@ -981,6 +1059,7 @@
     const endTime = chosen.end;
     startCountdown(endTime);
 
+    await refreshTierAvailability(currentChallenge.id);
     await loadWinners(currentChallenge.id);
 
     const { data: submissionRows, error: submissionError } = await supabaseClient
@@ -1018,6 +1097,11 @@
       statusEl.textContent = 'Please select a tier.';
       return;
     }
+    if ((tierCounts[selectedTier] || 0) >= TIER_CAPACITY){
+      statusEl.textContent = 'That tier just filled up — please choose another one.';
+      refreshTierAvailability(currentChallenge.id);
+      return;
+    }
     if (!isTikTokUrl(accountUrl)){
       statusEl.textContent = 'Please enter a valid TikTok account link.';
       return;
@@ -1031,6 +1115,33 @@
   document.getElementById('back-btn').addEventListener('click', () => {
     updateEntryUI();
   });
+
+  // Opens the Paystack popup for the ₦1,000 entry fee. Resolves with the
+  // payment reference on success, rejects if the user cancels/closes it.
+  function collectJoinFee(){
+    return new Promise((resolve, reject) => {
+      if (!PAYSTACK_PUBLIC_KEY || PAYSTACK_PUBLIC_KEY.includes('REPLACE')){
+        reject(new Error('Payments aren\'t set up yet — missing Paystack public key.'));
+        return;
+      }
+      const handler = PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: currentUserEmail,
+        amount: JOIN_FEE_NAIRA * 100, // Paystack expects kobo
+        currency: 'NGN',
+        ref: `EARNOVA-${currentChallenge.id}-${currentUserId}-${Date.now()}`,
+        metadata: {
+          user_id: currentUserId,
+          challenge_id: currentChallenge.id,
+          tier: selectedTier,
+          purpose: 'weekly_challenge_join_fee'
+        },
+        callback: (response) => resolve(response.reference),
+        onClose: () => reject(new Error('Payment was cancelled.'))
+      });
+      handler.openIframe();
+    });
+  }
 
   document.getElementById('finish-join-btn').addEventListener('click', async () => {
     const statusEl = document.getElementById('step2-status');
@@ -1054,27 +1165,64 @@
     }
 
     const btn = document.getElementById('finish-join-btn');
-    btn.disabled = true;
-    btn.textContent = 'Joining…';
-    statusEl.textContent = '';
 
-    const { error } = await supabaseClient
-      .from('challenge_submissions')
-      .insert({
-        challenge_id: currentChallenge.id,
-        user_id: currentUserId,
-        tier: selectedTier,
-        tiktok_account_url: pendingAccountUrl,
-        tiktok_url: videoUrl
-      });
-
-    btn.disabled = false;
-    btn.textContent = 'Submit & join';
-
-    if (error){
-      statusEl.textContent = "Couldn't join: " + error.message;
+    // Re-check capacity right before charging money, so nobody pays the
+    // ₦1,000 fee for a tier that filled up while they were filling this form.
+    await refreshTierAvailability(currentChallenge.id);
+    if ((tierCounts[selectedTier] || 0) >= TIER_CAPACITY){
+      statusEl.textContent = 'That tier just filled up (500 participants) — go back and pick another tier.';
       return;
     }
+
+    btn.disabled = true;
+    btn.textContent = 'Processing payment…';
+    statusEl.textContent = 'Opening payment window — please complete the ₦1,000 payment to join.';
+
+    let paymentReference;
+    try {
+      paymentReference = await collectJoinFee();
+    } catch (payError){
+      btn.disabled = false;
+      btn.textContent = 'Pay ₦1,000 & join';
+      statusEl.textContent = payError.message || 'Payment was not completed.';
+      return;
+    }
+
+    btn.textContent = 'Joining…';
+    statusEl.textContent = 'Payment received — joining the challenge…';
+
+    // Payment is verified server-side (Paystack /transaction/verify) inside
+    // the verify-join edge function, which then performs the insert with
+    // the service role. The client never writes payment_reference /
+    // amount_paid directly — that path is blocked by RLS.
+    const { data: sessionData } = await supabaseClient.auth.getSession();
+    let joinResult;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/verify-join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionData.session.access_token}`
+        },
+        body: JSON.stringify({
+          reference: paymentReference,
+          challenge_id: currentChallenge.id,
+          tier: selectedTier,
+          tiktok_account_url: pendingAccountUrl,
+          tiktok_url: videoUrl
+        })
+      });
+      joinResult = await res.json();
+      if (!res.ok) throw new Error(joinResult.error || 'Could not record your entry.');
+    } catch (joinError){
+      btn.disabled = false;
+      btn.textContent = 'Pay ₦1,000 & join';
+      statusEl.textContent = "Payment succeeded but we couldn't record your entry: " + joinError.message + ". Please contact support with your payment reference: " + paymentReference;
+      return;
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Pay ₦1,000 & join';
 
     showToast("You're entered in this week's challenge!");
     mySubmission = {
@@ -1084,6 +1232,7 @@
       is_removed: false
     };
     updateEntryUI();
+    refreshTierAvailability(currentChallenge.id);
   });
 
   document.getElementById('logout-btn').addEventListener('click', async (event) => {
@@ -1305,6 +1454,7 @@
       return;
     }
     currentUserId = session.user.id;
+    currentUserEmail = session.user.email;
     await loadChallenge();
     await checkMyPublishedResults();
   }
