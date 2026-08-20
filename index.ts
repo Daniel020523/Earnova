@@ -1,92 +1,159 @@
-// supabase/functions/verify-join/index.ts
-// Verifies a Paystack payment reference server-side, then inserts the
-// challenge_submissions row. The client-side Paystack callback is not
-// trustworthy on its own — this function is the source of truth.
+// Deploy with: supabase functions deploy paystack-verify
+// Secrets needed (supabase secrets set ...):
+//   PAYSTACK_SECRET_KEY   - your Paystack secret key (server-side only, never expose client-side)
+// SUPABASE_URL / SUPABASE_ANON_KEY are already available automatically.
+// SUPABASE_SERVICE_ROLE_KEY - Project Settings > API. Needed to write paid_until
+//   regardless of RLS (the user's own session can't write that column directly).
 
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const JOIN_FEE_NAIRA = 1000;
 
-Deno.serve(async (req) => {
-  if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+// ₦1,500 in kobo — Paystack amounts are always in the smallest currency unit.
+const MONTHLY_FEE_KOBO = 150000;
+// How many days one successful payment unlocks access for. Renewal is
+// manual — nothing here auto-charges the user again after this expires.
+const ACCESS_PERIOD_DAYS = 30;
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, content-type",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
-  // Identify the caller from their Supabase auth JWT (sent by supabase-js
-  // automatically as the Authorization header) — never trust a user_id
-  // passed in the request body.
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Missing auth" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabaseUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } },
   });
-  const { data: userData, error: userErr } = await userClient.auth.getUser();
-  if (userErr || !userData?.user) {
-    return json({ error: "Not authenticated" }, 401);
-  }
-  const userId = userData.user.id;
 
-  const body = await req.json().catch(() => null);
-  const { reference, challenge_id, tier, tiktok_account_url, tiktok_url } = body ?? {};
-  if (!reference || !challenge_id || !tier || !tiktok_account_url || !tiktok_url) {
-    return json({ error: "Missing required fields" }, 400);
+  const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+  if (userError || !user) {
+    return new Response(JSON.stringify({ error: "Invalid session" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
-  // 1. Verify the transaction with Paystack directly (server-to-server).
+  let body: { reference?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid body" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const reference = body.reference;
+  if (!reference) {
+    return new Response(JSON.stringify({ error: "Missing reference" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Verify directly with Paystack — never trust the client's own claim that
+  // payment succeeded. This is a server-to-server call using the secret key.
   const verifyRes = await fetch(
     `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
     { headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` } },
   );
-  const verifyData = await verifyRes.json();
+  const verifyJson = await verifyRes.json();
 
-  if (!verifyRes.ok || !verifyData?.status || verifyData.data?.status !== "success") {
-    return json({ error: "Payment could not be verified" }, 402);
+  if (!verifyJson.status || verifyJson.data?.status !== "success") {
+    return new Response(JSON.stringify({ error: "Payment not successful" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
-  const paidKobo = verifyData.data.amount;
-  const expectedKobo = JOIN_FEE_NAIRA * 100;
-  if (paidKobo !== expectedKobo) {
-    return json({ error: "Amount paid does not match the entry fee" }, 402);
+  if (verifyJson.data.amount !== MONTHLY_FEE_KOBO) {
+    return new Response(JSON.stringify({ error: "Amount mismatch" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
-  // Metadata was set client-side when initiating payment — cross-check it,
-  // but the amount/status check above is what actually matters.
-  const meta = verifyData.data.metadata ?? {};
-  if (meta.user_id && meta.user_id !== userId) {
-    return json({ error: "Payment does not belong to this user" }, 403);
-  }
-  if (String(meta.challenge_id) !== String(challenge_id)) {
-    return json({ error: "Payment does not match this challenge" }, 403);
+  const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+  // Idempotency — a reference should only ever extend access once. If Paystack's
+  // webhook and the client's onSuccess both call this (or the user retries),
+  // we must not stack extra days onto paid_until for the same payment.
+  const { data: existing } = await supabaseAdmin
+    .from("activation_payments")
+    .select("id")
+    .eq("reference", reference)
+    .maybeSingle();
+
+  if (existing) {
+    // Already processed — return the account's current paid_until as-is
+    // rather than extending it again.
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("paid_until")
+      .eq("id", user.id)
+      .single();
+
+    return new Response(JSON.stringify({ paid_until: profile?.paid_until ?? null }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
-  // 2. Insert with the service role so RLS can safely require this
-  // function as the only path that sets payment_reference / amount_paid.
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
-  const { error: insertErr } = await admin.from("challenge_submissions").insert({
-    challenge_id,
-    user_id: userId,
-    tier,
-    tiktok_account_url,
-    tiktok_url,
-    payment_reference: reference,
-    amount_paid: paidKobo / 100,
+  await supabaseAdmin.from("activation_payments").insert({
+    user_id: user.id,
+    reference,
+    amount: verifyJson.data.amount,
+    status: "success",
   });
 
-  if (insertErr) {
-    // Most likely cause: unique index on payment_reference (double-submit)
-    // or a duplicate entry for this user/challenge.
-    return json({ error: insertErr.message }, 409);
+  // Extend from the later of "now" or the current paid_until, so paying a
+  // few days early adds to remaining time instead of resetting it.
+  const { data: currentProfile, error: currentProfileError } = await supabaseAdmin
+    .from("profiles")
+    .select("paid_until")
+    .eq("id", user.id)
+    .single();
+
+  if (currentProfileError) {
+    return new Response(JSON.stringify({ error: "Payment verified but we couldn't update your account. Contact support with your reference: " + reference }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
-  return json({ ok: true });
+  const now = new Date();
+  const currentPaidUntil = currentProfile?.paid_until ? new Date(currentProfile.paid_until) : null;
+  const extendFrom = currentPaidUntil && currentPaidUntil.getTime() > now.getTime() ? currentPaidUntil : now;
+  const newPaidUntil = new Date(extendFrom.getTime() + ACCESS_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+
+  const { error: updateError } = await supabaseAdmin
+    .from("profiles")
+    .update({ paid_until: newPaidUntil.toISOString() })
+    .eq("id", user.id);
+
+  if (updateError) {
+    return new Response(JSON.stringify({ error: "Payment verified but we couldn't update your account. Contact support with your reference: " + reference }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  return new Response(JSON.stringify({ paid_until: newPaidUntil.toISOString() }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 });
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}

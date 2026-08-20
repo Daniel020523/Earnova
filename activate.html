@@ -47,9 +47,9 @@
 </header>
 
 <main class="page">
-  <div class="kicker">One last step</div>
-  <h1>Activate your account</h1>
-  <p class="lead">Your email is verified — pay the one-time activation fee to unlock task access.</p>
+  <div class="kicker" id="page-kicker">One last step</div>
+  <h1 id="page-heading">Activate your account</h1>
+  <p class="lead" id="page-lead">Your email is verified — pay the activation fee to unlock task access.</p>
 
   <div id="loading" class="card">
     <p>Checking your account…</p>
@@ -57,12 +57,13 @@
 
   <div id="activate-content" class="card activate-card" style="display:none;">
     <div class="fee-amount">₦1,500</div>
-    <p class="fee-note">One-time activation fee, paid once per account.</p>
+    <p class="fee-note" id="fee-note">Monthly access fee — pay every 30 days to keep task access unlocked.</p>
 
     <ul class="fee-list">
       <li>✅ Unlocks daily tasks, surveys, referrals & affiliate tools</li>
       <li>✅ Unlocks the weekly TikTok challenge</li>
-      <li>✅ One-time only — never charged again</li>
+      <li>🔁 Renews manually — no card is stored and you're never auto-charged</li>
+      <li>🔒 Access locks automatically 30 days after payment until you pay again</li>
     </ul>
 
     <button class="btn btn-solid" id="pay-btn" style="width:100%; justify-content:center;">Pay ₦1,500 with Paystack</button>
@@ -94,10 +95,11 @@
 
   // Paystack PUBLIC key — safe to expose client-side by design.
   // Get this from Paystack dashboard > Settings > API Keys & Webhooks.
-  const PAYSTACK_PUBLIC_KEY = "pk_live_2958efcbdba4cf15d53ec8ea997dcc8f542505dc";
+  const PAYSTACK_PUBLIC_KEY = "pk_live_replace_with_your_actual_public_key";
 
   const PAYSTACK_VERIFY_URL = `${SUPABASE_URL}/functions/v1/paystack-verify`;
-  const ACTIVATION_AMOUNT_KOBO = 150000; // ₦1,500
+  const MONTHLY_FEE_KOBO = 150000; // ₦1,500
+  const ACCESS_PERIOD_DAYS = 30; // how long one payment unlocks access for
 
   let toastTimer;
   function showToast(msg){
@@ -127,9 +129,12 @@
 
     currentUser = session.user;
 
+    // paid_until: timestamptz on profiles. Null = never paid.
+    // Access is considered locked once paid_until has passed — the account
+    // does NOT auto-renew or get auto-charged; the user must pay again here.
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
-      .select('is_activated')
+      .select('paid_until')
       .eq('id', currentUser.id)
       .single();
 
@@ -138,10 +143,23 @@
       return;
     }
 
-    if (profile.is_activated){
+    const paidUntil = profile.paid_until ? new Date(profile.paid_until) : null;
+    const isCurrentlyPaid = paidUntil && paidUntil.getTime() > Date.now();
+
+    if (isCurrentlyPaid){
       window.location.href = 'dashboard.html';
       return;
     }
+
+    // Adjust copy depending on whether this is a first-time activation
+    // or access that lapsed after a previous payment.
+    const isRenewal = !!paidUntil; // they've paid before, it just expired
+    document.getElementById('page-kicker').textContent = isRenewal ? 'Access expired' : 'One last step';
+    document.getElementById('page-heading').textContent = isRenewal ? 'Renew your access' : 'Activate your account';
+    document.getElementById('page-lead').textContent = isRenewal
+      ? `Your access lapsed on ${paidUntil.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}. Pay again to unlock task access for another ${ACCESS_PERIOD_DAYS} days.`
+      : 'Your email is verified — pay the access fee to unlock task access.';
+    document.getElementById('pay-btn').textContent = `Pay ₦1,500 with Paystack`;
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('activate-content').style.display = 'block';
@@ -157,7 +175,7 @@
     popup.newTransaction({
       key: PAYSTACK_PUBLIC_KEY,
       email: currentUser.email,
-      amount: ACTIVATION_AMOUNT_KOBO,
+      amount: MONTHLY_FEE_KOBO,
       currency: 'NGN',
       metadata: {
         user_id: currentUser.id
@@ -178,13 +196,15 @@
           });
           const json = await resp.json();
 
-          if (!resp.ok || !json.activated){
+          // Expect the edge function to respond with { paid_until: "<ISO date>" }
+          // after extending profiles.paid_until by ACCESS_PERIOD_DAYS.
+          if (!resp.ok || !json.paid_until){
             statusEl.textContent = json.error || "We couldn't verify your payment. Contact support with your reference: " + transaction.reference;
             btn.disabled = false;
             return;
           }
 
-          showToast('Account activated!');
+          showToast('Access unlocked for 30 days!');
           setTimeout(() => { window.location.href = 'dashboard.html'; }, 800);
         } catch (err){
           statusEl.textContent = "We couldn't verify your payment. Contact support with your reference: " + transaction.reference;
@@ -205,6 +225,15 @@
   });
 
   init();
+
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+      document.getElementById('activate-content').style.display = 'none';
+      document.getElementById('error-box').style.display = 'none';
+      document.getElementById('loading').style.display = 'block';
+      init();
+    }
+  });
 </script>
 
 </body>

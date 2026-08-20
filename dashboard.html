@@ -633,7 +633,7 @@
 
     const { data: profile, error: profileError } = await supabaseClient
       .from('profiles')
-      .select('full_name, referral_code, is_activated')
+      .select('full_name, referral_code, paid_until')
       .eq('id', user.id)
       .single();
 
@@ -642,7 +642,10 @@
       return;
     }
 
-    if (!profile.is_activated) {
+    const paidUntil = profile.paid_until ? new Date(profile.paid_until) : null;
+    const isCurrentlyPaid = paidUntil && paidUntil.getTime() > Date.now();
+
+    if (!isCurrentlyPaid) {
       window.location.href = 'activate.html';
       return;
     }
@@ -677,6 +680,18 @@
   });
 
   loadDashboard();
+
+  // If this page is restored from the browser's back-forward cache (bfcache)
+  // via back/forward navigation, no script re-runs by default — the user
+  // would see whatever was on screen before they navigated away, even if
+  // their paid_until has since expired. Force a fresh check in that case.
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+      document.getElementById('dashboard-content').style.display = 'none';
+      document.getElementById('dashboard-loading').style.display = 'block';
+      loadDashboard();
+    }
+  });
 </script>
 
 </body>
