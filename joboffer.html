@@ -102,20 +102,29 @@
   <h1>Job offers</h1>
   <p class="lead">Browse remote roles posted by verified companies. Click a job to see full details and apply — no tasks, no payouts here.</p>
 
-  <div class="search-row">
-    <input id="searchInput" type="text" placeholder="Search by title or company…">
-    <select id="typeFilter">
-      <option value="">All job types</option>
-      <option value="Full-time">Full-time</option>
-      <option value="Part-time">Part-time</option>
-      <option value="Contract">Contract</option>
-      <option value="Internship">Internship</option>
-    </select>
+  <div id="jobs-gate-loading" class="card"><p>Loading…</p></div>
+
+  <div id="jobs-page-wrap" style="display:none;">
+    <div class="search-row">
+      <input id="searchInput" type="text" placeholder="Search by title or company…">
+      <select id="typeFilter">
+        <option value="">All job types</option>
+        <option value="Full-time">Full-time</option>
+        <option value="Part-time">Part-time</option>
+        <option value="Contract">Contract</option>
+        <option value="Internship">Internship</option>
+      </select>
+    </div>
+
+    <div id="jobs-loading" class="card"><p>Loading job offers…</p></div>
+    <div id="jobs-empty" class="card" style="display:none;"><p>No job offers match your search right now. Check back soon.</p></div>
+    <div id="job-list" class="job-list"></div>
   </div>
 
-  <div id="jobs-loading" class="card"><p>Loading job offers…</p></div>
-  <div id="jobs-empty" class="card" style="display:none;"><p>No job offers match your search right now. Check back soon.</p></div>
-  <div id="job-list" class="job-list"></div>
+  <div id="jobs-error" class="card" style="display:none;">
+    <p id="jobs-error-text"></p>
+    <a class="btn btn-solid" href="login.html">Go to log in</a>
+  </div>
 </main>
 
 <footer>
@@ -172,6 +181,14 @@
     toast.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+  }
+
+  function showJobsError(msg){
+    document.getElementById('jobs-gate-loading').style.display = 'none';
+    document.getElementById('jobs-page-wrap').style.display = 'none';
+    const errBox = document.getElementById('jobs-error');
+    document.getElementById('jobs-error-text').textContent = msg;
+    errBox.style.display = 'block';
   }
 
   function formatDate(iso){
@@ -308,7 +325,45 @@
     applyFilters();
   }
 
-  loadJobs();
+  async function init(){
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError || !session) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    // Access gate: even with a valid session, a user whose 30-day access
+    // has lapsed is sent to activate.html to renew before browsing the
+    // job board. This is a UX convenience only; the real enforcement (if
+    // wanted later) would need to live server-side via an RLS policy on
+    // `jobs`, since a user could otherwise query Supabase directly and
+    // skip this check.
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('paid_until')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profileError) {
+      showJobsError("We couldn't verify your account. Please try again.");
+      return;
+    }
+
+    const paidUntil = profile.paid_until ? new Date(profile.paid_until) : null;
+    const isCurrentlyPaid = paidUntil && paidUntil.getTime() > Date.now();
+    if (!isCurrentlyPaid) {
+      window.location.href = 'activate.html';
+      return;
+    }
+
+    document.getElementById('jobs-gate-loading').style.display = 'none';
+    document.getElementById('jobs-page-wrap').style.display = 'block';
+
+    await loadJobs();
+  }
+
+  init();
 </script>
 
 </body>

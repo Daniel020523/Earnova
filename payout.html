@@ -246,6 +246,30 @@
     const user = session.user;
     currentUserId = user.id;
 
+    // Access gate: even with a valid session, a user whose 30-day access
+    // has lapsed shouldn't be able to request a payout — send them to
+    // activate.html to renew first. This is a UX convenience only; the
+    // real enforcement (if wanted later) would need to live inside
+    // request_payout() server-side, since a user could otherwise call
+    // that RPC directly and skip this check.
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('paid_until')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      showPageError("We couldn't load your payout details. Please try again.");
+      return;
+    }
+
+    const paidUntil = profile.paid_until ? new Date(profile.paid_until) : null;
+    const isCurrentlyPaid = paidUntil && paidUntil.getTime() > Date.now();
+    if (!isCurrentlyPaid) {
+      window.location.href = 'activate.html';
+      return;
+    }
+
     let balanceData;
     try {
       const [creditSums, deductionSums, restoreSums, payoutRowsResult, refundRowsResult] = await Promise.all([
@@ -273,10 +297,10 @@
 
     const { data: linkedAccount, error: linkedAccountError } = await supabaseClient
       .from('linked_accounts').select('bank_name, account_number, account_name').eq('user_id', user.id).maybeSingle();
-    const { data: profile, error: profileError } = await supabaseClient
+    const { data: pinProfile, error: pinProfileError } = await supabaseClient
       .from('profiles').select('has_withdrawal_pin').eq('id', user.id).single();
 
-    if (profileError) {
+    if (pinProfileError) {
       showPageError("We couldn't load your payout details. Please try again.");
       return;
     }
@@ -285,7 +309,7 @@
     document.getElementById('available-balance').textContent = formatNaira(currentAvailableBalance);
 
     hasLinkedAccount = !linkedAccountError && !!linkedAccount;
-    hasWithdrawalPin = !!(profile && profile.has_withdrawal_pin);
+    hasWithdrawalPin = !!(pinProfile && pinProfile.has_withdrawal_pin);
 
     const submitBtn = document.getElementById('submit-btn');
     const notice = document.getElementById('setup-notice');

@@ -755,6 +755,29 @@
 
     currentUserId = session.user.id;
 
+    // Access gate: even with a valid session, a user whose 30-day access
+    // has lapsed shouldn't be able to earn from this page — send them to
+    // activate.html to renew first. This is a UX convenience only; the
+    // real enforcement must live server-side (RLS / RPC checks), since a
+    // user could otherwise call Supabase directly and skip this check.
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('paid_until')
+      .eq('id', currentUserId)
+      .single();
+
+    if (profileError) {
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const paidUntil = profile.paid_until ? new Date(profile.paid_until) : null;
+    const isCurrentlyPaid = paidUntil && paidUntil.getTime() > Date.now();
+    if (!isCurrentlyPaid) {
+      window.location.href = 'activate.html';
+      return;
+    }
+
     await loadProducts();
     await Promise.all([
       loadSales(currentUserId),
