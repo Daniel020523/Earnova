@@ -359,9 +359,9 @@
             <tr>
               <th style="text-align:left; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Date</th>
               <th style="text-align:left; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Product</th>
-              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Sale amount</th>
-              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Commission</th>
-              <th style="text-align:right; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Status</th>
+              <th style="text-align:right; padding:8px 0 8px 20px; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Sale amount</th>
+              <th style="text-align:right; padding:8px 0 8px 20px; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Commission</th>
+              <th style="text-align:right; padding:8px 0 8px 20px; border-bottom:1px solid rgba(0,0,0,0.12); font-size:13px; opacity:0.7;">Status</th>
             </tr>
           </thead>
           <tbody id="sales-body"></tbody>
@@ -635,8 +635,7 @@
     const { data, error } = await supabaseClient
       .from('products')
       .select('id, name, description, price, commission_rate, image_url, category, is_active')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
+      .eq('is_active', true);
 
     loadingEl.style.display = 'none';
 
@@ -646,8 +645,17 @@
       return;
     }
 
-    allProducts = data || [];
+    allProducts = shuffleArray(data || []);
     renderProducts();
+  }
+
+  function shuffleArray(arr){
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
   }
 
   function renderSalesRows(rows){
@@ -659,9 +667,9 @@
       <tr>
         <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${formatDate(row.created_at)}</td>
         <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px;">${productNameById[row.affiliate_links?.product_id] || 'Product'}</td>
-        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right;">${formatNaira(row.sale_amount)}</td>
-        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right;">${formatNaira(row.commission_amount)}</td>
-        <td style="padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right; opacity:0.75;">${capitalize(row.status)}</td>
+        <td style="padding:8px 0 8px 20px; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right;">${formatNaira(row.sale_amount)}</td>
+        <td style="padding:8px 0 8px 20px; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right;">${formatNaira(row.commission_amount)}</td>
+        <td style="padding:8px 0 8px 20px; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; text-align:right; opacity:0.75;">${capitalize(row.status)}</td>
       </tr>
     `).join('');
   }
