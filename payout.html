@@ -220,9 +220,9 @@
   // Every completed transaction type that adds to or subtracts from the
   // available balance. Kept as one list so this page and dashboard.html
   // can't silently drift apart again.
-  const CREDIT_TYPES = ['earning', 'referral', 'review', 'survey', 'challenge', 'share'];
-  const DEDUCTION_TYPES = ['review_deduction', 'earning_deduction', 'survey_deduction', 'challenge_deduction', 'share_deduction'];
-  const RESTORE_TYPES = ['review_restore', 'earning_restore', 'survey_restore', 'challenge_restore', 'share_restore'];
+  const CREDIT_TYPES = ['earning', 'referral', 'survey', 'challenge', 'share'];
+  const DEDUCTION_TYPES = ['earning_deduction', 'survey_deduction', 'challenge_deduction', 'share_deduction'];
+  const RESTORE_TYPES = ['earning_restore', 'survey_restore', 'challenge_restore', 'share_restore'];
 
   async function sumType(userId, type){
     const { data, error } = await supabaseClient
