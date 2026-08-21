@@ -754,8 +754,40 @@
   async function loadPosts(){
     const loadingEl = document.getElementById('posts-loading');
 
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    currentUserId = user ? user.id : null;
+    // Require a logged-in session. This page previously used
+    // auth.getUser() and just left currentUserId null for anonymous
+    // visitors while still showing every campaign — now it redirects to
+    // login.html instead, matching the other earning pages.
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError || !session){
+      window.location.href = 'login.html';
+      return;
+    }
+    currentUserId = session.user.id;
+
+    // Access gate: even with a valid session, a user whose 30-day access
+    // has lapsed shouldn't be able to browse or join paid campaigns —
+    // send them to activate.html to renew first. This is a UX
+    // convenience only; the real enforcement would need to live
+    // server-side (RLS on sponsored_post_participations), since a user
+    // could otherwise call Supabase directly and skip this check.
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('paid_until')
+      .eq('id', currentUserId)
+      .single();
+
+    if (profileError){
+      window.location.href = 'login.html';
+      return;
+    }
+
+    const paidUntil = profile.paid_until ? new Date(profile.paid_until) : null;
+    const isCurrentlyPaid = paidUntil && paidUntil.getTime() > Date.now();
+    if (!isCurrentlyPaid){
+      window.location.href = 'activate.html';
+      return;
+    }
 
     const { data, error } = await supabaseClient
       .from('sponsored_posts')

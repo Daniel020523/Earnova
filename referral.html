@@ -244,6 +244,31 @@
 
     const user = session.user;
 
+    // Access gate: even with a valid session, a user whose 30-day access
+    // has lapsed shouldn't be able to view or share their referral link —
+    // send them to activate.html to renew first. This is a UX
+    // convenience only; the real enforcement would need to live
+    // server-side (e.g. inside whatever credits the 'referral'
+    // transaction type), since a user could otherwise reach that path
+    // directly and skip this check.
+    const { data: gateProfile, error: gateProfileError } = await supabaseClient
+      .from('profiles')
+      .select('paid_until')
+      .eq('id', user.id)
+      .single();
+
+    if (gateProfileError) {
+      showReferralError("We couldn't load your referral details. Please try logging in again.");
+      return;
+    }
+
+    const paidUntil = gateProfile.paid_until ? new Date(gateProfile.paid_until) : null;
+    const isCurrentlyPaid = paidUntil && paidUntil.getTime() > Date.now();
+    if (!isCurrentlyPaid) {
+      window.location.href = 'activate.html';
+      return;
+    }
+
     const [profileResult, referralsResult, commissionResult] = await Promise.all([
       supabaseClient.from('profiles').select('referral_code').eq('id', user.id).single(),
       supabaseClient
