@@ -21,6 +21,7 @@
     object-fit:contain;
     border-radius:10px;
     background:rgba(0,0,0,0.04);
+    cursor:zoom-in;
   }
   .product-category{
     font-size:12px;
@@ -95,6 +96,38 @@
   }
   .download-btn:hover{ opacity:0.92; }
   .download-note{ font-size:12px; opacity:0.6; margin-top:10px; }
+
+  .image-lightbox-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.9);
+    z-index:200;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .image-lightbox-overlay.open{ display:flex; }
+  .image-lightbox-img{
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+  }
+  .image-lightbox-close{
+    position:absolute;
+    top:20px;
+    right:20px;
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    border:none;
+    background:rgba(255,255,255,0.15);
+    color:#fff;
+    font-size:16px;
+    cursor:pointer;
+    z-index:1;
+  }
+  .image-lightbox-close:hover{ background:rgba(255,255,255,0.25); }
 </style>
 </head>
 <body>
@@ -151,7 +184,7 @@
     <div class="status-icon">✅</div>
     <div class="status-title">Payment confirmed</div>
     <div class="status-body">Thanks for your purchase — a receipt has been sent to your email.</div>
-    <a id="download-link" class="download-btn" href="#" style="display:none;" target="_blank" rel="noopener">Download your file</a>
+    <a id="download-link" class="download-btn" href="#" style="display:none;" download target="_blank" rel="noopener">Download your file</a>
     <div id="download-note" class="download-note" style="display:none;">This link expires in 24 hours. If it stops working, contact support with your payment reference.</div>
     <div id="no-download-note" class="download-note" style="display:none;">This product has no downloadable file — check your email for delivery details.</div>
   </div>
@@ -172,6 +205,11 @@
   </div>
   <div class="copyright">© EarnOva. All rights reserved. 2026</div>
 </footer>
+
+<div class="image-lightbox-overlay" id="image-lightbox-overlay">
+  <button class="image-lightbox-close" id="image-lightbox-close" aria-label="Close">✕</button>
+  <img class="image-lightbox-img" id="image-lightbox-img" alt="">
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -194,7 +232,11 @@
   // a short-lived signed URL for the product's file_path (only after
   // confirming payment) using the service role key, and returns it as
   // `file_url` in its JSON response. This page just displays that link
-  // — it never talks to Storage directly for the product file.
+  // — it never talks to Storage directly for the product file. The
+  // signed URL is generated with { download: true }, which sets
+  // Content-Disposition: attachment on Supabase's response — that's
+  // what makes video/PDF/etc. download to the device instead of
+  // opening inline in the browser tab.
   //
   // Requires an Edge Function named "verify-paystack" (see the
   // accompanying index.ts) deployed to this Supabase project, plus:
@@ -203,7 +245,7 @@
   // ---------------------------------------------------------------
   const SUPABASE_URL = "https://vrgqbyowlfqrtjumzeqq.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_PgoMJxVK_CQiyhHoXMunrQ_hgByUSzW";
-  const PAYSTACK_PUBLIC_KEY = "pk_live_2958efcbdba4cf15d53ec8ea997dcc8f542505dc";
+  const PAYSTACK_PUBLIC_KEY = "pk_test_REPLACE_WITH_YOUR_PAYSTACK_PUBLIC_KEY";
 
   const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -339,6 +381,27 @@
       noFileNote.style.display = 'block';
     }
   }
+
+  // ---- Image lightbox (tap the product photo to view it full-size) ----
+  function openImageLightbox(src, alt){
+    document.getElementById('image-lightbox-img').src = src;
+    document.getElementById('image-lightbox-img').alt = alt;
+    document.getElementById('image-lightbox-overlay').classList.add('open');
+  }
+
+  function closeImageLightbox(){
+    document.getElementById('image-lightbox-overlay').classList.remove('open');
+  }
+
+  document.getElementById('product-image').addEventListener('click', () => {
+    const img = document.getElementById('product-image');
+    openImageLightbox(img.src, img.alt);
+  });
+
+  document.getElementById('image-lightbox-close').addEventListener('click', closeImageLightbox);
+  document.getElementById('image-lightbox-overlay').addEventListener('click', (event) => {
+    if (event.target.id === 'image-lightbox-overlay') closeImageLightbox();
+  });
 
   document.getElementById('pay-btn').addEventListener('click', () => {
     const nameInput = document.getElementById('buyer-name');
