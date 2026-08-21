@@ -203,6 +203,12 @@
               <div id="product-image-status" style="font-size:12px; opacity:0.65; margin-top:6px;"></div>
             </div>
             <div class="field full">
+              <label for="product-file-input">Course file (video, PDF, zip, etc.)</label>
+              <input type="file" id="product-file-input">
+              <input type="hidden" id="product-file-path">
+              <div id="product-file-status" style="font-size:12px; opacity:0.65; margin-top:6px;"></div>
+            </div>
+            <div class="field full">
               <label for="product-description">Description</label>
               <textarea id="product-description"></textarea>
             </div>
@@ -312,7 +318,12 @@
   //
   // Schema this page expects (shared with affiliate.html):
   //   products(id, name, description, price, commission_rate,
-  //     image_url, category, is_active, created_at)
+  //     image_url, category, file_path, is_active, created_at)
+  //   file_path points to an object in the PRIVATE 'product-files'
+  //   storage bucket. Admins can view it here via a short-lived signed
+  //   URL (their session already passes bucket RLS); buyers only ever
+  //   get a signed URL through the verify-paystack Edge Function after
+  //   a confirmed payment — see product.html.
   //   affiliate_links(id, user_id, product_id, code, clicks, created_at)
   //   affiliate_sales(id, affiliate_link_id, buyer_name, buyer_email,
   //     sale_amount, commission_amount, status, created_at)
@@ -375,7 +386,7 @@
 
     const { data, error } = await supabaseClient
       .from('products')
-      .select('id, name, description, price, commission_rate, image_url, category, is_active, created_at')
+      .select('id, name, description, price, commission_rate, image_url, category, file_path, is_active, created_at')
       .order('created_at', { ascending: false });
 
     loadingEl.style.display = 'none';
@@ -477,6 +488,39 @@
     imageUploading = false;
   });
 
+  let fileUploading = false;
+
+  document.getElementById('product-file-input').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById('product-file-status');
+    statusEl.textContent = `Uploading ${file.name}…`;
+    fileUploading = true;
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const path = `${Date.now()}-${safeName}`;
+
+    // product-files is a PRIVATE bucket — buyers can never browse it directly.
+    // We only ever store the path here; access happens through short-lived
+    // signed URLs generated server-side (verify-paystack, or viewProductFile
+    // below using the admin's own session).
+    const { error: uploadError } = await supabaseClient.storage
+      .from(PRODUCT_FILE_BUCKET)
+      .upload(path, file, { upsert: false });
+
+    if (uploadError) {
+      statusEl.textContent = "Couldn't upload file — try again.";
+      showToast("Couldn't upload file");
+      fileUploading = false;
+      return;
+    }
+
+    document.getElementById('product-file-path').value = path;
+    statusEl.textContent = `Uploaded: ${file.name}`;
+    fileUploading = false;
+  });
+
   function startEditProduct(id){
     const p = allProducts.find(x => x.id === id);
     if (!p) return;
@@ -497,6 +541,11 @@
     }
     document.getElementById('product-image-status').textContent = '';
     document.getElementById('product-image-file').value = '';
+    document.getElementById('product-file-path').value = p.file_path || '';
+    document.getElementById('product-file-status').textContent = p.file_path
+      ? `Current file: ${p.file_path.replace(/^\d+-/, '')} (choose a new file to replace it)`
+      : '';
+    document.getElementById('product-file-input').value = '';
     document.getElementById('product-description').value = p.description || '';
     document.getElementById('product-active').checked = !!p.is_active;
     document.getElementById('product-submit-btn').textContent = 'Save changes';
@@ -511,6 +560,8 @@
     document.getElementById('product-image').value = '';
     document.getElementById('product-image-preview').style.display = 'none';
     document.getElementById('product-image-status').textContent = '';
+    document.getElementById('product-file-path').value = '';
+    document.getElementById('product-file-status').textContent = '';
     document.getElementById('product-active').checked = true;
     document.getElementById('product-submit-btn').textContent = 'Add product';
     document.getElementById('product-cancel-btn').style.display = 'none';
@@ -525,6 +576,10 @@
       showToast('Wait for the photo to finish uploading');
       return;
     }
+    if (fileUploading) {
+      showToast('Wait for the file to finish uploading');
+      return;
+    }
 
     const id = document.getElementById('product-id').value;
     const payload = {
@@ -533,6 +588,7 @@
       price: Number(document.getElementById('product-price').value),
       commission_rate: Number(document.getElementById('product-commission').value),
       image_url: document.getElementById('product-image').value.trim() || null,
+      file_path: document.getElementById('product-file-path').value.trim() || null,
       description: document.getElementById('product-description').value.trim() || null,
       is_active: document.getElementById('product-active').checked
     };
