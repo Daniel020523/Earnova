@@ -418,6 +418,7 @@
         <td>
           <div class="row-actions">
             <button data-edit="${p.id}">Edit</button>
+            <button data-toggle-active="${p.id}" data-active="${p.is_active}">${p.is_active ? 'Deactivate' : 'Activate'}</button>
             <button class="danger" data-delete="${p.id}">Delete</button>
           </div>
         </td>
@@ -429,6 +430,9 @@
     });
     document.querySelectorAll('[data-delete]').forEach(btn => {
       btn.addEventListener('click', () => deleteProduct(btn.dataset.delete));
+    });
+    document.querySelectorAll('[data-toggle-active]').forEach(btn => {
+      btn.addEventListener('click', () => toggleProductActive(btn.dataset.toggleActive, btn.dataset.active === 'true'));
     });
     document.querySelectorAll('[data-view-file]').forEach(btn => {
       btn.addEventListener('click', () => viewProductFile(btn.dataset.viewFile));
@@ -616,11 +620,36 @@
     await loadProducts();
   });
 
+  async function toggleProductActive(id, currentlyActive){
+    const { error } = await supabaseClient
+      .from('products')
+      .update({ is_active: !currentlyActive })
+      .eq('id', id);
+
+    if (error) {
+      showToast("Couldn't update product");
+      return;
+    }
+    showToast(currentlyActive ? 'Product deactivated' : 'Product activated');
+    await loadProducts();
+  }
+
   async function deleteProduct(id){
     if (!confirm('Delete this product? This cannot be undone.')) return;
 
     const { error } = await supabaseClient.from('products').delete().eq('id', id);
     if (error) {
+      console.error('Delete product error:', error);
+      // Postgres FK violation code
+      if (error.code === '23503') {
+        const deactivateInstead = confirm(
+          "This product can't be deleted because it has existing sales records.\n\nDeactivate it instead? (hides it from affiliates, keeps sales history intact)"
+        );
+        if (deactivateInstead) {
+          await toggleProductActive(id, true);
+        }
+        return;
+      }
       showToast("Couldn't delete product");
       return;
     }
