@@ -621,6 +621,11 @@
   const JOIN_FEE_NAIRA = 1000;
   const TIER_CAPACITY = 500;
 
+  // Manual starting counts, shown on top of real joins so each tier
+  // looks like it already has this many people in it. Real joins are
+  // added on top of these and the numbers keep climbing from here.
+  const TIER_BASE_COUNTS = { 1: 55, 2: 70, 3: 49, 4: 48, 5: 50 };
+
   const TIER_LABELS = {
     1: 'Tier 1 (0 – 1,000 followers)',
     2: 'Tier 2 (1,000 – 5,000 followers)',
@@ -699,7 +704,9 @@
   });
 
   // Fetches how many non-removed entries exist per tier for a challenge,
-  // and disables any tier that has hit the 500-participant cap.
+  // adds the manual starting counts on top, and disables any tier that
+  // has hit the 500-participant cap (real entries are still capped at
+  // 500 real joins, independent of the display offset).
   async function refreshTierAvailability(challengeId){
     const { data: rows, error } = await supabaseClient
       .from('challenge_submissions')
@@ -707,21 +714,27 @@
       .eq('challenge_id', challengeId)
       .eq('is_removed', false);
 
-    tierCounts = {};
+    const realCounts = {};
     if (!error && rows){
       rows.forEach(r => {
-        tierCounts[r.tier] = (tierCounts[r.tier] || 0) + 1;
+        realCounts[r.tier] = (realCounts[r.tier] || 0) + 1;
       });
     }
 
+    tierCounts = {};
     document.querySelectorAll('.tier-option').forEach(label => {
       const tier = label.getAttribute('data-tier');
-      const count = tierCounts[tier] || 0;
+      const real = realCounts[tier] || 0;
+      const displayCount = real + (TIER_BASE_COUNTS[tier] || 0);
+      tierCounts[tier] = displayCount;
+
       const countEl = document.getElementById(`tier-count-${tier}`);
-      const isFull = count >= TIER_CAPACITY;
+      // Capacity is checked against real joins only, so the manual
+      // starting numbers never block anyone from actually joining.
+      const isFull = real >= TIER_CAPACITY;
 
       if (countEl){
-        countEl.textContent = isFull ? 'Full' : `${count} / ${TIER_CAPACITY} joined`;
+        countEl.textContent = isFull ? 'Full' : `${displayCount} / ${TIER_CAPACITY} joined`;
         countEl.classList.toggle('full-count', isFull);
       }
 
