@@ -313,8 +313,10 @@
 
     <div class="card">
       <h2>Marketplace</h2>
+      <input type="text" id="product-search" class="link-input" placeholder="Search products by name, category, or description…" style="margin-top:8px; width:100%; box-sizing:border-box;">
       <div id="products-loading" style="font-size:14px; opacity:0.7; margin-top:8px;">Loading products…</div>
       <div id="products-empty" style="font-size:14px; opacity:0.7; display:none; margin-top:8px;">No products available right now.</div>
+      <div id="products-no-results" style="font-size:14px; opacity:0.7; display:none; margin-top:8px;">No products match your search.</div>
       <div class="product-grid" id="product-grid"></div>
     </div>
 
@@ -447,6 +449,7 @@
   let allProducts = [];
   let allSales = [];
   let salesExpanded = false;
+  let productSearchTerm = '';
 
   function generateCode(){
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
@@ -497,18 +500,39 @@
     return created.code;
   }
 
+  function getFilteredProducts(){
+    const term = productSearchTerm.trim().toLowerCase();
+    if (!term) return allProducts;
+    return allProducts.filter(p => {
+      return (p.name || '').toLowerCase().includes(term)
+        || (p.description || '').toLowerCase().includes(term)
+        || (p.category || '').toLowerCase().includes(term);
+    });
+  }
+
   function renderProducts(){
     const grid = document.getElementById('product-grid');
     const emptyEl = document.getElementById('products-empty');
+    const noResultsEl = document.getElementById('products-no-results');
 
     if (allProducts.length === 0) {
       grid.innerHTML = '';
+      noResultsEl.style.display = 'none';
       emptyEl.style.display = 'block';
       return;
     }
     emptyEl.style.display = 'none';
 
-    grid.innerHTML = allProducts.map(p => `
+    const filtered = getFilteredProducts();
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '';
+      noResultsEl.style.display = 'block';
+      return;
+    }
+    noResultsEl.style.display = 'none';
+
+    grid.innerHTML = filtered.map(p => `
       <div class="product-card" data-product-id="${p.id}">
         <img class="product-thumb" src="${p.image_url || 'assets/product-placeholder.png'}" alt="${p.name}">
         <div class="product-body">
@@ -612,6 +636,11 @@
   document.getElementById('product-modal-close').addEventListener('click', closeProductModal);
   document.getElementById('product-modal-overlay').addEventListener('click', (event) => {
     if (event.target.id === 'product-modal-overlay') closeProductModal();
+  });
+
+  document.getElementById('product-search').addEventListener('input', (event) => {
+    productSearchTerm = event.target.value;
+    renderProducts();
   });
 
   document.getElementById('my-sales-btn').addEventListener('click', openSalesModal);
